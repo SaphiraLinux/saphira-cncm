@@ -491,8 +491,17 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
     for (int i = t->n - 1; i >= 0; i--) {
         TopRec *r = &t->r[i];
         float *dy = gmap_find(gm, r->y);
-        /* loss records (CE/MSE) always contribute (they are terminal) */
-        if (!dy && r->op != TOP_CE && r->op != TOP_MSE) continue;
+        /* loss records (CE/MSE) always contribute (they are terminal).
+         * Multi-output ops (ROPE: yq in c, yk in y; SPLIT: q/k/v in
+         * b/c/y) must not be skipped when only one output carries grad. */
+        if (!dy && r->op != TOP_CE && r->op != TOP_MSE) {
+            if (r->op == TOP_ROPE) {
+                if (!gmap_find(gm, r->c) && !gmap_find(gm, r->y)) continue;
+            } else if (r->op == TOP_SPLIT) {
+                if (!gmap_find(gm, r->b) && !gmap_find(gm, r->c) &&
+                    !gmap_find(gm, r->y)) continue;
+            } else continue;
+        }
         switch (r->op) {
         case TOP_CE: {
             /* dL/dlogits = (p - onehot)/cnt (mean reduction) */
