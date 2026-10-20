@@ -227,7 +227,15 @@ def main():
             with open(os.path.join(args.out, "bpe_vocab.txt"), "w") as f:
                 for i, s in inv:
                     f.write(f"{i}\t{s.encode('utf-8').hex()}\n")
-            ranks = sorted(hz.bpe_ranks.items(), key=lambda kv: kv[1])
+            ranks = None
+            if hasattr(hz, "bpe_ranks"):
+                ranks = sorted(hz.bpe_ranks.items(), key=lambda kv: kv[1])
+            elif hasattr(hz, "_merges"):
+                ranks = list(enumerate(hz._merges))
+                ranks = [((a, b), i) for i, (a, b) in ranks]
+            else:
+                bt = hz.backend_tokenizer
+                ranks = sorted(bt.model.merges.items() if hasattr(bt.model, "merges") else [], key=lambda kv: kv[1])
             with open(os.path.join(args.out, "bpe_merges.txt"), "w") as f:
                 for (a, b), _ in ranks:
                     ah = a.hex() if isinstance(a, bytes) else a.encode("utf-8").hex()

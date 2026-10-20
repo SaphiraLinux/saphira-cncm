@@ -29,7 +29,49 @@ struct TokState {
     int eos_id, pad_id;
     /* splitter pattern */
     int pattern; /* 0 = repo/gpt2, 1 = qwen/tiktoken */
+    int mapped;  /* 1 = GPT-2 bytes_to_unicode layer (gpt2-style HF BPE) */
 };
+
+/* ---------- GPT-2 bytes_to_unicode (fixed algorithmic mapping) ---------- */
+static unsigned b2u_cp[256];
+static unsigned char b2u_utf8[256][4];
+static int b2u_utf8_len[256];
+static int b2u_rev[512]; /* mapped code point -> original byte, -1 if none */
+static int b2u_ready = 0;
+
+static void b2u_init(void) {
+    if (b2u_ready) return;
+    int bs[256], cs[256], nb = 0;
+    for (int b = 0; b < 256; b++) b2u_rev[b] = -1;
+    /* printable ASCII + Latin-1 supplement that map to themselves */
+    for (int b = '!'; b <= '~'; b++) { bs[nb] = b; cs[nb] = b; nb++; }
+    for (int b = 0xA1; b <= 0xAC; b++) { bs[nb] = b; cs[nb] = b; nb++; }
+    for (int b = 0xAE; b <= 0xFF; b++) { bs[nb] = b; cs[nb] = b; nb++; }
+    int n = 0;
+    for (int b = 0; b < 256; b++) {
+        int found = 0;
+        for (int i = 0; i < nb; i++) if (bs[i] == b) { found = 1; break; }
+        if (!found) { bs[nb] = b; cs[nb] = 256 + n; n++; nb++; }
+    }
+    for (int i = 0; i < 256; i++) {
+        int b = bs[i], c = cs[i];
+        b2u_cp[b] = (unsigned)c;
+        b2u_rev[c] = b;
+        /* UTF-8 encode c */
+        if (c < 0x80) { b2u_utf8[b][0] = (unsigned char)c; b2u_utf8_len[b] = 1; }
+        else if (c < 0x800) {
+            b2u_utf8[b][0] = (unsigned char)(0xC0 | (c >> 6));
+            b2u_utf8[b][1] = (unsigned char)(0x80 | (c & 0x3F));
+            b2u_utf8_len[b] = 2;
+        } else {
+            b2u_utf8[b][0] = (unsigned char)(0xE0 | (c >> 12));
+            b2u_utf8[b][1] = (unsigned char)(0x80 | ((c >> 6) & 0x3F));
+            b2u_utf8[b][2] = (unsigned char)(0x80 | (c & 0x3F));
+            b2u_utf8_len[b] = 3;
+        }
+    }
+    b2u_ready = 1;
+}
 
 /* ---------- helpers ---------- */
 
@@ -168,13 +210,18 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
         int cap = 8192;
         t->vocab = (unsigned char **)malloc(cap * sizeof(char *));
         t->vlen = (int *)malloc(cap * sizeof(int));
-        char line[4096];
+        char line[8192];
         t->n_vocab = 0;
         while (fgets(line, sizeof(line), f)) {
             int id = atoi(line);
             char *tab = strchr(line, '\t');
             if (!tab) continue;
             tab[strcspn(tab, "\r\n")] = 0;
+            while (id >= cap) {
+                cap *= 2;
+                t->vocab = (unsigned char **)realloc(t->vocab, cap * sizeof(char *));
+                t->vlen = (int *)realloc(t->vlen, cap * sizeof(int));
+            }
             t->vocab[id] = unhex(tab + 1, &t->vlen[id]);
             if (id >= t->n_vocab) t->n_vocab = id + 1;
         }
@@ -188,6 +235,7 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
         t->mlen_a = (int *)malloc(mcap * sizeof(int));
         t->mlen_b = (int *)malloc(mcap * sizeof(int));
         t->n_merges = 0;
+        /* grow on demand below */
         while (fgets(line, sizeof(line), f)) {
             char *sp = strchr(line, ' ');
             if (!sp) continue;
@@ -196,13 +244,77 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
             /* note: ` *sp=0` then second token at sp+1; strip newline below */
             char *b = sp + 1;
             b[strcspn(b, "\r\n")] = 0;
+            if (t->n_merges >= mcap) {
+                mcap *= 2;
+                t->ma = (unsigned char **)realloc(t->ma, mcap * sizeof(char *));
+                t->mb = (unsigned char **)realloc(t->mb, mcap * sizeof(char *));
+                t->mlen_a = (int *)realloc(t->mlen_a, mcap * sizeof(int));
+                t->mlen_b = (int *)realloc(t->mlen_b, mcap * sizeof(int));
+            }
             t->ma[t->n_merges] = unhex(line, &t->mlen_a[t->n_merges]);
             t->mb[t->n_merges] = unhex(b, &t->mlen_b[t->n_merges]);
             t->n_merges++;
         }
         fclose(f);
-        /* reverse hash map */
-        t->hcap = 32768;
+        if (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "Qwen") != NULL)
+            t->pattern = 1;
+        if (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "Qwen") == NULL
+            && strstr(c->hf_model_id, "bert") == NULL && strstr(c->hf_model_id, "Bert") == NULL) {
+            b2u_init();
+            t->mapped = 1;
+        }
+        if (t->mapped) {
+            /* translate mapped-UTF8 vocab/merges back to original bytes so the
+             * byte-level BPE engine applies directly (1:1 byte correspondence) */
+            for (int id = 0; id < t->n_vocab; id++) {
+                unsigned char *o = t->vocab[id];
+                int n = t->vlen[id];
+                unsigned char *nb = (unsigned char *)malloc(n + 1);
+                int w = 0, r = 0;
+                while (r < n) {
+                    unsigned char cc = o[r];
+                    int cp, need;
+                    if (cc < 0x80) { cp = cc; need = 1; }
+                    else if ((cc & 0xE0) == 0xC0 && r + 1 < n) { cp = ((cc & 0x1F) << 6) | (o[r+1] & 0x3F); need = 2; }
+                    else if ((cc & 0xF0) == 0xE0 && r + 2 < n) { cp = ((cc & 0x0F) << 12) | ((o[r+1] & 0x3F) << 6) | (o[r+2] & 0x3F); need = 3; }
+                    else { cp = -1; need = 1; }
+                    int b = (cp >= 0 && cp < 512) ? b2u_rev[cp] : -1;
+                    if (b >= 0) nb[w++] = (unsigned char)b;
+                    else { for (int k = 0; k < need && r + k < n; k++) nb[w++] = o[r + k]; }
+                    r += need;
+                }
+                free(t->vocab[id]);
+                t->vocab[id] = nb;
+                t->vlen[id] = w;
+            }
+            for (int i = 0; i < t->n_merges; i++) {
+                for (int k = 0; k < 2; k++) {
+                    unsigned char *o = k ? t->mb[i] : t->ma[i];
+                    int n = k ? t->mlen_b[i] : t->mlen_a[i];
+                    unsigned char *nb = (unsigned char *)malloc(n + 1);
+                    int w = 0, r = 0;
+                    while (r < n) {
+                        unsigned char cc = o[r];
+                        int cp, need;
+                        if (cc < 0x80) { cp = cc; need = 1; }
+                        else if ((cc & 0xE0) == 0xC0 && r + 1 < n) { cp = ((cc & 0x1F) << 6) | (o[r+1] & 0x3F); need = 2; }
+                        else if ((cc & 0xF0) == 0xE0 && r + 2 < n) { cp = ((cc & 0x0F) << 12) | ((o[r+1] & 0x3F) << 6) | (o[r+2] & 0x3F); need = 3; }
+                        else { cp = -1; need = 1; }
+                        int b = (cp >= 0 && cp < 512) ? b2u_rev[cp] : -1;
+                        if (b >= 0) nb[w++] = (unsigned char)b;
+                        else { for (int q = 0; q < need && r + q < n; q++) nb[w++] = o[r + q]; }
+                        r += need;
+                    }
+                    free(o);
+                    if (k) { t->mb[i] = nb; t->mlen_b[i] = w; }
+                    else { t->ma[i] = nb; t->mlen_a[i] = w; }
+                }
+            }
+            t->mapped = 0; /* translated to raw bytes; engine + decode run unmapped */
+        }
+        /* reverse hash map (sized for vocab) */
+        t->hcap = 131072;
+        while (t->hcap < t->n_vocab * 2) t->hcap *= 2;
         t->htable = (int *)malloc(t->hcap * sizeof(int));
         for (int i = 0; i < t->hcap; i++) t->htable[i] = -1;
         for (int id = 0; id < t->n_vocab; id++) {
@@ -210,8 +322,6 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
             while (t->htable[h] != -1) h = (h + 1) & (t->hcap - 1);
             t->htable[h] = id;
         }
-        if (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "Qwen") != NULL)
-            t->pattern = 1;
         t->n_special = 0;
         if (t->eos_id >= 0 && t->eos_id + 1 > t->n_special) t->n_special = t->eos_id + 1;
         if (t->pad_id >= 0 && t->pad_id + 1 > t->n_special) t->n_special = t->pad_id + 1;
@@ -369,6 +479,31 @@ int tok_decode(TokState *t, const int *ids, int n, char *out, int cap,
         }
     }
     out[o] = 0;
+    if (t->mapped) {
+        /* unmap: mapped UTF-8 -> code points -> original bytes */
+        unsigned char *tmp = (unsigned char *)malloc(o + 1);
+        int w2 = 0;
+        for (int r = 0; r < o;) {
+            unsigned char c = out[r];
+            int cp, need;
+            if (c < 0x80) { cp = c; need = 1; }
+            else if ((c & 0xE0) == 0xC0 && r + 1 < o) { cp = ((c & 0x1F) << 6) | (out[r+1] & 0x3F); need = 2; }
+            else if ((c & 0xF0) == 0xE0 && r + 2 < o) { cp = ((c & 0x0F) << 12) | ((out[r+1] & 0x3F) << 6) | (out[r+2] & 0x3F); need = 3; }
+            else if ((c & 0xF8) == 0xF0 && r + 3 < o) { cp = ((c & 0x07) << 18) | ((out[r+1] & 0x3F) << 12) | ((out[r+2] & 0x3F) << 6) | (out[r+3] & 0x3F); need = 4; }
+            else { cp = 0xFFFD; need = 1; }
+            int b = (cp >= 0 && cp < 512) ? b2u_rev[cp] : -1;
+            if (b >= 0) tmp[w2++] = (unsigned char)b;
+            else {
+                /* not a mapped char: copy raw bytes through */
+                for (int k = 0; k < need && r + k < o; k++) tmp[w2++] = out[r + k];
+            }
+            r += need;
+        }
+        memcpy(out, tmp, w2);
+        o = w2;
+        out[o] = 0;
+        free(tmp);
+    }
     /* errors="replace": best-effort — lone continuation bytes become U+FFFD.
      * Validate quickly and patch. */
     {
