@@ -2,6 +2,7 @@ build/
 cncm
 cncm-cuda
 src/*.o
+tools/gpt2import
 weights/
 *.bin
 *.pkl
