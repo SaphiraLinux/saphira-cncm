@@ -898,7 +898,7 @@ static int gradcheck_run(NCPState *m, WeightStore *ws, NCMConfig *c,
         ph[idx] -= (float)eps;
         mem_h2d(pm.params[pi], ph, pm.sizes[pi] * sizeof(float));
         free(ph);
-        double num = (lp - lm) / (4e-2);
+        double num = (lp - lm) / (2 * eps);
         double denom = fabs(an) + fabs(num) + 1e-8;
         double rel = fabs(an - num) / denom;
         const char *nm = "?";
