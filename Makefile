@@ -1,6 +1,6 @@
 CC      ?= gcc
 NVCC    ?= nvcc
-CFLAGS  ?= -O2 -std=c11 -Wall -Wextra -Isrc
+CFLAGS  ?= -O2 -std=c11 -Wall -Wextra -Isrc -fopenmp
 LDFLAGS ?= -lm
 
 # ---- backend selection: `make` (CPU) or `make cuda` (NVIDIA GPU) ----
@@ -16,8 +16,8 @@ CC     := $(NVCC)
 CFLAGS := -O2 -std=c++17 -Isrc -DNCM_CUDA \
           -gencode arch=compute_86,code=sm_86 \
           -gencode arch=compute_86,code=compute_86 \
-          -Xcompiler "-Wall -Wextra"
-LDFLAGS := -lm -lcudart
+          -Xcompiler "-Wall -Wextra -fopenmp"
+LDFLAGS := -lm -lcudart -lgomp
 XFLAG  := -x cu
 else
 ODIR   := build/cpu

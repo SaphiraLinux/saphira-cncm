@@ -87,6 +87,7 @@ static void vae_block(WeightStore *ws, const char *pre, float *x,
         float *hqq = (float *)malloc((size_t)B * n_head * T * hd * sizeof(float));
         float *hkk = (float *)malloc((size_t)B * n_head * T * hd * sizeof(float));
         float *hvv = (float *)malloc((size_t)B * n_head * T * hd * sizeof(float));
+        #pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * T * 2 > 4)
         for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) {
             float *row = hq + ((size_t)b * T + t) * 3 * C;
             for (int hh = 0; hh < n_head; hh++) for (int d = 0; d < hd; d++) {
@@ -141,6 +142,7 @@ static void vae_block(WeightStore *ws, const char *pre, float *x,
         memcpy(hctx, ctx, (size_t)B * n_head * T * hd * sizeof(float));
 #endif
         float *ho = (float *)malloc((size_t)B * T * C * sizeof(float));
+        #pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * T * n_head > 8)
         for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int hh = 0; hh < n_head; hh++)
             for (int d = 0; d < hd; d++)
                 ho[((size_t)b * T + t) * C + hh * hd + d] =

@@ -218,6 +218,7 @@ static void ncp_block(NCPState *m, int li, float *x, int B, int S,
         float *hk = (float *)malloc((size_t)B * H * S * hd * sizeof(float));
         float *hv = (float *)malloc((size_t)B * H * S * hd * sizeof(float));
         int rep = H / nkv;
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * S > 2)
         for (int b = 0; b < B; b++) for (int s = 0; s < S; s++) {
             float *row = h + ((size_t)b * S + s) * (C + 2 * nkv * hd);
             for (int hh = 0; hh < H; hh++) for (int d = 0; d < hd; d++) {
@@ -248,6 +249,7 @@ static void ncp_block(NCPState *m, int li, float *x, int B, int S,
         float *hc = (float *)malloc((size_t)B * H * S * hd * sizeof(float));
         d2h(hc, ctx, (size_t)B * H * S * hd);
         float *ho = (float *)malloc((size_t)B * S * C * sizeof(float));
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * S * H > 8)
         for (int b = 0; b < B; b++) for (int s = 0; s < S; s++) for (int hh = 0; hh < H; hh++)
             for (int d = 0; d < hd; d++)
                 ho[((size_t)b * S + s) * C + hh * hd + d] =

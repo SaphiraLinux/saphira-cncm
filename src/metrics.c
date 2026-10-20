@@ -465,7 +465,6 @@ void metric_rouge(char **hyps, char **refs, int n, double *r1, double *r2, doubl
                 sl += (p + rr) > 0 ? 2 * p * rr / (p + rr) : 0;
             }
             free(a); free(b);
-            (void)N;
         }
     }
     *r1 = 100 * s1 / (n ? n : 1);

@@ -39,6 +39,7 @@ void linear_fwd(const float *x, const float *W, const float *b,
 #ifdef NCM_CUDA
     NCM_LAUNCH(batch * M, k_linear, x, W, b, y, batch, M, K);
 #else
+#pragma omp parallel for schedule(static) if(batch * M > 512)
     for (int64_t r = 0; r < batch; r++) {
         for (int m = 0; m < M; m++) {
             double acc = b ? b[m] : 0.0;
@@ -101,6 +102,7 @@ void layernorm_fwd(const float *x, const float *w, const float *b,
 #ifdef NCM_CUDA
     NCM_LAUNCH(rows, k_layernorm, x, w, b, y, rows, C);
 #else
+#pragma omp parallel for schedule(static) if(rows > 4)
     for (int64_t r = 0; r < rows; r++) {
         const float *xr = x + r * C; float *yr = y + r * C;
         double mean = 0; for (int c = 0; c < C; c++) mean += xr[c]; mean /= C;
@@ -116,6 +118,7 @@ void rmsnorm_fwd(const float *x, const float *w, float *y, int64_t rows, int C) 
 #ifdef NCM_CUDA
     NCM_LAUNCH(rows, k_rmsnorm, x, w, y, rows, C);
 #else
+#pragma omp parallel for schedule(static) if(rows > 4)
     for (int64_t r = 0; r < rows; r++) {
         const float *xr = x + r * C; float *yr = y + r * C;
         double ms = 0; for (int c = 0; c < C; c++) ms += (double)xr[c] * xr[c]; ms /= C;
@@ -169,6 +172,7 @@ void softmax_fwd(const float *x, float *y, int64_t rows, int C) {
 #ifdef NCM_CUDA
     NCM_LAUNCH(rows, k_softmax, x, y, rows, C);
 #else
+#pragma omp parallel for schedule(static) if(rows > 4)
     for (int64_t r = 0; r < rows; r++) {
         const float *xr = x + r * C; float *yr = y + r * C;
         float mx = xr[0]; for (int c = 1; c < C; c++) if (xr[c] > mx) mx = xr[c];
@@ -279,6 +283,7 @@ void sdpa_fwd(const float *q, const float *k, const float *v, const float *mask,
             q, k, v, mask, out, dscores, B, H, Tq, Tkv, hd, scale);
     }
 #else
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * H * Tq > 4)
     for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) {
         for (int tq = 0; tq < Tq; tq++) {
             const float *qr = q + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
@@ -353,6 +358,7 @@ void conv1d_fwd(const float *x, const float *W, const float *b, float *y,
     NCM_LAUNCH((int64_t)N * Cout * Tout, k_conv1d, x, W, b, y, N, Cin, Cout, T, K, stride, pad);
 #else
     int64_t Tout = (T + 2 * pad - K) / stride + 1;
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * Cout > 2)
     for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
         for (int64_t t = 0; t < Tout; t++) {
             double acc = b ? b[co] : 0.0;
@@ -375,6 +381,7 @@ void convtranspose1d_fwd(const float *x, const float *W, const float *b, float *
     NCM_LAUNCH((int64_t)N * Cout * Tout, k_convT, x, W, b, y, N, Cin, Cout, T, K, stride);
 #else
     int64_t Tout = (int64_t)(T - 1) * stride + K;
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * Cout > 2)
     for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
         for (int64_t t = 0; t < Tout; t++) {
             double acc = b ? b[co] : 0.0;
@@ -421,6 +428,7 @@ void groupnorm_fwd(const float *x, float *y, int N, int G, int C, int T) {
     NCM_LAUNCH((int64_t)N * G, k_groupnorm, x, y, N, G, C, T);
 #else
     int Cg = C / G;
+#pragma omp parallel for collapse(2) schedule(static) if(N * G > 2)
     for (int n = 0; n < N; n++) for (int g = 0; g < G; g++) {
         double mean = 0; int64_t cnt = (int64_t)Cg * T;
         for (int c = 0; c < Cg; c++) for (int t = 0; t < T; t++)
@@ -482,6 +490,7 @@ void interpolate_area_fwd(const float *x, float *y, int N, int C, int Tin, int T
 #ifdef NCM_CUDA
     NCM_LAUNCH((int64_t)N * C * Tout, k_interp_area, x, y, N, C, Tin, Tout);
 #else
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * C > 4)
     for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
         const float *xr = x + ((int64_t)n * C + c) * Tin;
         float *yr = y + ((int64_t)n * C + c) * Tout;
@@ -502,6 +511,7 @@ void interpolate_linear_fwd(const float *x, float *y, int N, int C, int Tin, int
 #ifdef NCM_CUDA
     NCM_LAUNCH((int64_t)N * C * Tout, k_interp_lin, x, y, N, C, Tin, Tout);
 #else
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * C > 4)
     for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
         const float *xr = x + ((int64_t)n * C + c) * Tin;
         float *yr = y + ((int64_t)n * C + c) * Tout;
@@ -553,6 +563,7 @@ void rowwise_l2sq(const float *a, const float *b, float *d2,
 #ifdef NCM_CUDA
     NCM_LAUNCH(rows * colsA, k_l2sq, a, b, d2, rows, colsA, C);
 #else
+#pragma omp parallel for schedule(static) if(rows * colsA > 4096)
     for (int64_t i = 0; i < rows; i++) {
         for (int64_t j = 0; j < colsA; j++) {
             double s = 0;
