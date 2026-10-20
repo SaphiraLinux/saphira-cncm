@@ -1040,14 +1040,14 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             int64_t row = (int64_t)C + 2 * K * hd;
             float *dx = gmap_get(gm, r->a, (size_t)B * T * row);
             if (gq) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++)
-                dx[((size_t)b * T + t) * C + h * hd + d] += gq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+                dx[((size_t)b * T + t) * row + h * hd + d] += gq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
             if (gk) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
                 int kvh = h / rep;
-                dx[((size_t)b * T + t) * C + C + kvh * hd + d] += gk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+                dx[((size_t)b * T + t) * row + C + kvh * hd + d] += gk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
             }
             if (gv) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
                 int kvh = h / rep;
-                dx[((size_t)b * T + t) * C + C + K * hd + kvh * hd + d] += gv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+                dx[((size_t)b * T + t) * row + C + K * hd + kvh * hd + d] += gv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
             }
             break;
         }
