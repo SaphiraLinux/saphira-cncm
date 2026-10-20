@@ -8,7 +8,7 @@ BUILD   ?= cpu
 BIN     ?= cncm
 
 SRC := src/main.c src/tensor.c src/kernels.c src/vq.c src/vqvae.c \
-       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/train.c src/train_tape.c src/train_vq.c
+       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/qwen.c src/train.c src/train_tape.c src/train_vq.c
 
 ifeq ($(BUILD),cuda)
 ODIR   := build/cuda
@@ -46,7 +46,10 @@ test: $(BIN)
 tools/gpt2import: tools/gpt2import.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<
 
-clean:
-	rm -rf build $(BIN) cncm-cuda tools/gpt2import
+tools/qwenimport: tools/qwenimport.c
+	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<
 
-.PHONY: all cuda test clean tools/gpt2import
+clean:
+	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport
+
+.PHONY: all cuda test clean tools/gpt2import tools/qwenimport

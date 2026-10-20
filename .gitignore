@@ -8,3 +8,5 @@ weights/
 *.pkl
 eval/
 ckpt-*.ncm
+
+tools/qwenimport
