@@ -615,3 +615,97 @@ int sample_topkp(const float *logits, int V, float temp, int top_k, float top_p,
     free(work); free(ord); free(probs);
     return pick;
 }
+
+/* ================= elementwise add/scale (training) ================= */
+#ifdef NCM_CUDA
+__global__ static void k_add(const float *a, const float *b, float *y, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) y[i] = a[i] + b[i];
+}
+__global__ static void k_scale(const float *x, float s, float *y, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) y[i] = x[i] * s;
+}
+__global__ static void k_add_inplace2(float *y, const float *x, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) y[i] += x[i];
+}
+#endif
+
+void add_fwd(const float *a, const float *b, float *y, int64_t n) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(n, k_add, a, b, y, n);
+#else
+    for (int64_t i = 0; i < n; i++) y[i] = a[i] + b[i];
+#endif
+}
+
+void scale_fwd(const float *x, float s, float *y, int64_t n) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(n, k_scale, x, s, y, n);
+#else
+    for (int64_t i = 0; i < n; i++) y[i] = x[i] * s;
+#endif
+}
+
+void add_inplace_fwd(float *y, const float *x, int64_t n) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(n, k_add_inplace2, y, x, n);
+#else
+    for (int64_t i = 0; i < n; i++) y[i] += x[i];
+#endif
+}
+
+/* ================= qkv split / head merge (training, recorded) ================= */
+/* split: qkv[B,T,3C] (or [B,T,C+2*Kv*hd]) -> qq,kk,vv [B,H,T,hd].
+ * head h rows: q from [h*hd, h*hd+hd), k from [C+h*hd/K... ] — general GQA:
+ *   q[b,h,t,d] = in[b,t,h*hd+d]
+ *   k[b,h,t,d] = in[b,t,C+(h/rep)*hd+d]
+ *   v[b,h,t,d] = in[b,t,C+K*hd+(h/rep)*hd+d], K=n_kv_heads */
+#ifdef NCM_CUDA
+__global__ static void k_qkvsplit(const float *in, float *qq, float *kk, float *vv,
+                                  int B, int T, int C, int H, int hd, int K, int rep) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (int64_t)B * H * T * hd) return;
+    int d = (int)(i % hd); int t = (int)((i / hd) % T);
+    int h = (int)((i / (hd * T)) % H); int b = (int)(i / ((int64_t)H * T * hd));
+    int kvh = h / rep;
+    int64_t W = (int64_t)C + 2 * K * hd;
+    qq[i] = in[((int64_t)b * T + t) * W + h * hd + d];
+    kk[i] = in[((int64_t)b * T + t) * W + C + kvh * hd + d];
+    vv[i] = in[((int64_t)b * T + t) * W + C + K * hd + kvh * hd + d];
+}
+__global__ static void k_headmerge(const float *ctx, float *out, int B, int T, int C, int H, int hd) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (int64_t)B * T * C) return;
+    int d = (int)(i % C);
+    int hh = d / hd, dd = d % hd;
+    int t = (int)((i / C) % T); int b = (int)(i / ((int64_t)T * C));
+    out[i] = ctx[((int64_t)b * H + hh) * T * hd + (int64_t)t * hd + dd];
+}
+#endif
+
+void qkv_split_fwd(const float *in, float *qq, float *kk, float *vv,
+                   int B, int T, int C, int H, int hd, int K, int rep) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH((int64_t)B * H * T * hd, k_qkvsplit, in, qq, kk, vv, B, T, C, H, hd, K, rep);
+#else
+    int64_t W = (int64_t)C + 2 * K * hd;
+    for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
+        int kvh = h / rep;
+        qq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] = in[((size_t)b * T + t) * W + h * hd + d];
+        kk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] = in[((size_t)b * T + t) * W + C + kvh * hd + d];
+        vv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] = in[((size_t)b * T + t) * W + C + K * hd + kvh * hd + d];
+    }
+#endif
+}
+
+void head_merge_fwd(const float *ctx, float *out, int B, int T, int C, int H, int hd) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH((int64_t)B * T * C, k_headmerge, ctx, out, B, T, C, H, hd);
+#else
+    for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int hh = 0; hh < H; hh++) for (int d = 0; d < hd; d++)
+        out[((size_t)b * T + t) * C + hh * hd + d] =
+            ctx[((size_t)b * H + hh) * T * hd + (size_t)t * hd + d];
+#endif
+}

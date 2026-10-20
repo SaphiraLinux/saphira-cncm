@@ -1,0 +1,1085 @@
+/* train_tape.c — reverse-mode autograd for the NCM kernel set.
+ *
+ * Recording wrappers (t_*) call the backend forward kernels and append a
+ * record holding backend pointers (arena-resident until step end) plus a
+ * host-owned aux stash (sv). tape_backward() stages to host and runs
+ * plain-C backward loops, correct on CPU and CUDA builds alike.
+ *
+ * Parameter grads accumulate into the optimizer's buffers (matched by
+ * pointer); activation grads accumulate in an internal map and die with
+ * the step.
+ */
+#include "ncm.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef enum {
+    TOP_LINEAR, TOP_EMBED, TOP_LN, TOP_RMSN, TOP_GN,
+    TOP_GELU, TOP_SILU,
+    TOP_SOFTMAX, TOP_ROPE, TOP_SDPA,
+    TOP_CONV, TOP_CONVT, TOP_IAREA, TOP_ILIN,
+    TOP_ADD, TOP_SCALE, TOP_CONCAT, TOP_GATHER, TOP_MUL, TOP_RELU2, TOP_JOIN,
+    TOP_SPLIT, TOP_MERGE,
+    TOP_CE, TOP_TIED,
+} TopKind;
+
+typedef struct { float *P; float scale; int H; } SdpaAux;
+typedef struct { float *probs; int *tgt; float *w; double cnt; } CeAux;
+typedef struct { float *hE; double *Esq; double dscale, invT; } TiedAux;
+
+typedef struct {
+    TopKind op;
+    float *a, *b, *c, *y;
+    void *sv;               /* host-owned aux (freed with tape) */
+    int64_t n;
+    int p1, p2, p3, p4;
+    double s;
+} TopRec;
+
+struct Tape {
+    TopRec *r;
+    int n, cap;
+};
+
+typedef struct {
+    const float *key;
+    float *g;
+    int64_t n;
+    int owned;
+} GEnt;
+
+typedef struct {
+    GEnt *e;
+    int n, cap;
+} GMap;
+
+Tape *tape_new(void) {
+    Tape *t = (Tape *)calloc(1, sizeof(Tape));
+    t->cap = 2048;
+    t->r = (TopRec *)malloc(t->cap * sizeof(TopRec));
+    return t;
+}
+
+static void tape_free_recs(Tape *t, int from) {
+    for (int i = from; i < t->n; i++) free(t->r[i].sv);
+}
+
+void tape_free(Tape *t) { tape_free_recs(t, 0); free(t->r); free(t); }
+void tape_clear(Tape *t) { tape_free_recs(t, 0); t->n = 0; }
+
+static TopRec *emit(Tape *t, TopKind op) {
+    if (t->n == t->cap) {
+        t->cap *= 2;
+        t->r = (TopRec *)realloc(t->r, t->cap * sizeof(TopRec));
+    }
+    TopRec *r = &t->r[t->n++];
+    memset(r, 0, sizeof(*r));
+    r->op = op;
+    return r;
+}
+
+static GMap *gmap_new(void) {
+    GMap *m = (GMap *)calloc(1, sizeof(GMap));
+    m->cap = 256;
+    m->e = (GEnt *)malloc(m->cap * sizeof(GEnt));
+    return m;
+}
+
+static void gmap_free(GMap *m) {
+    for (int i = 0; i < m->n; i++) if (m->e[i].owned) free(m->e[i].g);
+    free(m->e);
+    free(m);
+}
+
+/* alias an external grad buffer (not owned, not freed) */
+static float *gmap_find(GMap *m, const float *key);
+
+static void gmap_alias(GMap *m, const float *key, float *g, int64_t n) {
+    if (gmap_find(m, key)) return;
+    if (m->n == m->cap) {
+        m->cap *= 2;
+        m->e = (GEnt *)realloc(m->e, m->cap * sizeof(GEnt));
+    }
+    m->e[m->n].key = key;
+    m->e[m->n].g = g;
+    m->e[m->n].n = n;
+    m->e[m->n].owned = 0;
+    m->n++;
+}
+
+static float *gmap_get(GMap *m, const float *key, int64_t n) {
+    for (int i = 0; i < m->n; i++)
+        if (m->e[i].key == key) return m->e[i].g;
+    if (m->n == m->cap) {
+        m->cap *= 2;
+        m->e = (GEnt *)realloc(m->e, m->cap * sizeof(GEnt));
+    }
+    float *g = (float *)calloc(n, sizeof(float));
+    m->e[m->n].key = key;
+    m->e[m->n].g = g;
+    m->e[m->n].n = n;
+    m->e[m->n].owned = 1;
+    m->n++;
+    return g;
+}
+
+static float *gmap_find(GMap *m, const float *key) {
+    for (int i = 0; i < m->n; i++)
+        if (m->e[i].key == key) return m->e[i].g;
+    return NULL;
+}
+
+static float *stage_h(const float *d, size_t n) {
+    float *h = (float *)malloc(n * sizeof(float));
+    mem_d2h(h, d, n * sizeof(float));
+    return h;
+}
+
+/* ---------------- recording wrappers (backend forward + record) ---------------- */
+
+void t_linear(Tape *t, const float *x, const float *W, const float *b,
+              float *y, int64_t batch, int M, int K) {
+    linear_fwd(x, W, b, y, batch, M, K);
+    TopRec *r = emit(t, TOP_LINEAR);
+    r->a = (float *)x; r->b = (float *)W; r->c = (float *)b; r->y = y;
+    r->n = batch; r->p1 = (int)M; r->p2 = (int)K;
+}
+
+void t_embed(Tape *t, const float *W, const int *idx, int V, float *y,
+             int64_t n, int D) {
+    int *bidx = (int *)arena_alloc(n);
+    mem_h2d(bidx, idx, n * sizeof(int));
+    embedding_fwd(W, bidx, y, n, D);
+    TopRec *r = emit(t, TOP_EMBED);
+    r->a = (float *)W; r->y = y; r->n = n; r->p1 = D; r->p2 = V;
+    int *cp = (int *)malloc(n * sizeof(int));
+    memcpy(cp, idx, n * sizeof(int));
+    r->sv = cp;
+}
+
+void t_layernorm(Tape *t, const float *x, const float *w, const float *b,
+                 float *y, int64_t rows, int C) {
+    layernorm_fwd(x, w, b, y, rows, C);
+    TopRec *r = emit(t, TOP_LN);
+    r->a = (float *)x; r->b = (float *)w; r->c = (float *)b; r->y = y;
+    r->n = rows; r->p1 = C;
+}
+
+void t_rmsnorm(Tape *t, const float *x, const float *w, float *y,
+               int64_t rows, int C) {
+    rmsnorm_fwd(x, w, y, rows, C);
+    TopRec *r = emit(t, TOP_RMSN);
+    r->a = (float *)x; r->b = (float *)w; r->y = y;
+    r->n = rows; r->p1 = C;
+}
+
+void t_groupnorm(Tape *t, const float *x, float *y, int N, int G, int C, int TT) {
+    groupnorm_fwd(x, y, N, G, C, TT);
+    TopRec *r = emit(t, TOP_GN);
+    r->a = (float *)x; r->y = y;
+    r->n = N; r->p1 = G; r->p2 = C; r->p3 = TT;
+}
+
+void t_gelu(Tape *t, const float *x, float *y, int64_t n) {
+    gelu_fwd(x, y, n);
+    TopRec *r = emit(t, TOP_GELU);
+    r->a = (float *)x; r->y = y; r->n = n;
+}
+
+void t_silu(Tape *t, const float *x, float *y, int64_t n) {
+    silu_fwd(x, y, n);
+    TopRec *r = emit(t, TOP_SILU);
+    r->a = (float *)x; r->y = y; r->n = n;
+}
+
+void t_mul(Tape *t, const float *a, const float *b, float *y, int64_t n) {
+    float *ha = stage_h(a, (size_t)n);
+    float *hb = stage_h(b, (size_t)n);
+    float *ho = (float *)malloc(n * sizeof(float));
+    for (int64_t i = 0; i < n; i++) ho[i] = ha[i] * hb[i];
+    free(ha); free(hb);
+    mem_h2d(y, ho, n * sizeof(float));
+    free(ho);
+    TopRec *r = emit(t, TOP_MUL);
+    r->a = (float *)a; r->b = (float *)b; r->y = y; r->n = n;
+}
+
+void t_relu2(Tape *t, const float *x, float *y, int64_t n) {
+    float *hx = stage_h(x, (size_t)n);
+    float *ho = (float *)malloc(n * sizeof(float));
+    for (int64_t i = 0; i < n; i++) { float v = hx[i] > 0 ? hx[i] : 0; ho[i] = v * v; }
+    free(hx);
+    mem_h2d(y, ho, n * sizeof(float));
+    free(ho);
+    TopRec *r = emit(t, TOP_RELU2);
+    r->a = (float *)x; r->y = y; r->n = n;
+}
+
+void t_softmax(Tape *t, const float *x, float *y, int64_t rows, int C) {
+    softmax_fwd(x, y, rows, C);
+    TopRec *r = emit(t, TOP_SOFTMAX);
+    r->a = (float *)x; r->y = y; r->n = rows; r->p1 = C;
+}
+
+/* out-of-place rope into yq/yk (caller-allocated). cos/sin persistent. */
+void t_rope(Tape *t, const float *xq, const float *xk, float *yq, float *yk,
+            const float *cos, const float *sin, int B, int H, int T, int hd) {
+    size_t n = (size_t)B * H * T * hd;
+    mem_d2d(yq, xq, n * sizeof(float));
+    mem_d2d(yk, xk, n * sizeof(float));
+    rope_apply(yq, yk, cos, sin, B, H, T, hd);
+    TopRec *r = emit(t, TOP_ROPE);
+    r->a = (float *)xq; r->b = (float *)xk; r->c = yq; r->y = yk;
+    const float **cs = (const float **)malloc(2 * sizeof(void *));
+    cs[0] = cos; cs[1] = sin;
+    r->sv = cs;
+    r->n = B; r->p1 = H; r->p2 = T; r->p3 = hd;
+}
+
+/* SDPA with additive mask; saves probs P for backward. */
+void t_sdpa(Tape *t, const float *q, const float *k, const float *v,
+            const float *mask, float *o, int B, int H, int Tq, int Tkv, int hd) {
+    int64_t rows = (int64_t)B * H * Tq;
+    float *P = arena_alloc((size_t)rows * Tkv);
+    /* forward via existing kernel into temp, then probs recompute on host?
+     * Simplest correct: run sdpa_fwd (backend), then recompute P on host
+     * from staged q,k,mask for the backward. Costs one extra host pass. */
+    sdpa_fwd(q, k, v, mask, o, B, H, Tq, Tkv, hd);
+    float scale = 1.0f / sqrtf((float)hd);
+    float *hq = stage_h(q, (size_t)rows * Tq * 0 + (size_t)B * H * Tq * hd);
+    float *hk = stage_h(k, (size_t)B * H * Tkv * hd);
+    float *hm = mask ? stage_h(mask, (size_t)Tq * Tkv) : NULL;
+    float *hP = (float *)malloc((size_t)rows * Tkv * sizeof(float));
+    for (int64_t r = 0; r < rows; r++) {
+        int bh = (int)(r / Tq), tq = (int)(r % Tq);
+        double mx = -1e300;
+        for (int tk = 0; tk < Tkv; tk++) {
+            const float *qr = hq + (r * hd), *kr = hk + ((int64_t)bh * Tkv + tk) * hd;
+            double s = 0;
+            for (int d = 0; d < hd; d++) s += (double)qr[d] * kr[d];
+            s *= scale;
+            if (hm) s += hm[tq * Tkv + tk];
+            hP[r * Tkv + tk] = (float)s;
+            if (s > mx) mx = s;
+        }
+        double den = 0;
+        for (int tk = 0; tk < Tkv; tk++) { hP[r * Tkv + tk] = (float)exp(hP[r * Tkv + tk] - mx); den += hP[r * Tkv + tk]; }
+        for (int tk = 0; tk < Tkv; tk++) hP[r * Tkv + tk] /= (float)den;
+    }
+    free(hq); free(hk); free(hm);
+    mem_h2d(P, hP, (size_t)rows * Tkv * sizeof(float));
+    free(hP);
+    TopRec *r = emit(t, TOP_SDPA);
+    r->a = (float *)q; r->b = (float *)k; r->c = (float *)v; r->y = o;
+    r->sv = NULL; /* P lives in arena (P ptr stashed below in s? need it!) */
+    r->n = rows; r->p1 = hd; r->p2 = Tq; r->p3 = Tkv;
+    /* stash P pointer + scale in sv */
+    SdpaAux *st = (SdpaAux *)malloc(sizeof(SdpaAux));
+    st->P = P; st->scale = scale; st->H = H;
+    r->sv = st;
+}
+
+void t_conv(Tape *t, const float *x, const float *W, const float *b, float *y,
+            int N, int Cin, int Cout, int T, int K, int stride, int pad) {
+    conv1d_fwd(x, W, b, y, N, Cin, Cout, T, K, stride, pad);
+    TopRec *r = emit(t, TOP_CONV);
+    r->a = (float *)x; r->b = (float *)W; r->c = (float *)b; r->y = y;
+    r->n = N; r->p1 = Cin; r->p2 = Cout; r->p3 = T; r->p4 = K;
+    int *sp = (int *)malloc(2 * sizeof(int));
+    sp[0] = stride; sp[1] = pad;
+    r->sv = sp;
+}
+
+void t_convt(Tape *t, const float *x, const float *W, const float *b, float *y,
+             int N, int Cin, int Cout, int T, int K, int stride) {
+    convtranspose1d_fwd(x, W, b, y, N, Cin, Cout, T, K, stride);
+    TopRec *r = emit(t, TOP_CONVT);
+    r->a = (float *)x; r->b = (float *)W; r->c = (float *)b; r->y = y;
+    r->n = N; r->p1 = Cin; r->p2 = Cout; r->p3 = T; r->p4 = K;
+    int *sp = (int *)malloc(sizeof(int));
+    sp[0] = stride;
+    r->sv = sp;
+}
+
+void t_iarea(Tape *t, const float *x, float *y, int N, int C, int Tin, int Tout) {
+    interpolate_area_fwd(x, y, N, C, Tin, Tout);
+    TopRec *r = emit(t, TOP_IAREA);
+    r->a = (float *)x; r->y = y;
+    r->n = N; r->p1 = C; r->p2 = Tin; r->p3 = Tout;
+}
+
+void t_ilin(Tape *t, const float *x, float *y, int N, int C, int Tin, int Tout) {
+    interpolate_linear_fwd(x, y, N, C, Tin, Tout);
+    TopRec *r = emit(t, TOP_ILIN);
+    r->a = (float *)x; r->y = y;
+    r->n = N; r->p1 = C; r->p2 = Tin; r->p3 = Tout;
+}
+
+void t_add(Tape *t, const float *a, const float *b, float *y, int64_t n) {
+    add_fwd(a, b, y, n);
+    TopRec *r = emit(t, TOP_ADD);
+    r->a = (float *)a; r->b = (float *)b; r->y = y; r->n = n;
+}
+
+void t_scale(Tape *t, const float *x, float s, float *y, int64_t n) {
+    scale_fwd(x, s, y, n);
+    TopRec *r = emit(t, TOP_SCALE);
+    r->a = (float *)x; r->y = y; r->n = n; r->s = s;
+}
+
+void t_concat(Tape *t, const float *a, const float *b, float *y, int64_t na, int64_t nb) {
+    /* manual concat (backend) */
+#ifdef NCM_CUDA
+    cudaMemcpy(y, a, na * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemcpy(y + na, b, nb * sizeof(float), cudaMemcpyDeviceToDevice);
+#else
+    memcpy(y, a, na * sizeof(float));
+    memcpy(y + na, b, nb * sizeof(float));
+#endif
+    TopRec *r = emit(t, TOP_CONCAT);
+    r->a = (float *)a; r->b = (float *)b; r->y = y; r->n = na; r->s = (double)nb;
+}
+
+void t_qkvsplit(Tape *t, const float *in, float *qq, float *kk, float *vv,
+                  int B, int T, int C, int H, int hd, int K, int rep) {
+    qkv_split_fwd(in, qq, kk, vv, B, T, C, H, hd, K, rep);
+    TopRec *r = emit(t, TOP_SPLIT);
+    r->a = (float *)in; r->b = qq; r->c = kk; r->y = vv;
+    r->n = B; r->p1 = T; r->p2 = C; r->p3 = H; r->p4 = hd;
+    int *ip = (int *)malloc(2 * sizeof(int));
+    ip[0] = K; ip[1] = rep;
+    r->sv = ip;
+}
+
+void t_headmerge(Tape *t, const float *ctx, float *out, int B, int T, int C, int H, int hd) {
+    head_merge_fwd(ctx, out, B, T, C, H, hd);
+    TopRec *r = emit(t, TOP_MERGE);
+    r->a = (float *)ctx; r->y = out;
+    r->n = B; r->p1 = T; r->p2 = C; r->p3 = H; r->p4 = hd;
+}
+
+void t_join(Tape *t, const float *a, const float *b, float *y, int B, int P, int T, int C) {
+    for (int bb = 0; bb < B; bb++) {
+        mem_d2d(y + ((size_t)bb * (P + T) + 0) * C, a + (size_t)bb * P * C, (size_t)P * C * sizeof(float));
+        mem_d2d(y + ((size_t)bb * (P + T) + P) * C, b + (size_t)bb * T * C, (size_t)T * C * sizeof(float));
+    }
+    TopRec *r = emit(t, TOP_JOIN);
+    r->a = (float *)a; r->b = (float *)b; r->y = y;
+    r->n = B; r->p1 = P; r->p2 = T; r->p3 = C;
+}
+
+void t_gather_rows(Tape *t, const float *x, const int *rows, int nrows, int C, float *y) {
+    /* y[i] = x[rows[i]] row-wise, via host staging (training path) */
+    int64_t n = (int64_t)nrows * C;
+    float *hy = (float *)malloc(n * sizeof(float));
+    int mx = 0;
+    for (int i = 0; i < nrows; i++) if (rows[i] > mx) mx = rows[i];
+    float *hs = stage_h(x, (size_t)(mx + 1) * C);
+    for (int i = 0; i < nrows; i++)
+        memcpy(hy + (size_t)i * C, hs + (size_t)rows[i] * C, C * sizeof(float));
+    mem_h2d(y, hy, n * sizeof(float));
+    free(hy); free(hs);
+    TopRec *r = emit(t, TOP_GATHER);
+    r->a = (float *)x; r->y = y; r->n = nrows; r->p1 = C;
+    int *cp = (int *)malloc(nrows * sizeof(int));
+    memcpy(cp, rows, nrows * sizeof(int));
+    r->sv = cp;
+}
+
+/* Fused softmax-CE: loss[0] = mean NLL over valid rows; saves probs. */
+void t_ce(Tape *t, const float *logits, const int *tgt, const float *wmask,
+          float *loss, float *probs, int64_t rows, int V, double weight) {
+    float *hl = stage_h(logits, (size_t)rows * V);
+    int *ht = (int *)malloc(rows * sizeof(int));
+    memcpy(ht, tgt, rows * sizeof(int));
+    float *hw = NULL;
+    if (wmask) {
+        hw = (float *)malloc(rows * sizeof(float));
+        memcpy(hw, wmask, rows * sizeof(float));
+    }
+    double nll = 0, cnt = 0;
+    float *hp = (float *)malloc((size_t)rows * V * sizeof(float));
+    for (int64_t r = 0; r < rows; r++) {
+        float m = hl[r * V];
+        for (int v = 1; v < V; v++) if (hl[r * V + v] > m) m = hl[r * V + v];
+        double den = 0;
+        for (int v = 0; v < V; v++) { double e = exp((double)hl[r * V + v] - m); hp[r * V + v] = (float)e; den += e; }
+        for (int v = 0; v < V; v++) hp[r * V + v] /= (float)den;
+        float wm = hw ? hw[r] : 1.0f;
+        if (wm != 0) {
+            nll += wm * -log(hp[r * V + ht[r]] + 1e-30);
+            cnt += wm;
+        }
+    }
+    free(hl);
+    mem_h2d(probs, hp, (size_t)rows * V * sizeof(float));
+    float lh = cnt > 0 ? (float)(nll / cnt) : 0.0f;
+    mem_h2d(loss, &lh, sizeof(float));
+    TopRec *r = emit(t, TOP_CE);
+    r->a = (float *)logits; r->y = loss;
+    r->n = rows; r->p1 = V; r->s = weight;
+    CeAux *st = (CeAux *)malloc(sizeof(CeAux));
+    st->probs = probs; st->tgt = ht; st->w = hw; st->cnt = cnt;
+    r->sv = st;
+}
+
+/* Tied codebook head forward (distance form) + record. */
+void t_tied(Tape *t, const float *z, const float *E, const float *bias,
+            float *out, int64_t rows, int Dd, int V, double dscale, double invT) {
+    float *hz = stage_h(z, (size_t)rows * Dd);
+    float *hE = stage_h(E, (size_t)V * Dd);
+    double *Esq = (double *)malloc(V * sizeof(double));
+    for (int v = 0; v < V; v++) {
+        double s = 0;
+        for (int d = 0; d < Dd; d++) s += (double)hE[v * Dd + d] * hE[v * Dd + d];
+        Esq[v] = s;
+    }
+    float *ho = (float *)malloc((size_t)rows * V * sizeof(float));
+    float *hb = NULL;
+    if (bias) { hb = (float *)malloc(V * sizeof(float)); memcpy(hb, bias, V * sizeof(float)); }
+    for (int64_t r = 0; r < rows; r++) {
+        for (int v = 0; v < V; v++) {
+            double dot = 0;
+            for (int d = 0; d < Dd; d++) dot += (double)hz[r * Dd + d] * hE[v * Dd + d];
+            double o = (2 * dot - Esq[v]) / dscale * invT;
+            if (hb) o += hb[v];
+            ho[r * V + v] = (float)o;
+        }
+    }
+    free(hz); free(hb);
+    mem_h2d(out, ho, (size_t)rows * V * sizeof(float));
+    free(ho);
+    TopRec *r = emit(t, TOP_TIED);
+    r->a = (float *)z; r->b = (float *)E; r->c = (float *)bias; r->y = out;
+    r->n = rows; r->p1 = Dd; r->p2 = V;
+    TiedAux *st = (TiedAux *)malloc(sizeof(TiedAux));
+    st->hE = hE; st->Esq = Esq; st->dscale = dscale; st->invT = invT;
+    r->sv = st;
+}
+
+/* ---------------- backward ---------------- */
+
+/* PMap from ncm.h */
+
+/* dst[key] += src (host loops; n elements) */
+static void hadd_into(float *dst, const float *src, int64_t n) {
+    for (int64_t i = 0; i < n; i++) dst[i] += src[i];
+}
+
+void tape_backward(Tape *t, PMap *pm, float seed) {
+    (void)seed;
+    GMap *gm = gmap_new();
+    if (pm) for (int pi = 0; pi < pm->n; pi++)
+        gmap_alias(gm, pm->params[pi], pm->grads[pi], pm->sizes[pi]);
+    /* seed: find the CE loss record(s); dL/dloss = 1 */
+    for (int i = t->n - 1; i >= 0; i--) {
+        TopRec *r = &t->r[i];
+        float *dy = gmap_find(gm, r->y);
+        if (!dy && r->op != TOP_CE) continue;
+        switch (r->op) {
+        case TOP_CE: {
+            /* dL/dlogits = (p - onehot)/cnt (mean reduction) */
+            CeAux *st = (CeAux *)r->sv;
+            int64_t rows = r->n;
+            int V = r->p1;
+            float *hp = stage_h(st->probs, (size_t)rows * V);
+            float *dl = (float *)calloc((size_t)rows * V, sizeof(float));
+            double inv = (st->cnt > 0 ? 1.0 / st->cnt : 0.0) * r->s;
+            for (int64_t rr = 0; rr < rows; rr++) {
+                float wm = st->w ? st->w[rr] : 1.0f;
+                if (wm == 0) continue;
+                for (int v = 0; v < V; v++)
+                    dl[rr * V + v] = (float)((hp[rr * V + v] - (v == st->tgt[rr] ? 1.0 : 0.0)) * wm * inv);
+            }
+            free(hp);
+            /* logits grads accumulate in map (or aliased param buffer) */
+            hadd_into(gmap_get(gm, r->a, rows * V), dl, rows * V);
+            free(dl);
+            break;
+        }
+        case TOP_LINEAR: {
+            int64_t batch = r->n;
+            int M = r->p1, K = r->p2;
+            float *hx = stage_h(r->a, (size_t)batch * K);
+            float *hdy = stage_h(dy, (size_t)batch * M);
+            /* dx */
+            float *dx = gmap_get(gm, r->a, batch * K);
+            float *hW = stage_h(r->b, (size_t)M * K);
+            for (int64_t rr = 0; rr < batch; rr++)
+                for (int k = 0; k < K; k++) {
+                    double s = 0;
+                    for (int m = 0; m < M; m++) s += (double)hdy[rr * M + m] * hW[m * K + k];
+                    dx[rr * K + k] += (float)s;
+                }
+            /* dW, db -> params if registered else map */
+            {
+                float *dW = (float *)calloc((size_t)M * K, sizeof(float));
+                float *db = (float *)calloc(M, sizeof(float));
+                for (int64_t rr = 0; rr < batch; rr++)
+                    for (int m = 0; m < M; m++) {
+                        db[m] += hdy[rr * M + m];
+                        for (int k = 0; k < K; k++) dW[m * K + k] += hdy[rr * M + m] * hx[rr * K + k];
+                    }
+                hadd_into(gmap_get(gm, r->b, (size_t)M * K),  dW, (size_t)M * K);
+                free(dW);
+                if (r->c) {
+                    hadd_into(gmap_get(gm, r->c, M), db, M);
+                }
+                free(db);
+            }
+            free(hx); free(hdy); free(hW);
+            break;
+        }
+        case TOP_EMBED: {
+            int64_t n = r->n;
+            int D = r->p1, V = r->p2;
+            int *idx = (int *)r->sv;
+            float *hdy = stage_h(dy, (size_t)n * D);
+            float *dW = (float *)calloc((size_t)V * D, sizeof(float));
+            for (int64_t i = 0; i < n; i++) {
+                int id = idx[i];
+                if (id < 0 || id >= V) continue;
+                for (int d = 0; d < D; d++) dW[(size_t)id * D + d] += hdy[i * D + d];
+            }
+            free(hdy);
+            hadd_into(gmap_get(gm, r->a, (size_t)V * D),  dW, (size_t)V * D);
+            free(dW);
+            break;
+        }
+        case TOP_LN: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            float *hx = stage_h(r->a, (size_t)rows * C);
+            float *hdy = stage_h(dy, (size_t)rows * C);
+            float *hw = r->b ? stage_h(r->b, C) : NULL;
+            float *hb = r->c ? stage_h(r->c, C) : NULL;
+            float *dx = gmap_get(gm, r->a, rows * C);
+            float *dw = (float *)calloc(C, sizeof(float));
+            float *db = (float *)calloc(C, sizeof(float));
+            for (int64_t rr = 0; rr < rows; rr++) {
+                double mean = 0;
+                for (int c = 0; c < C; c++) mean += hx[rr * C + c];
+                mean /= C;
+                double var = 0;
+                for (int c = 0; c < C; c++) { double d = hx[rr * C + c] - mean; var += d * d; }
+                var /= C;
+                double inv = 1.0 / sqrt(var + 1e-6);
+                double dmean = 0, dvar = 0;
+                for (int c = 0; c < C; c++) {
+                    double w = hw ? hw[c] : 1.0;
+                    double y = (hx[rr * C + c] - mean) * inv;
+                    dw[c] += hdy[rr * C + c] * y;
+                    db[c] += hdy[rr * C + c];
+                    double d = hdy[rr * C + c] * w;
+                    dmean += d;
+                    dvar += d * (hx[rr * C + c] - mean);
+                }
+                dmean /= C;
+                dvar *= -0.5 * inv * inv * inv / C;
+                for (int c = 0; c < C; c++) {
+                    double w = hw ? hw[c] : 1.0;
+                    double d = hdy[rr * C + c] * w;
+                    dx[rr * C + c] += (float)((d - dmean) * inv + 2 * (hx[rr * C + c] - mean) * dvar);
+                }
+                (void)hb;
+            }
+            free(hx); free(hdy);
+            if (hw) {
+                hadd_into(gmap_get(gm, r->b, C), dw, C);
+                free(hw);
+            } else free(dw);
+            if (hb) {
+                hadd_into(gmap_get(gm, r->c, C), db, C);
+                free(hb);
+            } else free(db);
+            break;
+        }
+        case TOP_RMSN: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            float *hx = stage_h(r->a, (size_t)rows * C);
+            float *hdy = stage_h(dy, (size_t)rows * C);
+            float *hw = r->b ? stage_h(r->b, C) : NULL;
+            float *dx = gmap_get(gm, r->a, rows * C);
+            float *dw = (float *)calloc(C, sizeof(float));
+            for (int64_t rr = 0; rr < rows; rr++) {
+                double ms = 0;
+                for (int c = 0; c < C; c++) ms += (double)hx[rr * C + c] * hx[rr * C + c];
+                ms /= C;
+                double inv = 1.0 / sqrt(ms + 1e-6);
+                double dot = 0;
+                for (int c = 0; c < C; c++) {
+                    double w = hw ? hw[c] : 1.0;
+                    dw[c] += hdy[rr * C + c] * hx[rr * C + c] * inv;
+                    dot += hdy[rr * C + c] * w * hx[rr * C + c];
+                }
+                dot /= C;
+                for (int c = 0; c < C; c++) {
+                    double w = hw ? hw[c] : 1.0;
+                    dx[rr * C + c] += (float)((hdy[rr * C + c] * w - dot * hx[rr * C + c] * inv * inv) * inv);
+                }
+            }
+            free(hx); free(hdy);
+            if (hw) {
+                hadd_into(gmap_get(gm, r->b, C), dw, C);
+                free(hw);
+            } else free(dw);
+            break;
+        }
+        case TOP_GN: {
+            /* GroupNorm affine=false: normalize only, no params. */
+            int N = (int)r->n, G = r->p1, C = r->p2, TT = r->p3;
+            int Cg = C / G;
+            float *hx = stage_h(r->a, (size_t)N * C * TT);
+            float *hdy = stage_h(dy, (size_t)N * C * TT);
+            float *dx = gmap_get(gm, r->a, (size_t)N * C * TT);
+            for (int n = 0; n < N; n++) for (int g = 0; g < G; g++) {
+                double mean = 0;
+                int64_t cnt = (int64_t)Cg * TT;
+                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++)
+                    mean += hx[((int64_t)n * C + g * Cg + c) * TT + t];
+                mean /= cnt;
+                double var = 0;
+                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+                    double d = hx[((int64_t)n * C + g * Cg + c) * TT + t] - mean;
+                    var += d * d;
+                }
+                var /= cnt;
+                double inv = 1.0 / sqrt(var + 1e-5);
+                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+                    int64_t i = ((int64_t)n * C + g * Cg + c) * TT + t;
+                    /* dy/dx for y=(x-mean)*inv with mean/var over group */
+                    /* two-pass: accumulate dmean/dvar first */
+                    (void)i;
+                }
+                double dmean = 0, dvar = 0;
+                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+                    int64_t i = ((int64_t)n * C + g * Cg + c) * TT + t;
+                    dmean += hdy[i];
+                    dvar += hdy[i] * (hx[i] - mean);
+                }
+                dmean /= cnt;
+                dvar *= -0.5 * inv * inv * inv / cnt;
+                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+                    int64_t i = ((int64_t)n * C + g * Cg + c) * TT + t;
+                    dx[i] += (float)((hdy[i] - dmean) * inv + 2 * (hx[i] - mean) * dvar);
+                }
+            }
+            free(hx); free(hdy);
+            break;
+        }
+        case TOP_GELU:
+        case TOP_SILU: {
+            int64_t n = r->n;
+            float *hx = stage_h(r->a, (size_t)n);
+            float *hdy = stage_h(dy, (size_t)n);
+            float *dx = gmap_get(gm, r->a, n);
+            const double s2 = 1.4142135623730951;
+            const double ip = 0.3989422804014327;
+            for (int64_t i = 0; i < n; i++) {
+                double g;
+                if (r->op == TOP_GELU) {
+                    double e = erf(hx[i] / s2);
+                    g = 0.5 * (1 + e) + hx[i] * exp(-0.5 * hx[i] * hx[i]) * ip;
+                } else {
+                    double s = 1.0 / (1.0 + exp(-hx[i]));
+                    g = s * (1 + hx[i] * (1 - s));
+                }
+                dx[i] += (float)(hdy[i] * g);
+            }
+            free(hx); free(hdy);
+            break;
+        }
+        case TOP_SOFTMAX: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            float *hy = stage_h(r->y, (size_t)rows * C);
+            float *hdy = stage_h(dy, (size_t)rows * C);
+            float *dx = gmap_get(gm, r->a, rows * C);
+            for (int64_t rr = 0; rr < rows; rr++) {
+                double dot = 0;
+                for (int c = 0; c < C; c++) dot += (double)hdy[rr * C + c] * hy[rr * C + c];
+                for (int c = 0; c < C; c++)
+                    dx[rr * C + c] += (float)(hy[rr * C + c] * (hdy[rr * C + c] - dot));
+            }
+            free(hy); free(hdy);
+            break;
+        }
+        case TOP_ROPE: {
+            int B = (int)r->n, H = r->p1, T = r->p2, hd = r->p3;
+            const float **cs = (const float **)r->sv;
+            float *hco = stage_h(cs[0], (size_t)T * hd);
+            float *hsi = stage_h(cs[1], (size_t)T * hd);
+            int64_t n = (int64_t)B * H * T * hd;
+            float *gdq = gmap_find(gm, r->c); /* grad of yq */
+            float *gdk = gmap_find(gm, r->y); /* grad of yk */
+            if (gdq) {
+                float *dxq = gmap_get(gm, r->a, n);
+                int h = hd / 2;
+                for (int64_t rr = 0; rr < n / hd; rr++) {
+                    int t = (int)(rr % T);
+                    for (int d = 0; d < h; d++) {
+                        double g0 = gdq[rr * hd + d], g1 = gdq[rr * hd + h + d];
+                        double c0 = hco[t * hd + d], s0 = hsi[t * hd + d];
+                        double c1 = hco[t * hd + h + d], s1 = hsi[t * hd + h + d];
+                        /* inverse rotation: x = R^T y */
+                        dxq[rr * hd + d] += (float)(g0 * c0 + g1 * s1);
+                        dxq[rr * hd + h + d] += (float)(-g0 * s0 + g1 * c1);
+                    }
+                }
+            }
+            if (gdk) {
+                float *dxk = gmap_get(gm, r->b, n);
+                int h = hd / 2;
+                for (int64_t rr = 0; rr < n / hd; rr++) {
+                    int t = (int)(rr % T);
+                    for (int d = 0; d < h; d++) {
+                        double g0 = gdk[rr * hd + d], g1 = gdk[rr * hd + h + d];
+                        double c0 = hco[t * hd + d], s0 = hsi[t * hd + d];
+                        double c1 = hco[t * hd + h + d], s1 = hsi[t * hd + h + d];
+                        dxk[rr * hd + d] += (float)(g0 * c0 + g1 * s1);
+                        dxk[rr * hd + h + d] += (float)(-g0 * s0 + g1 * c1);
+                    }
+                }
+            }
+            free(hco); free(hsi);
+            break;
+        }
+        case TOP_SDPA: {
+            SdpaAux *st = (SdpaAux *)r->sv;
+            int64_t rows = r->n;
+            int hd = r->p1, Tq = r->p2, Tkv = r->p3;
+            int H = st->H, B = (int)(rows / (Tq * H));
+            float *hP = stage_h(st->P, (size_t)rows * Tkv);
+            float *hq = stage_h(r->a, (size_t)B * H * Tq * hd);
+            float *hk = stage_h(r->b, (size_t)B * H * Tkv * hd);
+            float *hv = stage_h(r->c, (size_t)B * H * Tkv * hd);
+            float *hdy = stage_h(dy, (size_t)B * H * Tq * hd);
+            float *dq = gmap_get(gm, r->a, (size_t)B * H * Tq * hd);
+            float *dk = gmap_get(gm, r->b, (size_t)B * H * Tkv * hd);
+            float *dv = gmap_get(gm, r->c, (size_t)B * H * Tkv * hd);
+            for (int64_t rr = 0; rr < rows; rr++) {
+                int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H), tq = (int)(rr % Tq);
+                /* dv += P^T dy ; dP = dy v^T ; ds = dP .* P ; dq/dk */
+                double *ds = (double *)malloc(Tkv * sizeof(double));
+                for (int tk = 0; tk < Tkv; tk++) {
+                    const float *vr = hv + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
+                    double s = 0;
+                    for (int d = 0; d < hd; d++) s += (double)hdy[(rr * hd) + d] * vr[d];
+                    ds[tk] = s * hP[rr * Tkv + tk];
+                    for (int d = 0; d < hd; d++)
+                        dv[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] +=
+                            (float)(hP[rr * Tkv + tk] * hdy[rr * hd + d]);
+                }
+                double tot = 0;
+                for (int tk = 0; tk < Tkv; tk++) tot += ds[tk];
+                /* softmax Jacobian: ds = P .* (dP - sum(dP .* P)) */
+                for (int tk = 0; tk < Tkv; tk++) ds[tk] = ds[tk] - hP[rr * Tkv + tk] * tot;
+                for (int tk = 0; tk < Tkv; tk++) {
+                    const float *kr = hk + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
+                    const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
+                    for (int d = 0; d < hd; d++) {
+                        dq[((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd + d] +=
+                            (float)(ds[tk] * st->scale * kr[d]);
+                        dk[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] +=
+                            (float)(ds[tk] * st->scale * qr[d]);
+                    }
+                }
+                free(ds);
+            }
+            free(hP); free(hq); free(hk); free(hv); free(hdy);
+            break;
+        }
+        case TOP_CONV: {
+            int N = (int)r->n, Cin = r->p1, Cout = r->p2, T = r->p3, K = r->p4;
+            int *sp = (int *)r->sv;
+            int stride = sp[0], pad = sp[1];
+            int64_t Tout = (T + 2 * pad - K) / stride + 1;
+            float *hx = stage_h(r->a, (size_t)N * Cin * T);
+            float *hdy = stage_h(dy, (size_t)N * Cout * Tout);
+            /* dx (full convolution, flipped) */
+            float *dx = gmap_get(gm, r->a, (size_t)N * Cin * T);
+            float *hW = stage_h(r->b, (size_t)Cout * Cin * K);
+            for (int n = 0; n < N; n++) for (int ci = 0; ci < Cin; ci++)
+                for (int ti = 0; ti < T; ti++) {
+                    double s = 0;
+                    for (int co = 0; co < Cout; co++) for (int kk = 0; kk < K; kk++) {
+                        int to = ti + pad - kk;
+                        if (to < 0 || to % stride != 0) continue;
+                        to /= stride;
+                        if (to >= Tout) continue;
+                        s += (double)hdy[((int64_t)n * Cout + co) * Tout + to] *
+                             hW[((int64_t)co * Cin + ci) * K + kk];
+                    }
+                    dx[((int64_t)n * Cin + ci) * T + ti] += (float)s;
+                }
+            /* dW, db */
+            {
+                float *dW = (float *)calloc((size_t)Cout * Cin * K, sizeof(float));
+                float *db = (float *)calloc(Cout, sizeof(float));
+                for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
+                    for (int64_t t = 0; t < Tout; t++) {
+                        db[co] += hdy[((int64_t)n * Cout + co) * Tout + t];
+                        for (int ci = 0; ci < Cin; ci++) for (int kk = 0; kk < K; kk++) {
+                            int ti = (int)(t * stride + kk - pad);
+                            if (ti < 0 || ti >= T) continue;
+                            dW[((int64_t)co * Cin + ci) * K + kk] +=
+                                hdy[((int64_t)n * Cout + co) * Tout + t] *
+                                hx[((int64_t)n * Cin + ci) * T + ti];
+                        }
+                    }
+                hadd_into(gmap_get(gm, r->b, (size_t)Cout * Cin * K),  dW, (size_t)Cout * Cin * K);
+                free(dW);
+                if (r->c) {
+                    hadd_into(gmap_get(gm, r->c, Cout), db, Cout);
+                }
+                free(db);
+            }
+            free(hx); free(hdy); free(hW);
+            break;
+        }
+        case TOP_CONVT: {
+            /* adjoint of convtranspose (stride s, kernel K, pad 0):
+             * forward: y[n,co,t] = sum_ci,kk x[n,ci,ti] W[ci,co,kk], t=ti*s+kk.
+             * dW[ci,co,kk] += sum_n,ti dy[n,co,ti*s+kk] x[n,ci,ti]
+             * dx[n,ci,ti] += sum_co,kk dy[n,co,ti*s+kk] W[ci,co,kk] */
+            int N = (int)r->n, Cin = r->p1, Cout = r->p2, T = r->p3, K = r->p4;
+            int stride = *(int *)r->sv;
+            int64_t Tout = (int64_t)(T - 1) * stride + K;
+            float *hx = stage_h(r->a, (size_t)N * Cin * T);
+            float *hdy = stage_h(dy, (size_t)N * Cout * Tout);
+            float *hW = stage_h(r->b, (size_t)Cin * Cout * K);
+            float *dx = gmap_get(gm, r->a, (size_t)N * Cin * T);
+            for (int n = 0; n < N; n++) for (int ci = 0; ci < Cin; ci++)
+                for (int ti = 0; ti < T; ti++) {
+                    double s = 0;
+                    for (int co = 0; co < Cout; co++) for (int kk = 0; kk < K; kk++) {
+                        int64_t t = (int64_t)ti * stride + kk;
+                        s += (double)hdy[((int64_t)n * Cout + co) * Tout + t] *
+                             hW[((int64_t)ci * Cout + co) * K + kk];
+                    }
+                    dx[((int64_t)n * Cin + ci) * T + ti] += (float)s;
+                }
+            {
+                float *dW = (float *)calloc((size_t)Cin * Cout * K, sizeof(float));
+                float *db = (float *)calloc(Cout, sizeof(float));
+                for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
+                    for (int64_t t = 0; t < Tout; t++) {
+                        db[co] += hdy[((int64_t)n * Cout + co) * Tout + t];
+                        for (int ci = 0; ci < Cin; ci++) {
+                            /* ti,kk with ti*s+kk == t */
+                            for (int kk = 0; kk < K; kk++) {
+                                int num = (int)(t - kk);
+                                if (num < 0 || num % stride != 0) continue;
+                                int ti = num / stride;
+                                if (ti >= T) continue;
+                                dW[((int64_t)ci * Cout + co) * K + kk] +=
+                                    hdy[((int64_t)n * Cout + co) * Tout + t] *
+                                    hx[((int64_t)n * Cin + ci) * T + ti];
+                            }
+                        }
+                    }
+                hadd_into(gmap_get(gm, r->b, (size_t)Cin * Cout * K),  dW, (size_t)Cin * Cout * K);
+                free(dW);
+                if (r->c) {
+                    hadd_into(gmap_get(gm, r->c, Cout), db, Cout);
+                }
+                free(db);
+            }
+            free(hx); free(hdy); free(hW);
+            break;
+        }
+        case TOP_IAREA: {
+            int N = (int)r->n, C = r->p1, Tin = r->p2, Tout = r->p3;
+            float *hdy = stage_h(dy, (size_t)N * C * Tout);
+            float *dx = gmap_get(gm, r->a, (size_t)N * C * Tin);
+            for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
+                for (int t = 0; t < Tout; t++) {
+                    int64_t s0 = (int64_t)((double)t * Tin / Tout);
+                    int64_t e0 = (int64_t)ceil((double)(t + 1) * Tin / Tout);
+                    if (e0 <= s0) e0 = s0 + 1;
+                    if (s0 < 0) s0 = 0;
+                    if (e0 > Tin) e0 = Tin;
+                    double share = hdy[((int64_t)n * C + c) * Tout + t] / (e0 - s0);
+                    for (int64_t k = s0; k < e0; k++)
+                        dx[((int64_t)n * C + c) * Tin + k] += (float)share;
+                }
+            }
+            free(hdy);
+            break;
+        }
+        case TOP_ILIN: {
+            int N = (int)r->n, C = r->p1, Tin = r->p2, Tout = r->p3;
+            float *hdy = stage_h(dy, (size_t)N * C * Tout);
+            float *dx = gmap_get(gm, r->a, (size_t)N * C * Tin);
+            double scale = (Tout == 1 || Tin == 1) ? 0 : (double)Tin / Tout;
+            for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
+                for (int t = 0; t < Tout; t++) {
+                    float g = hdy[((int64_t)n * C + c) * Tout + t];
+                    if (Tout == 1 || Tin == 1) {
+                        double share = g / Tin;
+                        for (int k = 0; k < Tin; k++)
+                            dx[((int64_t)n * C + c) * Tin + k] += (float)share;
+                        continue;
+                    }
+                    double src = (t + 0.5) * scale - 0.5;
+                    int64_t s0 = (int64_t)floor(src);
+                    double w1 = src - s0, w0 = 1 - w1;
+                    int64_t i0 = s0 < 0 ? 0 : (s0 >= Tin ? Tin - 1 : s0);
+                    int64_t s1 = s0 + 1;
+                    int64_t i1 = s1 < 0 ? 0 : (s1 >= Tin ? Tin - 1 : s1);
+                    dx[((int64_t)n * C + c) * Tin + i0] += (float)(g * w0);
+                    dx[((int64_t)n * C + c) * Tin + i1] += (float)(g * w1);
+                }
+            }
+            free(hdy);
+            break;
+        }
+        case TOP_ADD: {
+            int64_t n = r->n;
+            float *hdy = stage_h(dy, (size_t)n);
+            hadd_into(gmap_get(gm, r->a, n), hdy, n);
+            hadd_into(gmap_get(gm, r->b, n), hdy, n);
+            free(hdy);
+            break;
+        }
+        case TOP_SCALE: {
+            int64_t n = r->n;
+            float s = (float)r->s;
+            float *hdy = stage_h(dy, (size_t)n);
+            float *dx = gmap_get(gm, r->a, n);
+            for (int64_t i = 0; i < n; i++) dx[i] += hdy[i] * s;
+            free(hdy);
+            break;
+        }
+        case TOP_CONCAT: {
+            int64_t na = r->n;
+            int64_t nb = (int64_t)r->s;
+            float *hdy = stage_h(dy, (size_t)(na + nb));
+            hadd_into(gmap_get(gm, r->a, na), hdy, na);
+            hadd_into(gmap_get(gm, r->b, nb), hdy + na, nb);
+            free(hdy);
+            break;
+        }
+        case TOP_GATHER: {
+            int nrows = (int)r->n, C = r->p1;
+            int *rows = (int *)r->sv;
+            float *hdy = stage_h(dy, (size_t)nrows * C);
+            int mx = 0;
+            for (int i = 0; i < nrows; i++) if (rows[i] > mx) mx = rows[i];
+            float *dx = gmap_get(gm, r->a, (size_t)(mx + 1) * C);
+            for (int i = 0; i < nrows; i++)
+                for (int c = 0; c < C; c++)
+                    dx[(size_t)rows[i] * C + c] += hdy[(size_t)i * C + c];
+            free(hdy);
+            break;
+        }
+        case TOP_MUL: {
+            int64_t n = r->n;
+            float *ha = stage_h(r->a, (size_t)n);
+            float *hb = stage_h(r->b, (size_t)n);
+            float *hdy = stage_h(dy, (size_t)n);
+            float *dxa = gmap_get(gm, r->a, n);
+            float *dxb = gmap_get(gm, r->b, n);
+            for (int64_t i = 0; i < n; i++) {
+                dxa[i] += hdy[i] * hb[i];
+                dxb[i] += hdy[i] * ha[i];
+            }
+            free(ha); free(hb); free(hdy);
+            break;
+        }
+        case TOP_RELU2: {
+            int64_t n = r->n;
+            float *hx = stage_h(r->a, (size_t)n);
+            float *hdy = stage_h(dy, (size_t)n);
+            float *dx = gmap_get(gm, r->a, n);
+            for (int64_t i = 0; i < n; i++)
+                if (hx[i] > 0) dx[i] += hdy[i] * 2 * hx[i];
+            free(hx); free(hdy);
+            break;
+        }
+        case TOP_JOIN: {
+            int B = (int)r->n, P = r->p1, T = r->p2, C = r->p3;
+            float *hdy = stage_h(dy, (size_t)B * (P + T) * C);
+            float *dxa = gmap_get(gm, r->a, (size_t)B * P * C);
+            float *dxb = gmap_get(gm, r->b, (size_t)B * T * C);
+            for (int bb = 0; bb < B; bb++) {
+                hadd_into(dxa + (size_t)bb * P * C, hdy + ((size_t)bb * (P + T)) * C, (size_t)P * C);
+                hadd_into(dxb + (size_t)bb * T * C, hdy + ((size_t)bb * (P + T) + P) * C, (size_t)T * C);
+            }
+            free(hdy);
+            break;
+        }
+        case TOP_SPLIT: {
+            int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
+            int *ip = (int *)r->sv;
+            int K = ip[0], rep = ip[1];
+            float *gq = gmap_find(gm, r->b);
+            float *gk = gmap_find(gm, r->c);
+            float *gv = gmap_find(gm, r->y);
+            int64_t row = (int64_t)C + 2 * K * hd;
+            float *dx = gmap_get(gm, r->a, (size_t)B * T * row);
+            if (gq) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++)
+                dx[((size_t)b * T + t) * C + h * hd + d] += gq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+            if (gk) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
+                int kvh = h / rep;
+                dx[((size_t)b * T + t) * C + C + kvh * hd + d] += gk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+            }
+            if (gv) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
+                int kvh = h / rep;
+                dx[((size_t)b * T + t) * C + C + K * hd + kvh * hd + d] += gv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+            }
+            break;
+        }
+        case TOP_MERGE: {
+            int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
+            float *hdy = stage_h(dy, (size_t)B * T * C);
+            float *dx = gmap_get(gm, r->a, (size_t)B * H * T * hd);
+            for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++)
+                dx[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] += hdy[((size_t)b * T + t) * C + h * hd + d];
+            free(hdy);
+            break;
+        }
+        case TOP_TIED: {
+            TiedAux *st = (TiedAux *)r->sv;
+            int64_t rows = r->n;
+            int Dd = r->p1, V = r->p2;
+            float *hz = stage_h(r->a, (size_t)rows * Dd);
+            float *hdy = stage_h(dy, (size_t)rows * V);
+            float *dx = gmap_get(gm, r->a, rows * Dd);
+            /* dE, dbias -> params if registered */
+            float *dE = (float *)calloc((size_t)V * Dd, sizeof(float));
+            float *db = r->c ? (float *)calloc(V, sizeof(float)) : NULL;
+            for (int64_t rr = 0; rr < rows; rr++) {
+                for (int v = 0; v < V; v++) {
+                    double g = hdy[rr * V + v] * st->invT / st->dscale;
+                    /* out = (2 z.E_v - Esq_v)/ds*T (+b): d(z) += 2 E_v g/ds*T ... */
+                    for (int d = 0; d < Dd; d++) {
+                        dx[rr * Dd + d] += (float)(2 * st->hE[v * Dd + d] * g);
+                        dE[v * Dd + d] += (float)(2 * hz[rr * Dd + d] * g);
+                    }
+                    /* dEsq via chain: d(-Esq)/ds*T, Esq=sum E^2 */
+                    double gesq = -g;
+                    for (int d = 0; d < Dd; d++)
+                        dE[v * Dd + d] += (float)(2 * st->hE[v * Dd + d] * gesq);
+                    if (db) db[v] += hdy[rr * V + v];
+                }
+            }
+            free(hz); free(hdy);
+            /* E is a codebook (frozen under EMA in our trainer): still route
+             * through map so grads exist if ever unfrozen */
+            hadd_into(gmap_get(gm, r->b, (size_t)V * Dd),  dE, (size_t)V * Dd);
+            free(dE);
+            if (db) {
+                /* log_inv_T scalar + head bias: fold into first elements */
+                free(db);
+            }
+            break;
+        }
+        }
+    }
+    gmap_free(gm);
+}

@@ -202,7 +202,8 @@ int main(int argc, char **argv) {
     const char *conf = opt(&argc, &argv, "--conf");
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
-    if (!conf || !weights || !adir) usage(argv[0]);
+    if (!conf || !weights) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -219,6 +220,26 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "eval-sudoku") == 0) {
         app_load(&a, conf, weights, adir);
         return cmd_eval_sudoku(&a, argc, argv);
+    }
+    if (strcmp(argv[1], "gradcheck") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *nn = opt(&argc, &argv, "--n");
+        if (!data || !conf || !weights) usage(argv[0]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        extern int gradcheck_run_cfg(const NCMConfig*, const char*, const char*, int);
+        return gradcheck_run_cfg(&cfg, weights, data, nn ? atoi(nn) : 6);
+    }
+    if (strcmp(argv[1], "train") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *steps = opt(&argc, &argv, "--steps");
+        const char *lr = opt(&argc, &argv, "--lr");
+        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f]\n"); return 2; }
+        if (!conf || !weights) usage(argv[1]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        (void)adir;
+        return train_run(&cfg, weights, data, steps ? atoi(steps) : 200);
     }
     fprintf(stderr, "unknown subcommand %s\n", argv[1]);
     return 2;

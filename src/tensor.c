@@ -339,3 +339,9 @@ float *parena_alloc(size_t n_floats) {
     parena_off += need;
     return p;
 }
+
+void *backend_to_host(const float *d, size_t nbytes) {
+    void *h = malloc(nbytes ? nbytes : 1);
+    mem_d2h(h, d, nbytes);
+    return h;
+}

@@ -165,6 +165,17 @@ void interpolate_linear_fwd(const float *x, float *y, int N, int C, int Tin, int
 int  argmax_row(const float *x, int n);
 void rowwise_l2sq(const float *a, const float *b, float *d2,
                   int64_t rows, int64_t colsA, int C); /* ||a_i - b_j||^2 */
+void add_fwd(const float *a, const float *b, float *y, int64_t n);
+void scale_fwd(const float *x, float s, float *y, int64_t n);
+void add_inplace_fwd(float *y, const float *x, int64_t n);
+void qkv_split_fwd(const float *in, float *qq, float *kk, float *vv,
+                   int B, int T, int C, int H, int hd, int K, int rep);
+void head_merge_fwd(const float *ctx, float *out, int B, int T, int C, int H, int hd);
+/* training tape (defined in train_tape.c) */
+typedef struct Tape Tape;
+void t_qkvsplit(Tape *t, const float *in, float *qq, float *kk, float *vv,
+                int B, int T, int C, int H, int hd, int K, int rep);
+void t_headmerge(Tape *t, const float *ctx, float *out, int B, int T, int C, int H, int hd);
 /* sampling */
 int  sample_topkp(const float *logits, int V, float temp, int top_k, float top_p,
                   unsigned long long *rng);
@@ -198,6 +209,16 @@ void vqvae_decode(VQVAEState *v, const float *zhat, float *logits, int B);
 typedef struct NCPState NCPState;
 NCPState *ncp_load(const NCMConfig *c, WeightStore *ws, VQVAEState *vqvae);
 void      ncp_free(NCPState *m);
+int   ncp_P(NCPState *m);
+int   ncp_T(NCPState *m);
+int   ncp_ntgt(NCPState *m);
+int   ncp_lvlfirst(NCPState *m);
+float *ncp_rope_cos(NCPState *m);
+float *ncp_rope_sin(NCPState *m);
+float *ncp_rope_gen_cos(NCPState *m, int k);
+struct VQState *ncp_vq(NCPState *m);
+float *ncp_rope_gen_sin(NCPState *m, int k);
+void *backend_to_host(const float *d, size_t nbytes);
 /* Full forward used in training/scoring: x:[B][P+T][D] in vqvae space. */
 void ncp_forward(NCPState *m, const float *x, const int *prefix_ids,
                  float *logits, int B);
@@ -237,5 +258,50 @@ double gpt2_genppl(const char *gpt2_weights, const char *gpt2_conf,
 
 int train_run(const NCMConfig *c, const char *weights_path,
               const char *data_path, int max_steps);
+
+/* ---- training (train_tape.c, train.c) ---- */
+Tape *tape_new(void);
+void  tape_free(Tape *t);
+void  tape_clear(Tape *t);
+void t_linear(Tape *t, const float *x, const float *W, const float *b,
+              float *y, int64_t batch, int M, int K);
+void t_embed(Tape *t, const float *W, const int *idx, int V, float *y,
+             int64_t n, int D);
+void t_layernorm(Tape *t, const float *x, const float *w, const float *b,
+                 float *y, int64_t rows, int C);
+void t_rmsnorm(Tape *t, const float *x, const float *w, float *y,
+               int64_t rows, int C);
+void t_groupnorm(Tape *t, const float *x, float *y, int N, int G, int C, int T);
+void t_gelu(Tape *t, const float *x, float *y, int64_t n);
+void t_mul(Tape *t, const float *a, const float *b, float *y, int64_t n);
+void t_relu2(Tape *t, const float *x, float *y, int64_t n);
+void t_silu(Tape *t, const float *x, float *y, int64_t n);
+void t_softmax(Tape *t, const float *x, float *y, int64_t rows, int C);
+void t_rope(Tape *t, const float *xq, const float *xk, float *yq, float *yk,
+            const float *cos, const float *sin, int B, int H, int T, int hd);
+void t_sdpa(Tape *t, const float *q, const float *k, const float *v,
+            const float *mask, float *o, int B, int H, int Tq, int Tkv, int hd);
+void t_conv(Tape *t, const float *x, const float *W, const float *b, float *y,
+            int N, int Cin, int Cout, int T, int K, int stride, int pad);
+void t_convt(Tape *t, const float *x, const float *W, const float *b, float *y,
+             int N, int Cin, int Cout, int T, int K, int stride);
+void t_iarea(Tape *t, const float *x, float *y, int N, int C, int Tin, int Tout);
+void t_ilin(Tape *t, const float *x, float *y, int N, int C, int Tin, int Tout);
+void t_add(Tape *t, const float *a, const float *b, float *y, int64_t n);
+void t_concat(Tape *t, const float *a, const float *b, float *y, int64_t na, int64_t nb);
+void t_join(Tape *t, const float *a, const float *b, float *y, int B, int P, int T, int C);
+void t_gather_rows(Tape *t, const float *x, const int *rows, int nrows, int C, float *y);
+void t_scale(Tape *t, const float *x, float s, float *y, int64_t n);
+void t_ce(Tape *t, const float *logits, const int *tgt, const float *wmask,
+          float *loss, float *probs, int64_t rows, int V, double weight);
+void t_tied(Tape *t, const float *z, const float *E, const float *bias,
+            float *out, int64_t rows, int Dd, int V, double dscale, double invT);
+typedef struct {
+    float **params;
+    float **grads;
+    int64_t *sizes;
+    int n;
+} PMap;
+void tape_backward(Tape *t, PMap *pm, float seed);
 
 #endif /* NCM_H */

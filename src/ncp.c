@@ -594,6 +594,21 @@ void ncp_forward(NCPState *m, const float *x, const int *prefix_ids,
         d2d(hfull + ((size_t)bb * S + P) * C, xe + (size_t)bb * T * C, (size_t)T * C);
     }
     float *mask = build_full_mask(m, prefix_ids, B);
+    if (getenv("CNCM_VERIFY_FWD")) {
+        float *hd = (float *)malloc((size_t)B * S * C * sizeof(float));
+        mem_d2h(hd, hfull, (size_t)B * S * C * sizeof(float));
+        double _s = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) _s += hd[_i];
+        fprintf(stderr, "[verify] infer hfull sum=%.6f first=%.6f %.6f row91=%.6f %.6f\n", _s, hd[0], hd[1], hd[P*C], hd[P*C+1]);
+        free(hd);
+    }
+    if (getenv("CNCM_VERIFY_FWD")) {
+        float *hm = (float *)malloc((size_t)S * S * sizeof(float));
+        mem_d2h(hm, mask, (size_t)S * S * sizeof(float));
+        int ninf = 0; double ms = 0;
+        for (int i = 0; i < S * S; i++) { if (hm[i] < -1e20) ninf++; else ms += hm[i]; }
+        fprintf(stderr, "[verify] infer mask ninf=%d sum=%.1f\n", ninf, ms);
+        free(hm);
+    }
     /* per-batch prefix pad bias: run each batch with its own mask if pads exist */
     if (c->prefix_pad_token_id >= 0 && prefix_ids) {
         int any_pad = 0;
@@ -621,6 +636,17 @@ void ncp_forward(NCPState *m, const float *x, const int *prefix_ids,
         }
     }
     run_stack(m, hfull, B, S, mask, m->rope_cos, m->rope_sin);
+    if (getenv("CNCM_VERIFY_FWD")) {
+        float *hd = (float*)malloc((size_t)B * S * C * sizeof(float));
+        mem_d2h(hd, hfull, (size_t)B * S * C * sizeof(float));
+        double _s = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) _s += hd[_i];
+        fprintf(stderr, "[verify] infer post-stack sum=%.6f first=%.6f %.6f\n", _s, hd[0], hd[1]);
+        { double _mx = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) { double _a = hd[_i] < 0 ? -hd[_i] : hd[_i]; if (_a > _mx) _mx = _a; }
+          fprintf(stderr, "[verify] infer maxabs=%.4f\n", _mx); }
+        { double s0=0,s1=0; for (int i=0;i<S*C;i++){s0+=hd[i]; s1+=hd[S*C+i];}
+          fprintf(stderr, "[verify] infer b0=%.4f b1=%.4f\n", s0, s1); }
+        free(hd);
+    }
 heads:;
     /* heads per target level on x_target = hfull[:, P:] */
     int maxV = 0;
@@ -1105,3 +1131,15 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
 }
 
 static int V0_(NCPState *m) { return m->cfg.vocab_size[0]; }
+
+int ncp_P(NCPState *m) { return m->P; }
+int ncp_T(NCPState *m) { return m->T; }
+int ncp_ntgt(NCPState *m) { return m->n_tgt; }
+int ncp_lvlfirst(NCPState *m) { return m->lvl_first; }
+float *ncp_rope_cos(NCPState *m) { return m->rope_cos; }
+float *ncp_rope_sin(NCPState *m) { return m->rope_sin; }
+float *ncp_rope_gen_cos(NCPState *m, int k) { return m->gcos[k]; }
+float *ncp_rope_gen_sin(NCPState *m, int k) { return m->gsin[k]; }
+
+struct VQState;
+struct VQState *ncp_vq(NCPState *m) { return vqvae_vq(m->vqvae); }
