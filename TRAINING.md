@@ -43,9 +43,9 @@ under autograd and updated by EMA (same as the paper's scheme).
   - VQ-VAE: `train-vq` from the released tokenizer — total loss
     2.96 → 2.28 over 5 steps, no divergence.
 - **Full-model analytic-vs-numeric grad check** (`cncm gradcheck`) matches
-  on the forward pass exactly; per-parameter finite differences are
-  reported for inspection but are *not* a reliable oracle at this scale
-  (float32 rounding dominates ε-perturbations; see below).
+  on the forward pass exactly; per-parameter central differences use
+  denominator `2*eps` and agree with the tape backward within tolerance
+  for gradients above the float32-resolution floor (see below).
 
 ## Assumptions (no upstream training code to check against)
 

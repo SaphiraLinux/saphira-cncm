@@ -184,6 +184,77 @@ int main(void) {
         tape_free(tp);
     }
 
+    /* ---- qkv-split + per-head MSE (row-stride regression) ----
+     * Catches TOP_SPLIT backward indexing dx with row stride C instead
+     * of W=C+2*K*hd (writes land in wrong rows for t>0 and collide with
+     * other regions; t=0 q-slots pass by luck since 0*C==0*W). Two
+     * configs: rep=1 and GQA rep=2 (kvh fan-in). Indices span q/k/v and
+     * rows 0..3, including t>=1. */
+    for (int cfg = 0; cfg < 2; cfg++) {
+        int B = 1, S = 4, C = 8, H = 2, hd = 4;
+        int K = cfg ? 1 : 2, rep = H / K;
+        int W = C + 2 * K * hd;
+        int nin = B * S * W, nqk = B * H * S * hd;
+        float *hx = malloc(nin * 4);
+        for (int i = 0; i < nin; i++) hx[i] = (float)frand();
+        float *in = arena_alloc(nin);
+        float *qq = arena_alloc(nqk), *kk = arena_alloc(nqk), *vv = arena_alloc(nqk);
+        mem_h2d(in, hx, nin * 4);
+        Tape *tp = tape_new();
+        t_qkvsplit(tp, in, qq, kk, vv, B, S, C, H, hd, K, rep);
+        float *h0 = malloc(nqk * 4);
+        float *tq = arena_alloc(nqk), *tk = arena_alloc(nqk), *tv = arena_alloc(nqk);
+        for (int i = 0; i < nqk; i++) h0[i] = 1.0f;
+        mem_h2d(tq, h0, nqk * 4);
+        for (int i = 0; i < nqk; i++) h0[i] = 2.0f;
+        mem_h2d(tk, h0, nqk * 4);
+        for (int i = 0; i < nqk; i++) h0[i] = 3.0f;
+        mem_h2d(tv, h0, nqk * 4);
+        free(h0);
+        float *lq = arena_alloc(1), *lk = arena_alloc(1), *lv = arena_alloc(1);
+        t_mse(tp, qq, tq, lq, nqk, 1.0);
+        t_mse(tp, kk, tk, lk, nqk, 1.0);
+        t_mse(tp, vv, tv, lv, nqk, 1.0);
+        float *gin = calloc(nin, 4);
+        PMap pm;
+        float *pp[1] = {in};
+        float *pg[1] = {gin};
+        int64_t sz[1] = {nin};
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = 1;
+        tape_backward(tp, &pm, 0);
+        int idxs[4];
+        idxs[0] = 3;                            /* row0 q */
+        idxs[1] = 1 * W + C + 2;                 /* row1 k (kvh 0) */
+        idxs[2] = 2 * W + C + K * hd + 1;       /* row2 v */
+        idxs[3] = 3 * W + (H - 1) * hd + 1;     /* row3 q, last head */
+        for (int ti = 0; ti < 4; ti++) {
+            int idx = idxs[ti];
+            double ana = gin[idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nin * 4);
+                memcpy(tx, hx, nin * 4);
+                tx[idx] += (float)(sgn * eps);
+                double s = 0;
+                for (int b = 0; b < B; b++) for (int h = 0; h < H; h++)
+                    for (int tt = 0; tt < S; tt++) for (int d = 0; d < hd; d++) {
+                        int kvh = h / rep;
+                        double qv = tx[((b * S + tt) * W) + h * hd + d];
+                        double kv = tx[((b * S + tt) * W) + C + kvh * hd + d];
+                        double vv2 = tx[((b * S + tt) * W) + C + K * hd + kvh * hd + d];
+                        s += (qv - 1.0) * (qv - 1.0) + (kv - 2.0) * (kv - 2.0) +
+                             (vv2 - 3.0) * (vv2 - 3.0);
+                    }
+                v[sgn > 0 ? 1 : 0] = s / nqk;
+                free(tx);
+            }
+            char nm[64];
+            snprintf(nm, sizeof(nm), "qkv-split cfg%d din[%d]", cfg, idx);
+            check(nm, ana, (v[1] - v[0]) / (2 * eps));
+        }
+        free(hx); free(gin);
+        tape_free(tp);
+    }
+
     printf(fails ? "GCHECK-FAIL (%d)\n" : "GCHECK-PASS\n", fails);
     return fails != 0;
 }
