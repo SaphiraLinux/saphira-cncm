@@ -193,8 +193,7 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
             if (!sp) continue;
             *sp = 0;
             line[strcspn(line, "\r\n")] = 0;
-            sp[strcspn(sp + 1, "\r\n")] = 0;
-            /* note: ` *sp=0` then second token at sp+1; strip newline */
+            /* note: ` *sp=0` then second token at sp+1; strip newline below */
             char *b = sp + 1;
             b[strcspn(b, "\r\n")] = 0;
             t->ma[t->n_merges] = unhex(line, &t->mlen_a[t->n_merges]);
@@ -306,7 +305,7 @@ static int bpe_encode_word(TokState *t, const unsigned char *w, int n,
     int no = 0;
     for (int i = 0; i < np && no < cap; i++) {
         int id = bpe_lookup(t, w + ps[i], pl[i]);
-        if (id < 0) { fprintf(stderr, "bpe: bytes missing from vocab\n"); exit(1); }
+        if (id < 0) { fprintf(stderr, "bpe: bytes missing from vocab (len=%d first=%02x)\n", pl[i], w[ps[i]]); exit(1); }
         out[no++] = id;
     }
     return no;
