@@ -80,18 +80,9 @@ static unsigned long long fnv(const unsigned char *b, int n) {
 }
 
 /* ---------- unicode-lite: ASCII exact; non-ASCII => letter ---------- */
-static int is_letter(int cp) {
-    if ((cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z')) return 1;
-    if (cp >= 0x80) return 1; /* approximation: non-ASCII sticks to \p{L} runs */
-    return 0;
-}
-static int is_number(int cp) {
-    if (cp >= '0' && cp <= '9') return 1;
-    return 0; /* non-ASCII digits (rare in eval sets) not classified */
-}
-static int is_space(int cp) {
-    return cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r' || cp == '\v' || cp == '\f';
-}
+static int is_letter(int cp) { return uni_is_letter(cp); }
+static int is_number(int cp) { return uni_is_number(cp); }
+static int is_space(int cp) { return uni_is_space(cp); }
 
 /* decode one UTF-8 sequence; returns code point, advances *p */
 static int utf8_next(const unsigned char **p, const unsigned char *end) {
@@ -155,18 +146,16 @@ static int split_gpt2(const unsigned char *t, int n, int (*ranges)[2], int cap) 
             ranges[nc][0] = cpos[i]; ranges[nc][1] = (k < cn) ? cpos[k] : n; nc++; i = k; continue;
         }
         if (is_space(cp)) {
+            /* Exact Python `re` semantics for `\s+(?!\S)|\s+`: greedy run with
+             * lookahead backtracking. Longest L with next char not-\S (or end);
+             * if the run stops mid-text, L = run-1 (backtrack one); a lone
+             * space before non-space falls through to single `\s`. */
             int k = i + 1;
-            if (cp != ' ' && cp != '\n' && cp != '\r' && cp != '\t') {
-                /* \s+ branch */
-                while (k < cn && is_space(cps[k])) k++;
-            } else {
-                /* \s+(?!\S): spaces only if followed by end or space... python:
-                 * '\s+(?!\S)' matches trailing spaces; else single '\s+' per char.
-                 * Simplify: consume run only if at end or next is space; else one. */
-                if (k < cn && !is_space(cps[k])) { k = i + 1; }
-                else { while (k < cn && is_space(cps[k])) k++; }
-            }
-            ranges[nc][0] = cpos[i]; ranges[nc][1] = (k < cn) ? cpos[k] : n; nc++; i = k; continue;
+            while (k < cn && is_space(cps[k])) k++;
+            int run = k - i, L;
+            if (k >= cn) L = run;
+            else L = (run >= 2) ? run - 1 : 1;
+            ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + L < cn) ? cpos[i + L] : n; nc++; i += L; continue;
         }
         /* fallback: single code point */
         ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + 1 < cn) ? cpos[i + 1] : n; nc++; i++;
@@ -352,7 +341,7 @@ void tok_free(TokState *t) {
     free(t->ma); free(t->mb); free(t->mlen_a); free(t->mlen_b);
     free(t->htable);
     free(t->skip);
-    for (int i = 0; i < t->n_special; i++) free(t->specials[i]);
+    for (int i = 0; i < t->n_special; i++) if (t->specials) free(t->specials[i]);
     free(t->specials);
     free(t);
 }

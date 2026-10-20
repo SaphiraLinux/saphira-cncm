@@ -144,6 +144,9 @@ void linear_fwd(const float *x, const float *W, const float *b,
 void embedding_fwd(const float *W, const int *idx, float *y, int64_t n, int D);
 void layernorm_fwd(const float *x, const float *w, const float *b,
                    float *y, int64_t rows, int C);
+void layernorm_eps_fwd(const float *x, const float *w, const float *b,
+                       float *y, int64_t rows, int C, float eps);
+void gelu_tanh_fwd(const float *x, float *y, int64_t n); /* HF gelu_new */
 void rmsnorm_fwd(const float *x, const float *w, float *y, int64_t rows, int C);
 void gelu_fwd(const float *x, float *y, int64_t n);
 void silu_fwd(const float *x, float *y, int64_t n);
@@ -251,7 +254,10 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
 
 typedef struct TokState TokState;
 TokState *tok_load(const NCMConfig *c, const char *asset_dir); /* bpe vocab/merges, wordpiece vocab */
-void      tok_free(TokState *t);
+void tok_free(TokState *t);
+int uni_is_letter(int cp);
+int uni_is_number(int cp);
+int uni_is_space(int cp);
 int  tok_encode(TokState *t, const char *text, int *out, int cap);
 int  tok_decode(TokState *t, const int *ids, int n, char *out, int cap,
                 int skip_special);
@@ -268,6 +274,13 @@ void   metric_rouge(char **hyps, char **refs, int n,
                     double *r1, double *r2, double *rl);
 double gpt2_genppl(const char *gpt2_weights, const char *gpt2_conf,
                    char **hyps, int n, int max_len);
+int gpt2_cmd_gen(const NCMConfig *c, const char *weights, const char *adir,
+                 const char *prompt, const char *ids_csv, int n_new,
+                 float temp, int top_k, float top_p, unsigned long long seed);
+int gpt2_cmd_ppl(const NCMConfig *c, const char *weights, const char *adir,
+                 const char *texts_path);
+int gpt2_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
+                    const char *fixtures_dir);
 
 /* ------------------------------------------------------------------ */
 /* training (train.h) — present, CPU reference; see TRAINING.md        */
