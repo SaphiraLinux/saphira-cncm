@@ -24,11 +24,6 @@ static const char *opt(int *argc, char ***argv, const char *flag) {
     return NULL;
 }
 
-static int has(int argc, char **argv, const char *flag) {
-    for (int i = 1; i < argc; i++) if (strcmp(argv[i], flag) == 0) return 1;
-    return 0;
-}
-
 typedef struct {
     NCMConfig cfg;
     WeightStore ws;
@@ -248,7 +243,7 @@ int main(int argc, char **argv) {
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
         (void)adir;
-        return train_run(&cfg, weights, data, steps ? atoi(steps) : 200);
+        return train_run(&cfg, weights, data, steps ? atoi(steps) : 200, lr ? atof(lr) : 0.0);
     }
     fprintf(stderr, "unknown subcommand %s\n", argv[1]);
     return 2;
@@ -419,17 +414,18 @@ static int sudoku_valid(const char *cells) {
     for (int i = 0; i < 81; i++) if (cells[i] < '1' || cells[i] > '9') return 0;
     for (int r = 0; r < 9; r++) {
         int seen[10] = {0};
-        for (int c = 0; c < 9; c++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; seen[d] = 1; }
+        for (int c = 0; c < 9; c++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; else seen[d] = 1; }
     }
     for (int c = 0; c < 9; c++) {
         int seen[10] = {0};
-        for (int r = 0; r < 9; r++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; seen[d] = 1; }
+        for (int r = 0; r < 9; r++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; else seen[d] = 1; }
     }
     for (int br = 0; br < 3; br++) for (int bc = 0; bc < 3; bc++) {
         int seen[10] = {0};
         for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) {
             int d = cells[(br * 3 + r) * 9 + bc * 3 + c] - '0';
-            if (seen[d]) return 0; seen[d] = 1;
+            if (seen[d]) return 0;
+            seen[d] = 1;
         }
     }
     return 1;
@@ -459,8 +455,6 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
 
     int P = a->cfg.prefix_len;
     int l0len = a->cfg.levels[0];
-    int total = 0;
-    for (int i = 0; i < a->cfg.n_qlevels; i++) total += a->cfg.levels[i];
     int nl0 = 0;
     double *l0p = load_allow(&a->ws, "inference.level0_unigram", &nl0);
     int na = 0;

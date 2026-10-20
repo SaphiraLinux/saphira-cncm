@@ -663,12 +663,6 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                 }
                 var /= cnt;
                 double inv = 1.0 / sqrt(var + 1e-5);
-                for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
-                    int64_t i = ((int64_t)n * C + g * Cg + c) * TT + t;
-                    /* dy/dx for y=(x-mean)*inv with mean/var over group */
-                    /* two-pass: accumulate dmean/dvar first */
-                    (void)i;
-                }
                 double dmean = 0, dvar = 0;
                 for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
                     int64_t i = ((int64_t)n * C + g * Cg + c) * TT + t;

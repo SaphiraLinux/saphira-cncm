@@ -142,7 +142,7 @@ static float *train_build_mask(NCMConfig *c, int P, int T, int lvl_first) {
 }
 
 /* one recorded transformer block, out-of-place. x:[B][S][C] backend. */
-static float *train_block(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *c,
+static float *train_block(Tape *tp, WeightStore *ws, NCMConfig *c,
                           int li, float *x, int B, int S,
                           const float *mask, const float *cos, const float *sin) {
     int C = c->n_embd, H = c->n_head, hd = C / H;
@@ -359,7 +359,7 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
             float *hb = arena_alloc((size_t)S * C);
             mem_d2d(hb, h + (size_t)bb * S * C, (size_t)S * C * sizeof(float));
             for (int li = 0; li < c->n_layer; li++)
-                hb = train_block(tp, m, ws, c, li, hb, 1, S, bm, ncp_rope_cos(m), ncp_rope_sin(m));
+                hb = train_block(tp, ws, c, li, hb, 1, S, bm, ncp_rope_cos(m), ncp_rope_sin(m));
             Tensor *tw = TW(ws, "gen.transformer.ln_f.weight");
             Tensor *tb = weights_get(ws, "gen.transformer.ln_f.bias");
             float *ln = arena_alloc((size_t)S * C);
@@ -370,7 +370,7 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
         free(hm0);
     } else {
         for (int li = 0; li < c->n_layer; li++)
-            h = train_block(tp, m, ws, c, li, h, B, S, mask, ncp_rope_cos(m), ncp_rope_sin(m));
+            h = train_block(tp, ws, c, li, h, B, S, mask, ncp_rope_cos(m), ncp_rope_sin(m));
         Tensor *tw = TW(ws, "gen.transformer.ln_f.weight");
         Tensor *tb = weights_get(ws, "gen.transformer.ln_f.bias");
         float *ln = arena_alloc((size_t)B * S * C);
@@ -542,7 +542,7 @@ static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
     NCMConfig *c = t->c;
     NCPState *m = t->m;
     WeightStore *ws = t->ws;
-    int P = ncp_P(m), T = ncp_T(m), S = P + T, C = c->n_embd, D = c->vq_embed_dim;
+    int P = ncp_P(m), T = ncp_T(m), S = P + T, D = c->vq_embed_dim;
     int lvl_first = ncp_lvlfirst(m);
     tape_clear(tp);
     arena_reset();
@@ -663,9 +663,9 @@ static double train_randn(void) {
 }
 
 int train_run(const NCMConfig *c_, const char *weights_path,
-              const char *data_path, int max_steps) {
+              const char *data_path, int max_steps, double lr) {
     NCMConfig c = *c_;
-    WeightStore ws = {0};
+    WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights_path)) return 1;
     arena_init(1ULL << 30);
     parena_init(1ULL << 28);
@@ -673,7 +673,8 @@ int train_run(const NCMConfig *c_, const char *weights_path,
     (void)vqvae;
     NCPState *m = ncp_load(&c, &ws, vqvae);
     Tape *tp = tape_new();
-    NCPTrainer *t = ncptrainer_new(m, &ws, &c, 3e-4, 0.01, 100, max_steps > 0 ? max_steps : 1000);
+    if (!(lr > 0)) lr = 3e-4;
+    NCPTrainer *t = ncptrainer_new(m, &ws, &c, lr, 0.01, 100, max_steps > 0 ? max_steps : 1000);
     const char *nz = getenv("CNCM_NOISE");
     if (nz && atof(nz) > 0) {
         double sd = atof(nz);
@@ -728,22 +729,9 @@ int train_run(const NCMConfig *c_, const char *weights_path,
  * Analytic grads from train_ncp_loss+tape vs numeric grads from the
  * VERIFIED ncp_forward + host CE. Validates recording forward + backward. */
 
-static double host_ce_loss(const float *logits, const int *tgt, int rows, int V, double w) {
-    /* logits host [rows][V], targets host; mean CE * w */
-    double nll = 0;
-    for (int r = 0; r < rows; r++) {
-        double mx = logits[r * V];
-        for (int v = 1; v < V; v++) if (logits[r * V + v] > mx) mx = logits[r * V + v];
-        double den = 0;
-        for (int v = 0; v < V; v++) den += exp(logits[r * V + v] - mx);
-        nll += -log(exp(logits[r * V + tgt[r]] - mx) / den + 1e-30);
-    }
-    return w * nll / rows;
-}
-
 static int gradcheck_run(NCPState *m, WeightStore *ws, NCMConfig *c,
                          const int *prefix, const int *codes, int B, int n_checks) {
-    int P = ncp_P(m), T = ncp_T(m), S = P + T, C = c->n_embd, D = c->vq_embed_dim;
+    int P = ncp_P(m), T = ncp_T(m), S = P + T, D = c->vq_embed_dim;
     int lvl_first = ncp_lvlfirst(m);
     int total = vq_total_dummy(c);
     VQState *vq = ncp_vq(m);
@@ -936,7 +924,7 @@ static int gradcheck_run(NCPState *m, WeightStore *ws, NCMConfig *c,
 
 int gradcheck_run_cfg(const NCMConfig *c_, const char *weights_path, const char *data_path, int n_checks) {
     NCMConfig c = *c_;
-    WeightStore ws = {0};
+    WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights_path)) return 1;
     arena_init(1ULL << 30);
     parena_init(1ULL << 28);

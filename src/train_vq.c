@@ -292,7 +292,6 @@ static float *train_encode(Tape *tp, WeightStore *ws, NCMConfig *c,
 /* ---- recording decoder (mirrors vqvae_decode) ---- */
 static float *train_decode(Tape *tp, WeightStore *ws, NCMConfig *c,
                            float *zhat, int B, int T, int D) {
-    char kw[256], kb[256];
     float *x = zhat;
     if (c->vq_compression > 1) { fprintf(stderr, "train: compression>1 decode unsupported\n"); exit(1); }
     if (c->dec_positional) {
@@ -403,7 +402,7 @@ void vqtrainer_free(VQTrainer *t) {
 /* driver: token-id rows [B][T] -> recon + commitment, AdamW, EMA, checkpoint */
 int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data_path, int max_steps) {
     NCMConfig c = *c_;
-    WeightStore ws = {0};
+    WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights_path)) return 1;
     arena_init(1ULL << 30);
     parena_init(1ULL << 28);

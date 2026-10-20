@@ -182,7 +182,9 @@ void softmax_fwd(const float *x, float *y, int64_t rows, int C) {
 
 /* CPU RoPE (exact mirror of apply_rotary_emb). With the repo's duplicated
  * cos/sin tables (cat(c,c)/cat(s,s)): y[d]=x[d]*c[d]+(-x[d+h])*s[d] (d<h),
- * y[d]=x[d]*c[d]+x[d-h]*s[d] (d>=h). Computed out-of-place per row. */
+ * y[d]=x[d]*c[d]+x[d-h]*s[d] (d>=h). Computed out-of-place per row.
+ * CPU path only (CUDA uses k_rope_exact below). */
+#ifndef NCM_CUDA
 static void rope_one_exact(float *x, const float *cos, const float *sin,
                            int64_t rows, int T, int hd) {
     int h = hd / 2;
@@ -199,6 +201,7 @@ static void rope_one_exact(float *x, const float *cos, const float *sin,
         }
     }
 }
+#endif /* !NCM_CUDA */
 
 #ifdef NCM_CUDA
 __global__ static void k_rope_exact(float *x, const float *cos, const float *sin,
@@ -449,7 +452,8 @@ __global__ static void k_interp_area(const float *x, float *y, int N, int C, int
     int64_t s = (int64_t)((double)t * Tin / Tout);
     int64_t e = (int64_t)ceil((double)(t + 1) * Tin / Tout);
     if (e <= s) e = s + 1;
-    if (s < 0) s = 0; if (e > Tin) e = Tin;
+    if (s < 0) { s = 0; }
+    if (e > Tin) { e = Tin; }
     double acc = 0; for (int64_t k = s; k < e; k++) acc += x[((int64_t)n * C + c) * Tin + k];
     y[i] = (float)(acc / (e - s));
 }
@@ -485,7 +489,8 @@ void interpolate_area_fwd(const float *x, float *y, int N, int C, int Tin, int T
             int64_t s = (int64_t)((double)t * Tin / Tout);
             int64_t e = (int64_t)ceil((double)(t + 1) * Tin / Tout);
             if (e <= s) e = s + 1;
-            if (s < 0) s = 0; if (e > Tin) e = Tin;
+            if (s < 0) { s = 0; }
+            if (e > Tin) { e = Tin; }
             double acc = 0; for (int64_t k = s; k < e; k++) acc += xr[k];
             yr[t] = (float)(acc / (e - s));
         }

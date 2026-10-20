@@ -274,7 +274,7 @@ double gpt2_genppl(const char *gpt2_weights, const char *gpt2_conf,
 /* ------------------------------------------------------------------ */
 
 int train_run(const NCMConfig *c, const char *weights_path,
-              const char *data_path, int max_steps);
+              const char *data_path, int max_steps, double lr);
 
 /* ---- training (train_tape.c, train.c) ---- */
 Tape *tape_new(void);

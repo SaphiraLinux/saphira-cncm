@@ -169,52 +169,7 @@ double metric_bleu_corpus(char **hyps, char **refs, int n) {
 
 /* ---------------- chrF (sacrebleu defaults: order 6, beta 2) ---------------- */
 
-static double chrf_one(const char *hyp, const char *ref) {
-    /* char n-grams 1..6 (whitespace removed), micro-averaged F_beta */
-    /* build n-gram multisets via hashing */
-    long tp = 0, htot = 0, rtot = 0;
-    for (int n = 1; n <= 6; n++) {
-        /* collect hyp n-grams */
-        int H = 4096;
-        NgramTabC *tab = (NgramTabC *)calloc(H, sizeof(*tab));
-        /* strip whitespace into buffers */
-        size_t hl = strlen(hyp), rl = strlen(ref);
-        char *hs = (char *)malloc(hl + 1), *rs = (char *)malloc(rl + 1);
-        size_t hn = 0, rn = 0;
-        for (size_t i = 0; i < hl; i++)
-            if (hyp[i] != ' ' && hyp[i] != '\t' && hyp[i] != '\n' && hyp[i] != '\r') hs[hn++] = hyp[i];
-        for (size_t i = 0; i < rl; i++)
-            if (ref[i] != ' ' && ref[i] != '\t' && ref[i] != '\n' && ref[i] != '\r') rs[rn++] = ref[i];
-        hs[hn] = 0; rs[rn] = 0;
-        for (size_t s = 0; s + n <= hn; s++) {
-            unsigned long long hh = 1469598103934665603ULL;
-            for (int k = 0; k < n; k++) { hh ^= (unsigned char)hs[s + k]; hh *= 1099511628211ULL; }
-            unsigned long long at = hh & (H - 1);
-            while (tab[at].used && tab[at].key != hh) at = (at + 1) & (H - 1);
-            tab[at].key = hh; tab[at].used = 1; tab[at].c++;
-            htot++;
-        }
-        for (size_t s = 0; s + n <= rn; s++) {
-            unsigned long long hh = 1469598103934665603ULL;
-            for (int k = 0; k < n; k++) { hh ^= (unsigned char)rs[s + k]; hh *= 1099511628211ULL; }
-            unsigned long long at = hh & (H - 1);
-            int found = 0;
-            for (int k = 0; k < H; k++) {
-                unsigned long long q = (at + k) & (H - 1);
-                if (!tab[q].used) break;
-                if (tab[q].key == hh && tab[q].c > 0) { tab[q].c--; tp++; found = 1; break; }
-            }
-            (void)found;
-            rtot++;
-        }
-        free(tab); free(hs); free(rs);
-    }
-    double chrP = htot ? (double)tp / htot : 0;
-    double chrR = rtot ? (double)tp / rtot : 0;
-    double beta = 2.0;
-    if (chrP + chrR == 0) return 0;
-    return (1 + beta * beta) * chrP * chrR / (beta * beta * chrP + chrR);
-}
+
 
 double metric_chrf(char **hyps, char **refs, int n) {
     /* corpus-level micro-average (sacrebleu): accumulate n-gram counts. */
@@ -402,11 +357,6 @@ static int rouge_tok(const char *s, char *buf, char **toks, int cap) {
     return n;
 }
 
-static double rouge_ngram_f(const char **hrefs, const char **hhyps, int n) {
-    (void)hrefs; (void)hhyps; (void)n;
-    return 0;
-}
-
 void metric_rouge(char **hyps, char **refs, int n, double *r1, double *r2, double *rl) {
     static char buf[2][65536];
     static char *tt[2][4096];
@@ -476,7 +426,6 @@ void metric_rouge(char **hyps, char **refs, int n, double *r1, double *r2, doubl
         /* LCS F (Rouge-L): DP over token ids */
         {
             /* map tokens to small ints for DP */
-            int N = nh + nr + 4;
             int *a = (int *)malloc(nh * sizeof(int)), *b = (int *)malloc(nr * sizeof(int));
             /* reuse hash for identity */
             int H = 4096;
@@ -499,8 +448,7 @@ void metric_rouge(char **hyps, char **refs, int n, double *r1, double *r2, doubl
                 b[k] = tab[at].id;
             }
             free(tab);
-            /* Hirschberg-lite: full DP if small else banded */
-            int W = nr + 1;
+            /* full DP LCS (skipped for pathological sizes) */
             if ((int64_t)(nh + 1) * (nr + 1) > (1 << 24)) {
                 sl += 0; /* degenerate fallback */
             } else {

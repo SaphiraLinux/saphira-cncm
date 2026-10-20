@@ -66,19 +66,6 @@ __global__ static void k_add_inplace(float *y, const float *x, size_t n) {
     size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) y[i] += x[i];
 }
-__global__ static void k_add3(float *y, const float *a, const float *b, size_t n) {
-    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) y[i] = a[i] + b[i];
-}
-__global__ static void k_mul_vec(float *y, const float *v, size_t n, int C) {
-    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) y[i] *= v[i % C];
-}
-__global__ static void k_concat(float *y, const float *a, const float *b,
-                                size_t na, size_t nb) {
-    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < na + nb) y[i] = i < na ? a[i] : b[i - na];
-}
 #endif
 
 static void b_add_inplace(float *y, const float *x, size_t n) {
@@ -275,14 +262,9 @@ static void ncp_block(NCPState *m, int li, float *x, int B, int S,
     Tensor *bcp = weights_get(ws, kk);
     float *ao = arena_alloc((size_t)B * S * C);
     linear_fwd(mo, tcp->data, bcp ? bcp->data : NULL, ao, (int64_t)B * S, C, C);
-
-    float *br1 = ao, *br2 = NULL;
-    int parallel = 0; /* config flag parallel_block (all released cfgs: false) */
-    (void)parallel;
-    /* mlp input: parallel ? ln : ln_2(attn_out + x) */
+    /* mlp input: ln_2(attn_out + x) */
     float *min;
-    if (0) { min = ln; }
-    else {
+    {
         /* x = x + ao first (store), then ln_2 */
         b_add_inplace(x, ao, (size_t)B * S * C);
         min = arena_alloc((size_t)B * S * C);
@@ -291,9 +273,7 @@ static void ncp_block(NCPState *m, int li, float *x, int B, int S,
         snprintf(kk, sizeof(kk), "%sln_2.bias", pre);
         tb = weights_get(ws, kk);
         layernorm_fwd(x, tw->data, tb ? tb->data : NULL, min, (int64_t)B * S, C);
-        br1 = NULL; /* already added */
     }
-    (void)br2;
     /* MLP */
     float *mlpo;
     {
@@ -358,7 +338,6 @@ static void ncp_block(NCPState *m, int li, float *x, int B, int S,
             linear_fwd(m, tp->data, bp ? bp->data : NULL, mlpo, (int64_t)B * S, C, Hh);
         }
     }
-    if (br1) b_add_inplace(x, br1, (size_t)B * S * C);
     b_add_inplace(x, mlpo, (size_t)B * S * C);
 }
 

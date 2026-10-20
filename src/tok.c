@@ -1,4 +1,4 @@
-/* tok.c — pre-tokenizers. Mirrors tokenization/*.py without transformers.
+/* tok.c - pre-tokenizers. Mirrors tokenization modules without transformers.
  * Kinds: sudoku (exact), bpe (byte-level BPE + GPT-2-style splitter, exact on
  * ASCII; non-ASCII bytes attach to letter runs — documented approximation),
  * hf-wordpiece (BERT greedy longest-match; ASCII case-folding).
@@ -32,17 +32,16 @@ struct TokState {
     int mapped;  /* 1 = GPT-2 bytes_to_unicode layer (gpt2-style HF BPE) */
 };
 
-/* ---------- GPT-2 bytes_to_unicode (fixed algorithmic mapping) ---------- */
-static unsigned b2u_cp[256];
-static unsigned char b2u_utf8[256][4];
-static int b2u_utf8_len[256];
+/* ---------- GPT-2 bytes_to_unicode (fixed algorithmic mapping) ----------
+ * Only the reverse map (mapped code point -> original byte) is needed:
+ * vocab/merges are translated to raw bytes once at load time. */
 static int b2u_rev[512]; /* mapped code point -> original byte, -1 if none */
 static int b2u_ready = 0;
 
 static void b2u_init(void) {
     if (b2u_ready) return;
     int bs[256], cs[256], nb = 0;
-    for (int b = 0; b < 256; b++) b2u_rev[b] = -1;
+    for (int b = 0; b < 512; b++) b2u_rev[b] = -1;
     /* printable ASCII + Latin-1 supplement that map to themselves */
     for (int b = '!'; b <= '~'; b++) { bs[nb] = b; cs[nb] = b; nb++; }
     for (int b = 0xA1; b <= 0xAC; b++) { bs[nb] = b; cs[nb] = b; nb++; }
@@ -53,23 +52,7 @@ static void b2u_init(void) {
         for (int i = 0; i < nb; i++) if (bs[i] == b) { found = 1; break; }
         if (!found) { bs[nb] = b; cs[nb] = 256 + n; n++; nb++; }
     }
-    for (int i = 0; i < 256; i++) {
-        int b = bs[i], c = cs[i];
-        b2u_cp[b] = (unsigned)c;
-        b2u_rev[c] = b;
-        /* UTF-8 encode c */
-        if (c < 0x80) { b2u_utf8[b][0] = (unsigned char)c; b2u_utf8_len[b] = 1; }
-        else if (c < 0x800) {
-            b2u_utf8[b][0] = (unsigned char)(0xC0 | (c >> 6));
-            b2u_utf8[b][1] = (unsigned char)(0x80 | (c & 0x3F));
-            b2u_utf8_len[b] = 2;
-        } else {
-            b2u_utf8[b][0] = (unsigned char)(0xE0 | (c >> 12));
-            b2u_utf8[b][1] = (unsigned char)(0x80 | ((c >> 6) & 0x3F));
-            b2u_utf8[b][2] = (unsigned char)(0x80 | (c & 0x3F));
-            b2u_utf8_len[b] = 3;
-        }
-    }
+    for (int i = 0; i < 256; i++) b2u_rev[cs[i]] = bs[i];
     b2u_ready = 1;
 }
 
@@ -195,7 +178,7 @@ static int split_gpt2(const unsigned char *t, int n, int (*ranges)[2], int cap) 
 
 TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
     TokState *t = (TokState *)calloc(1, sizeof(TokState));
-    strncpy(t->kind, c->pre_tok, sizeof(t->kind) - 1);
+    snprintf(t->kind, sizeof(t->kind), "%s", c->pre_tok);
     t->eos_id = c->eos_token_id;
     t->pad_id = c->pad_token_id;
     if (strcmp(t->kind, "sudoku") == 0) return t;
@@ -479,31 +462,8 @@ int tok_decode(TokState *t, const int *ids, int n, char *out, int cap,
         }
     }
     out[o] = 0;
-    if (t->mapped) {
-        /* unmap: mapped UTF-8 -> code points -> original bytes */
-        unsigned char *tmp = (unsigned char *)malloc(o + 1);
-        int w2 = 0;
-        for (int r = 0; r < o;) {
-            unsigned char c = out[r];
-            int cp, need;
-            if (c < 0x80) { cp = c; need = 1; }
-            else if ((c & 0xE0) == 0xC0 && r + 1 < o) { cp = ((c & 0x1F) << 6) | (out[r+1] & 0x3F); need = 2; }
-            else if ((c & 0xF0) == 0xE0 && r + 2 < o) { cp = ((c & 0x0F) << 12) | ((out[r+1] & 0x3F) << 6) | (out[r+2] & 0x3F); need = 3; }
-            else if ((c & 0xF8) == 0xF0 && r + 3 < o) { cp = ((c & 0x07) << 18) | ((out[r+1] & 0x3F) << 12) | ((out[r+2] & 0x3F) << 6) | (out[r+3] & 0x3F); need = 4; }
-            else { cp = 0xFFFD; need = 1; }
-            int b = (cp >= 0 && cp < 512) ? b2u_rev[cp] : -1;
-            if (b >= 0) tmp[w2++] = (unsigned char)b;
-            else {
-                /* not a mapped char: copy raw bytes through */
-                for (int k = 0; k < need && r + k < o; k++) tmp[w2++] = out[r + k];
-            }
-            r += need;
-        }
-        memcpy(out, tmp, w2);
-        o = w2;
-        out[o] = 0;
-        free(tmp);
-    }
+    /* NOTE: for GPT-2-style tokenizers the vocab was translated to raw bytes
+     * at load, so no unmapping is needed here; output is already raw UTF-8. */
     /* errors="replace": best-effort — lone continuation bytes become U+FFFD.
      * Validate quickly and patch. */
     {
