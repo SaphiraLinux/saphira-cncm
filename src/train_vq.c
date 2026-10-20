@@ -324,6 +324,16 @@ static float *train_decode(Tape *tp, WeightStore *ws, NCMConfig *c,
     return x;
 }
 
+/* full decoder + output head -> logits [B][T][V] */
+static float *train_decode_logits(Tape *tp, WeightStore *ws, NCMConfig *c,
+                                  float *zhat, int B, int T, int D) {
+    float *x = train_decode(tp, ws, c, zhat, B, T, D);
+    int V = c->vq_in_vocab;
+    float *logits = arena_alloc((size_t)B * T * V);
+    t_linear(tp, x, weights_get(ws, "tok.decoder.output_layer.weight")->data, NULL, logits, (int64_t)B * T, V, D);
+    return logits;
+}
+
 /* ---------------- VQ-VAE training step ---------------- */
 double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B) {
     NCMConfig *c = t->c;
@@ -360,32 +370,7 @@ double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B) {
     float *z_st = arena_alloc((size_t)B * vq_Ltotal(vq) * D);
     t_add(tp, z, delta, z_st, (size_t)B * vq_Ltotal(vq) * D);
     /* decoder (recorded) */
-    float *logits = arena_alloc((size_t)B * T * V);
-    {
-        /* train_decode inline (uses train_vae_block) */
-        float *x = z_st;
-        if (c->vq_compression > 1) { fprintf(stderr, "train: compression>1 unsupported\n"); exit(1); }
-        if (c->dec_positional) {
-            Tensor *wpe = weights_get(ws, "tok.decoder.wpe.weight");
-            int *rows = (int *)malloc((size_t)B * T * sizeof(int));
-            for (int b = 0; b < B; b++) for (int tt = 0; tt < T; tt++) rows[b * T + tt] = tt;
-            float *pe = arena_alloc((size_t)B * T * D);
-            t_gather_rows(tp, wpe->data, rows, B * T, D, pe);
-            free(rows);
-            float *x2 = arena_alloc((size_t)B * T * D);
-            t_add(tp, x, pe, x2, (size_t)B * T * D);
-            x = x2;
-        }
-        x = train_vae_block(tp, ws, "tok.decoder.middle_block.", x, B, T, D, c->vq_n_layers, c->vq_qk_norm, 0);
-        for (int i = 0; i < c->dec_layers - 1; i++) {
-            char pre[160];
-            snprintf(pre, sizeof(pre), "tok.decoder.extra_blocks.%d.", i);
-            x = train_vae_block(tp, ws, pre, x, B, T, D, c->vq_n_layers, c->vq_qk_norm, 0);
-        }
-        float *ln = arena_alloc((size_t)B * T * D);
-        t_layernorm(tp, x, weights_get(ws, "tok.decoder.ln_f.weight")->data, NULL, ln, (int64_t)B * T, D);
-        t_linear(tp, ln, weights_get(ws, "tok.decoder.output_layer.weight")->data, NULL, logits, (int64_t)B * T, V, D);
-    }
+    float *logits = train_decode_logits(tp, ws, c, z_st, B, T, D);
     /* recon CE */
     float *loss_r = arena_alloc(1);
     float *probs = arena_alloc((size_t)B * T * V);
