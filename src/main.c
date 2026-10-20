@@ -14,7 +14,14 @@ static void usage(const char *a) {
         "             [--temp f] [--top-k n] [--top-p f] [--cfg f] [--freq f] [--mu f]\n"
         "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE]\n"
         "  %s eval-sudoku --conf M.conf --weights M.ncm --asset-dir D\n"
-        "             --inputs inputs.txt --refs refs.txt [--n N]\n", a, a, a);
+        "             --inputs inputs.txt --refs refs.txt [--n N]\n"
+        "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
+        "             [--top-k n] [--top-p f] [--seed n]\n"
+        "  %s gpt2-ppl --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             --texts FILE (one document per line)\n"
+        "  %s gpt2-verify --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             --fixtures DIR (gpt2_tok/gen/ppl.txt + gpt2_logits_*.f32)\n", a, a, a, a, a, a);
     exit(2);
 }
 
@@ -215,6 +222,36 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "eval-sudoku") == 0) {
         app_load(&a, conf, weights, adir);
         return cmd_eval_sudoku(&a, argc, argv);
+    }
+    if (strcmp(argv[1], "gpt2-gen") == 0) {
+        const char *prompt = opt(&argc, &argv, "--prompt");
+        const char *ids = opt(&argc, &argv, "--ids");
+        const char *nn = opt(&argc, &argv, "--n");
+        const char *tp = opt(&argc, &argv, "--temp");
+        const char *tk = opt(&argc, &argv, "--top-k");
+        const char *tpp = opt(&argc, &argv, "--top-p");
+        const char *ss = opt(&argc, &argv, "--seed");
+        if (!conf || !weights) usage(argv[0]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return gpt2_cmd_gen(&cfg, weights, adir, prompt, ids, nn ? atoi(nn) : 20,
+                            tp ? (float)atof(tp) : 0.0f, tk ? atoi(tk) : 0,
+                            tpp ? (float)atof(tpp) : 1.0f,
+                            ss ? strtoull(ss, NULL, 10) : 0ULL);
+    }
+    if (strcmp(argv[1], "gpt2-ppl") == 0) {
+        const char *texts = opt(&argc, &argv, "--texts");
+        if (!conf || !weights || !texts) usage(argv[0]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return gpt2_cmd_ppl(&cfg, weights, adir, texts);
+    }
+    if (strcmp(argv[1], "gpt2-verify") == 0) {
+        const char *fx = opt(&argc, &argv, "--fixtures");
+        if (!conf || !weights || !fx) usage(argv[0]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return gpt2_cmd_verify(&cfg, weights, adir, fx);
     }
     if (strcmp(argv[1], "gradcheck") == 0) {
         const char *data = opt(&argc, &argv, "--data");

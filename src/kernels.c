@@ -1,6 +1,7 @@
 /* kernels.c — forward ops. CPU loops; CUDA kernels under NCM_CUDA.
  * All pointers refer to backend memory. Semantics mirror torch exactly:
- * LayerNorm eps=1e-6, GELU exact (erf), softmax stable, interpolate
+ * LayerNorm eps=1e-6 (gpt2 variant takes explicit eps=1e-5),
+ * GELU exact (erf), gelu_tanh for GPT-2, softmax stable, interpolate
  * align_corners=False, GroupNorm affine=false.
  */
 #include "ncm.h"
@@ -114,6 +115,38 @@ void layernorm_fwd(const float *x, const float *w, const float *b,
 #endif
 }
 
+#ifdef NCM_CUDA
+__global__ static void k_layernorm_eps(const float *x, const float *w, const float *b,
+                                       float *y, int64_t rows, int C, float eps) {
+    int64_t r = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (r >= rows) return;
+    const float *xr = x + r * C; float *yr = y + r * C;
+    double mean = 0; for (int c = 0; c < C; c++) mean += xr[c]; mean /= C;
+    double var = 0; for (int c = 0; c < C; c++) { double d = xr[c] - mean; var += d * d; } var /= C;
+    double inv = 1.0 / sqrt(var + (double)eps);
+    for (int c = 0; c < C; c++)
+        yr[c] = (float)((xr[c] - mean) * inv) * (w ? w[c] : 1.0f) + (b ? b[c] : 0.0f);
+}
+#endif
+
+/* LayerNorm with explicit epsilon (GPT-2 uses 1e-5; NCP default stays 1e-6). */
+void layernorm_eps_fwd(const float *x, const float *w, const float *b,
+                       float *y, int64_t rows, int C, float eps) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(rows, k_layernorm_eps, x, w, b, y, rows, C, eps);
+#else
+#pragma omp parallel for schedule(static) if(rows > 4)
+    for (int64_t r = 0; r < rows; r++) {
+        const float *xr = x + r * C; float *yr = y + r * C;
+        double mean = 0; for (int c = 0; c < C; c++) mean += xr[c]; mean /= C;
+        double var = 0; for (int c = 0; c < C; c++) { double d = xr[c] - mean; var += d * d; } var /= C;
+        double inv = 1.0 / sqrt(var + (double)eps);
+        for (int c = 0; c < C; c++)
+            yr[c] = (float)((xr[c] - mean) * inv) * (w ? w[c] : 1.0f) + (b ? b[c] : 0.0f);
+    }
+#endif
+}
+
 void rmsnorm_fwd(const float *x, const float *w, float *y, int64_t rows, int C) {
 #ifdef NCM_CUDA
     NCM_LAUNCH(rows, k_rmsnorm, x, w, y, rows, C);
@@ -156,6 +189,30 @@ void gelu_fwd(const float *x, float *y, int64_t n) {
     for (int64_t i = 0; i < n; i++) {
         float v = x[i];
         y[i] = 0.5f * v * (1.0f + erff(v * 0.7071067811865475f));
+    }
+#endif
+}
+
+#ifdef NCM_CUDA
+__global__ static void k_gelu_tanh(const float *x, float *y, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {
+        float v = x[i];
+        y[i] = 0.5f * v * (1.0f + tanhf(0.7978845608028654f * (v + 0.044715f * v * v * v)));
+    }
+}
+#endif
+
+/* GPT-2 "gelu_new" (tanh approx). Matches HF activation_function=gelu_new. */
+void gelu_tanh_fwd(const float *x, float *y, int64_t n) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(n, k_gelu_tanh, x, y, n);
+#else
+#pragma omp parallel for schedule(static) if(n > 512)
+    for (int64_t i = 0; i < n; i++) {
+        double v = x[i];
+        double t = 0.7978845608028654 * (v + 0.044715 * v * v * v);
+        y[i] = (float)(0.5 * v * (1.0 + tanh(t)));
     }
 #endif
 }
