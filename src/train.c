@@ -332,21 +332,12 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
     /* interleave-concat prefix + target per batch (recorded) */
     float *hfull = arena_alloc((size_t)B * S * C);
     t_join(tp, pemb, xe, hfull, B, P, T, C);
-    if (getenv("CNCM_VERIFY_FWD")) {
-        float *hd = (float*)backend_to_host(hfull, (size_t)B * S * C * sizeof(float));
-        double _s = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) _s += hd[_i];
-        fprintf(stderr, "[verify] train hfull sum=%.6f first=%.6f %.6f row91=%.6f %.6f\n", _s, hd[0], hd[1], hd[P*C], hd[P*C+1]);
-        free(hd);
-    }
+
     /* mask (host-built) with per-batch pad bias */
     float *hm0 = train_build_mask(c, P, T, lvl_first);
     float *mask = arena_alloc((size_t)S * S);
     mem_h2d(mask, hm0, (size_t)S * S * sizeof(float));
-    if (getenv("CNCM_VERIFY_FWD")) {
-        int ninf = 0; double ms = 0;
-        for (int i = 0; i < S * S; i++) { if (hm0[i] < -1e20) ninf++; else ms += hm0[i]; }
-        fprintf(stderr, "[verify] train mask ninf=%d sum=%.1f\n", ninf, ms);
-    }
+
     int any_pad = 0;
     if (c->prefix_pad_token_id >= 0 && prefix_ids)
         for (int bb = 0; bb < B; bb++) for (int s = 0; s < P; s++)
@@ -388,16 +379,6 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
         free(hm0);
     }
     (void)l0q_host;
-    if (getenv("CNCM_VERIFY_FWD")) {
-        float *hd = (float*)backend_to_host(h, (size_t)B * S * C * sizeof(float));
-        double _s = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) _s += hd[_i];
-        fprintf(stderr, "[verify] train post-stack sum=%.6f first=%.6f %.6f\n", _s, hd[0], hd[1]);
-        { double _mx = 0; for (size_t _i = 0; _i < (size_t)B * S * C; _i++) { double _a = hd[_i] < 0 ? -hd[_i] : hd[_i]; if (_a > _mx) _mx = _a; }
-          fprintf(stderr, "[verify] train maxabs=%.4f\n", _mx); }
-        { double s0=0,s1=0; for (int i=0;i<S*C;i++){s0+=hd[i]; s1+=hd[S*C+i];}
-          fprintf(stderr, "[verify] train b0=%.4f b1=%.4f\n", s0, s1); }
-        free(hd);
-    }
     /* heads per level + CE (weight 1/n_tgt each) */
     double loss_sum = 0;
     int off = 0;
@@ -480,38 +461,9 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
         float lh = 0;
         mem_d2h(&lh, loss1, sizeof(float));
         loss_sum += lh;
-        if (getenv("CNCM_VERIFY_FWD") && k < 3)
-            fprintf(stderr, "[verify] train level %d loss %.4f\n", k, lh / 1.0);
+
         free(tgt);
         off += lk;
-    }
-    if (getenv("CNCM_VERIFY_FWD")) {
-        int maxV = 0;
-        for (int q = 0; q < ncp_ntgt(m); q++) if (c->vocab_size[q] > maxV) maxV = c->vocab_size[q];
-        float *lgv = arena_alloc((size_t)B * T * maxV);
-        ncp_forward(m, x, prefix_ids, lgv, B);
-        float *hv = (float*)backend_to_host(lgv, (size_t)B * T * maxV * sizeof(float));
-        double tot = 0;
-        int off = 0, tot2 = vq_total_dummy(c);
-        for (int q = 0; q < ncp_ntgt(m); q++) {
-            int lk = c->levels[q + lvl_first], V = c->vocab_size[q];
-            int bo = 0;
-            for (int qq = 0; qq < q + lvl_first; qq++) bo += c->levels[qq];
-            for (int bb = 0; bb < B; bb++) for (int t = 0; t < lk; t++) {
-                int tg = codes[bb * tot2 + bo + t];
-                const float *row = hv + ((size_t)bb * T + off + t) * maxV;
-                double mx = row[0];
-                for (int v = 0; v < V; v++) if (row[v] > mx) mx = row[v];
-                double den = 0;
-                for (int v = 0; v < V; v++) den += exp(row[v] - mx);
-                tot += (1.0 / ncp_ntgt(m)) * (-log(exp(row[tg] - mx) / den + 1e-30)) / (B * lk);
-            }
-            off += lk;
-        }
-        free(hv);
-        fprintf(stderr, "[verify] train-loss=%.6f infer-loss=%.6f %s\n",
-                loss_sum / ncp_ntgt(m), tot,
-                fabs(loss_sum / ncp_ntgt(m) - tot) < 1e-4 ? "MATCH" : "DIFFER");
     }
     if (out_ppl) *out_ppl = exp(loss_sum / ncp_ntgt(m));
     return loss_sum / ncp_ntgt(m); /* mean over levels (grads weighted likewise) */

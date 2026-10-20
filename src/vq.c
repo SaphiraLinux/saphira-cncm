@@ -683,12 +683,6 @@ void vq_ema_update(VQState *vq, const float *z, const int *codes, int B, double 
         double *enc = (double *)calloc(V, sizeof(double));
         for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++)
             enc[codes[b * vq_total_codes(vq) + off + t]] += 1.0;
-        if (getenv("CNCM_DUMPEMA") && lv == 0) {
-            fprintf(stderr, "C enc_sum:");
-            for (int v = 0; v < V; v++) fprintf(stderr, " %.1f", enc[v]);
-            fprintf(stderr, "\nC dw[7,0:4]=%.4f %.4f %.4f %.4f\n",
-                    0.0, 0.0, 0.0, 0.0);
-        }
         for (int v = 0; v < V; v++) {
             vq->ema_cs[lv][v] = (float)(decay * vq->ema_cs[lv][v] + (1 - decay) * enc[v]);
             for (int d = 0; d < D; d++) {

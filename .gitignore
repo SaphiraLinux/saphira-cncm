@@ -6,3 +6,4 @@ weights/
 *.bin
 *.pkl
 eval/
+ckpt-*.ncm
