@@ -163,6 +163,107 @@ static int split_gpt2(const unsigned char *t, int n, int (*ranges)[2], int cap) 
     return nc;
 }
 
+/* ---------- splitter: Qwen2 pre-tokenizer over code points ----------
+ * (?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}|
+ *  ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+
+ * Matches HF Qwen2 behavior on NFC input (no NFC normalizer here; NFC is the
+ * norm for HF-normalized text, JSON sources, and our corpora — verified).
+ * Emits byte ranges into out[][2], returns count. */
+static int split_qwen2(const unsigned char *t, int n, int (*ranges)[2], int cap) {
+    int cps[8192]; int cpos[8192]; int cn = 0;
+    const unsigned char *p = t, *end = t + n;
+    while (p < end && cn < 8192) { cpos[cn] = (int)(p - t); cps[cn] = utf8_next(&p, end); cn++; }
+    int nc = 0;
+    int i = 0;
+    while (i < cn && nc < cap) {
+        int cp = cps[i];
+        /* contractions (ASCII case-insensitive), tried first */
+        if (cp == '\'' && i + 1 < cn) {
+            int n1 = cps[i + 1];
+            if (n1 >= 'A' && n1 <= 'Z') n1 += 32;
+            if (n1 == 's' || n1 == 't' || n1 == 'm' || n1 == 'd') {
+                ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + 2 < cn) ? cpos[i + 2] : n; nc++; i += 2; continue;
+            }
+            if (i + 2 < cn) {
+                int n2 = cps[i + 2];
+                if (n2 >= 'A' && n2 <= 'Z') n2 += 32;
+                if ((n1 == 'r' && n2 == 'e') || (n1 == 'v' && n2 == 'e') || (n1 == 'l' && n2 == 'l')) {
+                    ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + 3 < cn) ? cpos[i + 3] : n; nc++; i += 3; continue;
+                }
+            }
+        }
+        /* [^\r\n\p{L}\p{N}]?\p{L}+ */
+        {
+            int isnl = (cp == '\r' || cp == '\n');
+            int prefixable = !isnl && !is_letter(cp) && !is_number(cp);
+            int j = i;
+            if (prefixable) {
+                if (j + 1 >= cn || !is_letter(cps[j + 1])) goto qwen_not_letters;
+                j++;
+            } else if (!is_letter(cp)) {
+                goto qwen_not_letters;
+            }
+            int k = j;
+            while (k < cn && is_letter(cps[k])) k++;
+            ranges[nc][0] = cpos[i]; ranges[nc][1] = (k < cn) ? cpos[k] : n; nc++; i = k; continue;
+        }
+qwen_not_letters:;
+        /* \p{N}{1,3}: no leading space, hard cap of three */
+        if (is_number(cp)) {
+            int k = i + 1, cnt = 1;
+            while (k < cn && cnt < 3 && is_number(cps[k])) { k++; cnt++; }
+            ranges[nc][0] = cpos[i]; ranges[nc][1] = (k < cn) ? cpos[k] : n; nc++; i = k; continue;
+        }
+        /* ' ?[^\s\p{L}\p{N}]+[\r\n]*': optional space belongs to the match,
+         * so the punct guard tests the char AFTER it (else " (" splits). */
+        {
+            int start = i;
+            if (cp == ' ') {
+                if (i + 1 >= cn) goto qwen_not_punct;
+                int nx = cps[i + 1];
+                if (is_space(nx) || is_letter(nx) || is_number(nx)) goto qwen_not_punct;
+                start = i + 1;
+            } else if (is_space(cp) || is_letter(cp) || is_number(cp)) {
+                goto qwen_not_punct;
+            }
+            int k = start;
+            while (k < cn) {
+                int c2 = cps[k];
+                if (is_space(c2) || is_letter(c2) || is_number(c2)) break;
+                k++;
+            }
+            while (k < cn && (cps[k] == '\r' || cps[k] == '\n')) k++;
+            ranges[nc][0] = cpos[i]; ranges[nc][1] = (k < cn) ? cpos[k] : n; nc++; i = k; continue;
+        }
+qwen_not_punct:;
+        /* \s*[\r\n]+: up to and including the LAST CR/LF in a whitespace run */
+        {
+            int k = i;
+            while (k < cn && is_space(cps[k])) k++;
+            if (k > i) {
+                int last = -1;
+                for (int j = i; j < k; j++)
+                    if (cps[j] == '\r' || cps[j] == '\n') last = j;
+                if (last >= 0) {
+                    ranges[nc][0] = cpos[i]; ranges[nc][1] = (last + 1 < cn) ? cpos[last + 1] : n; nc++; i = last + 1; continue;
+                }
+                /* \s+(?!\S): longest run with non-space/end after it */
+                {
+                    int run = k - i, L;
+                    if (k >= cn) L = run;
+                    else L = (run >= 2) ? run - 1 : 0;
+                    if (L >= 1) {
+                        ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + L < cn) ? cpos[i + L] : n; nc++; i += L; continue;
+                    }
+                }
+            }
+        }
+        /* fallback: single code point (lone \s, or anything unmatched) */
+        ranges[nc][0] = cpos[i]; ranges[nc][1] = (i + 1 < cn) ? cpos[i + 1] : n; nc++; i++;
+    }
+    return nc;
+}
+
 /* ---------- TokState ---------- */
 
 TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
@@ -172,7 +273,7 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
     t->pad_id = c->pad_token_id;
     if (strcmp(t->kind, "sudoku") == 0) return t;
 
-    int is_bpe = (strcmp(t->kind, "bpe") == 0) ||
+    int is_bpe = (strcmp(t->kind, "bpe") == 0) || (strcmp(t->kind, "qwen") == 0) ||
                  (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "bert") == NULL);
     if (is_bpe) {
         char path[1024];
@@ -228,6 +329,7 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
             t->n_merges++;
         }
         fclose(f);
+        if (strcmp(t->kind, "qwen") == 0) t->pattern = 1;
         if (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "Qwen") != NULL)
             t->pattern = 1;
         if (strcmp(t->kind, "hf") == 0 && strstr(c->hf_model_id, "Qwen") == NULL
@@ -412,7 +514,8 @@ int tok_encode(TokState *t, const char *text, int *out, int cap) {
      * Custom BPE specials live in vocab ids 0..k-1; text containing them is
      * out of scope for eval inputs. */
     int ranges[2048][2];
-    int nr = split_gpt2(u, nu, ranges, 2048);
+    int nr = (t->pattern == 1) ? split_qwen2(u, nu, ranges, 2048)
+                               : split_gpt2(u, nu, ranges, 2048);
     int no = 0;
     for (int i = 0; i < nr && no < cap; i++) {
         int s = ranges[i][0], e = ranges[i][1];
