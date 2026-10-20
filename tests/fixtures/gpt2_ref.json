@@ -1,0 +1,167 @@
+{
+ "texts": {
+  "s1": {
+   "text": "Hello, my dog is cute",
+   "ids": [
+    15496,
+    11,
+    616,
+    3290,
+    318,
+    13779
+   ]
+  },
+  "s2": {
+   "text": "The quick brown fox jumps over the lazy dog.",
+   "ids": [
+    464,
+    2068,
+    7586,
+    21831,
+    18045,
+    625,
+    262,
+    16931,
+    3290,
+    13
+   ]
+  },
+  "uni": {
+   "text": "caf\u00e9 na\u00efve fa\u00e7ade r\u00e9sum\u00e9",
+   "ids": [
+    66,
+    1878,
+    2634,
+    41492,
+    24685,
+    16175,
+    671,
+    40560,
+    16345,
+    2634
+   ]
+  },
+  "punct": {
+   "text": "She said, \"Hello... world!\" \u2014 and left.",
+   "ids": [
+    3347,
+    531,
+    11,
+    366,
+    15496,
+    986,
+    995,
+    2474,
+    851,
+    290,
+    1364,
+    13
+   ]
+  }
+ },
+ "logits_files": {
+  "s1": {
+   "file": "gpt2_logits_s1.f32",
+   "T": 6,
+   "V": 50257
+  },
+  "s2": {
+   "file": "gpt2_logits_s2.f32",
+   "T": 10,
+   "V": 50257
+  },
+  "uni": {
+   "file": "gpt2_logits_uni.f32",
+   "T": 10,
+   "V": 50257
+  },
+  "punct": {
+   "file": "gpt2_logits_punct.f32",
+   "T": 12,
+   "V": 50257
+  }
+ },
+ "generations": {
+  "gen1": {
+   "prompt": "Hello, my dog is cute and",
+   "ids": [
+    314,
+    1842,
+    683,
+    13,
+    314,
+    1101,
+    407,
+    1654,
+    611,
+    339,
+    338,
+    257,
+    922,
+    3290,
+    11,
+    475,
+    314,
+    1101,
+    1654,
+    339
+   ],
+   "text": " I love him. I'm not sure if he's a good dog, but I'm sure he"
+  },
+  "gen2": {
+   "prompt": "In the beginning",
+   "ids": [
+    11,
+    262,
+    691,
+    835,
+    284,
+    651,
+    257,
+    922,
+    1730,
+    319,
+    257,
+    1097,
+    318,
+    284,
+    2822,
+    530,
+    13,
+    887,
+    783,
+    11
+   ],
+   "text": ", the only way to get a good deal on a car is to buy one. But now,"
+  }
+ },
+ "ppl": {
+  "text": "The Washington Post reported that the committee would meet on Tuesday to discuss the new proposal for high-speed rail.",
+  "ids": [
+   464,
+   2669,
+   2947,
+   2098,
+   326,
+   262,
+   5583,
+   561,
+   1826,
+   319,
+   3431,
+   284,
+   2112,
+   262,
+   649,
+   6961,
+   329,
+   1029,
+   12,
+   12287,
+   6787,
+   13
+  ],
+  "nll": 2.6969447135925293,
+  "ppl": 14.834339141845703
+ }
+}
