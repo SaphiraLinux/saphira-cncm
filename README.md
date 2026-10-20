@@ -15,14 +15,15 @@ A single `cncm` binary runs inference, generates text, evaluates, and trains.
 | VQ-VAE forward (encode / quantize / decode) | ✅ exact idx match, logits < 1e-3 |
 | NCP forward (all head types, RoPE, GQA, CFG shapes) | ✅ < 1e-3 |
 | Learned L1 cascade (multi-stage + GroupNorm) | ✅ verified (tinystories) |
-| Tokenizers: Sudoku, byte-BPE (custom/GPT-2/Qwen patterns) | ✅ BPE matches Python exactly |
-| Tokenizers: BERT WordPiece | ✅ implemented, needs vocab spot-check |
+| Tokenizers: Sudoku, byte-BPE (custom/GPT-2 incl. bytes_to_unicode) | ✅ exact match vs Python (custom + HF GPT-2) |
+| Tokenizers: BERT WordPiece / Qwen patterns | ⚠️ implemented, lightly tested (pattern select present) |
 | Generate (greedy + temperature/top-k/top-p, CFG, freq/adj penalties) | ✅ |
 | `eval-sudoku` | ✅ 1988/2000 (99.40%), identical to Python |
 | Autograd tape + all backward kernels | ✅ grad-checked (linear/layernorm/rmsnorm/SDPA/split/merge) |
 | NCP training (AdamW, cosine schedule) | ✅ noise-recovery demonstrated |
 | VQ-VAE training (commitment + EMA) | ✅ loss decreases; EMA ones-init (see TRAINING.md) |
-| Metrics (BLEU/chrF/ROUGE), genPPL scorer, XSum/WMT eval | 🚧 stubs present (`metrics.c`, `gpt2.c`) |
+| Metrics (BLEU/chrF/ROUGE) | ✅ BLEU exact; chrF/R-1 within 0.3 of sacrebleu/rouge (see Metrics) |
+| genPPL scorer, XSum/WMT eval CLIs | 🚧 scorer + full conditional evals are follow-ups |
 
 ## Quick start
 
@@ -110,3 +111,18 @@ tests/
   end-to-end eval CLIs are not wired yet.
 - The Qwen/HF pre-tokenizer paths and non-RoPE models are implemented but
   lightly exercised (only sudoku + tinystories + BPE are fully verified).
+
+## Metrics
+
+`src/metrics.c` implements sacrebleu-compatible corpus BLEU (13a tokenization,
+exp smoothing) and chrF (order 6, β=2, corpus micro-average), plus ROUGE-1/2/L
+F-measure with Porter stemming. Validated on released NCM outputs:
+
+| Metric | C | Python reference | Δ |
+|---|---|---|---|
+| BLEU (WMT14, n=50) | 15.5992 | 15.5992 (sacrebleu) | exact |
+| chrF (WMT14, n=50) | 45.34 | 45.07 (sacrebleu) | 0.27 |
+| ROUGE-1/2/L (XSum, n=50) | 32.53 / 12.16 / 26.47 | 32.76 / 12.16 / 26.47 (rouge_score) | ≤0.23 |
+
+Remaining deltas are tokenizer/stemmer edge cases (1/52 Porter words differ
+from NLTK; chrF whitespace/n-gram boundary conventions).
