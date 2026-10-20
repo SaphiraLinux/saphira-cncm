@@ -87,6 +87,7 @@ typedef struct {
     int  attn_pattern_block_diag; /* 1 = block_diagonal, 0 = block_causal */
     int  use_positional_encoding, use_level_encoding;
     int  use_rope, rope_base, use_qk_norm, use_flex_attention;
+    double rope_theta;         /* RoPE base frequency (default 10000) */
     int  n_kv_heads;
     /* ctx encoder */
     int  ctx_enabled, ctx_n_layer, ctx_vocab;
@@ -153,9 +154,15 @@ void silu_fwd(const float *x, float *y, int64_t n);
 void softmax_fwd(const float *x, float *y, int64_t rows, int C); /* row softmax */
 void rope_apply(float *q, float *k, const float *cos, const float *sin,
                 int B, int H, int T, int hd);
+void rope_apply_gqa(float *q, float *k, const float *cos, const float *sin,
+                    int B, int H, int K, int T, int hd);
+void heads_transpose_fwd(const float *in, float *out, int64_t T, int H, int hd);
 /* SDPA with additive mask: out = softmax(QK'/s + mask) V. mask:[Tq,Tkv] or NULL */
 void sdpa_fwd(const float *q, const float *k, const float *v, const float *mask,
               float *out, int B, int H, int Tq, int Tkv, int hd);
+/* GQA variant: q has Hq heads, k/v have Hkv heads. */
+void sdpa_fwd_gqa(const float *q, const float *k, const float *v, const float *mask,
+                  float *out, int B, int Hq, int Hkv, int Tq, int Tkv, int hd);
 /* conv1d (NCL): y[n,c,t] = bias + sum_{kc,kk} W[c,kc,kk] x[n,kc,t+kk-pad] */
 void conv1d_fwd(const float *x, const float *W, const float *b, float *y,
                 int N, int Cin, int Cout, int T, int K, int stride, int pad);
@@ -170,6 +177,7 @@ void rowwise_l2sq(const float *a, const float *b, float *d2,
                   int64_t rows, int64_t colsA, int C); /* ||a_i - b_j||^2 */
 void add_fwd(const float *a, const float *b, float *y, int64_t n);
 void scale_fwd(const float *x, float s, float *y, int64_t n);
+void mul_fwd(const float *a, const float *b, float *y, int64_t n);
 void add_inplace_fwd(float *y, const float *x, int64_t n);
 void qkv_split_fwd(const float *in, float *qq, float *kk, float *vv,
                    int B, int T, int C, int H, int hd, int K, int rep);
@@ -280,6 +288,13 @@ int gpt2_cmd_gen(const NCMConfig *c, const char *weights, const char *adir,
 int gpt2_cmd_ppl(const NCMConfig *c, const char *weights, const char *adir,
                  const char *texts_path);
 int gpt2_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
+                    const char *fixtures_dir);
+int qwen_cmd_gen(const NCMConfig *c, const char *weights, const char *adir,
+                 const char *prompt, const char *ids_csv, int n_new,
+                 float temp, int top_k, float top_p, unsigned long long seed);
+int qwen_cmd_ppl(const NCMConfig *c, const char *weights, const char *adir,
+                 const char *texts_path);
+int qwen_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
                     const char *fixtures_dir);
 
 /* ------------------------------------------------------------------ */

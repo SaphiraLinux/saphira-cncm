@@ -160,7 +160,7 @@ static void parse_int_list(const char *v, int *out, int cap, int *n) {
 int config_load(NCMConfig *c, const char *path) {
     memset(c, 0, sizeof(*c));
     /* defaults matching the python `getattr(..., default)` fallbacks */
-    c->bias = 1; c->rope_base = 10000; c->n_kv_heads = -1;
+    c->bias = 1; c->rope_base = 10000; c->rope_theta = 10000.0; c->n_kv_heads = -1;
     c->prefix_pad_token_id = -1;
     c->eos_token_id = -1; c->pad_token_id = -1;
     c->attn_pattern_block_diag = 1;
@@ -183,6 +183,7 @@ int config_load(NCMConfig *c, const char *path) {
         INT(predict_level0) INT(query_level0) INT(l0_autoregressive)
         INT(use_positional_encoding) INT(use_level_encoding)
         INT(use_rope) INT(rope_base) INT(use_qk_norm) INT(use_flex_attention)
+        else if KEY("model.rope_theta") c->rope_theta = atof(v);
         INT(n_kv_heads)
         FLT(dropout)
         else if KEY("model.bias") c->bias = atoi(v);

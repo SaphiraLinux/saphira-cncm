@@ -90,6 +90,9 @@ static void gpt2_close(GPT2 *g) {
 /* Forward: ids[T] -> backend logits [T][V]. Caller owns arena discipline:
  * resets before calling; stage out what it needs before the next reset. */
 static float *gpt2_forward(GPT2 *g, const int *ids, int T) {
+    /* owns the scratch arena for the call: reset first. Callers must
+     * backend_to_host anything they keep (GPT2 holds no arena state). */
+    arena_reset();
     int C = g->n_embd, H = g->n_head, hd = C / H, V = g->vocab_size;
     /* input + positions */
     int *bids = (int *)arena_alloc((size_t)T);

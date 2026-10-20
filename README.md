@@ -52,6 +52,10 @@ make cuda       # -> ./cncm-cuda (sm_86, no other deps)
     --asset-dir weights/gpt2 --prompt TEXT [--n N]
 ./cncm gpt2-verify --conf weights/gpt2/model.conf --weights weights/gpt2/model.ncm \
     --asset-dir weights/gpt2 --fixtures tests/fixtures
+./cncm qwen-gen --conf weights/qwen2-05/model.conf --weights weights/qwen2-05/model.ncm \
+    --asset-dir weights/qwen2-05 --prompt TEXT [--n N]
+./cncm qwen-verify --conf weights/qwen2-05/model.conf --weights weights/qwen2-05/model.ncm \
+    --asset-dir weights/qwen2-05 --fixtures tests/fixtures
 ```
 
 Training data: `tools/export_train.py` writes `.nctrain` shards
@@ -75,6 +79,9 @@ src/
    gpt2.c         native GPT-2 decoder (124M verified vs transformers:
                   exact ids, logits maxrel~1e-6, greedy gen, ppl) +
                   gpt2-gen / gpt2-ppl / gpt2-verify
+   qwen.c         native Qwen2 decoder (0.5B verified vs transformers:
+                  exact ids incl. digit-splitting, logits within fp32 noise
+                  floor, greedy gen, ppl) + qwen-gen / qwen-ppl / qwen-verify
    main.c         `cncm` CLI
 tools/
    export.py        .pt -> .ncm + .conf (one-time, needs torch)

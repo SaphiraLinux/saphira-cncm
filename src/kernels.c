@@ -295,6 +295,42 @@ void rope_apply(float *q, float *k, const float *cos, const float *sin,
 #endif
 }
 
+/* GQA RoPE: q carries H heads, k carries K heads (K<H). Same tables. */
+void rope_apply_gqa(float *q, float *k, const float *cos, const float *sin,
+                    int B, int H, int K, int T, int hd) {
+#ifdef NCM_CUDA
+    if (q) { int64_t rows = (int64_t)B * H * T; NCM_LAUNCH(rows, k_rope_exact, q, cos, sin, rows, T, hd); }
+    if (k) { int64_t rows = (int64_t)B * K * T; NCM_LAUNCH(rows, k_rope_exact, k, cos, sin, rows, T, hd); }
+#else
+    if (q) rope_one_exact(q, cos, sin, (int64_t)B * H * T, T, hd);
+    if (k) rope_one_exact(k, cos, sin, (int64_t)B * K * T, T, hd);
+#endif
+}
+
+#ifdef NCM_CUDA
+__global__ static void k_heads_transpose(const float *in, float *out,
+                                         int64_t T, int H, int hd) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= T * H * hd) return;
+    int64_t t = i / (H * hd), r = i % (H * hd);
+    int h = (int)(r / hd), d = (int)(r % hd);
+    out[((int64_t)h * T + t) * hd + d] = in[((int64_t)t * H + h) * hd + d];
+}
+#endif
+
+/* Rearrange [T][H*hd] row-major into heads-major [H*T][hd]. */
+void heads_transpose_fwd(const float *in, float *out, int64_t T, int H, int hd) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(T * H * hd, k_heads_transpose, in, out, T, H, hd);
+#else
+#pragma omp parallel for schedule(static) if(T * H * hd > 4096)
+    for (int64_t t = 0; t < T; t++)
+        for (int h = 0; h < H; h++)
+            for (int d = 0; d < hd; d++)
+                out[((int64_t)h * T + t) * hd + d] = in[((int64_t)t * H + h) * hd + d];
+#endif
+}
+
 /* ================= SDPA ================= */
 
 #ifdef NCM_CUDA
@@ -327,6 +363,80 @@ __global__ static void k_sdpa(const float *q, const float *k, const float *v,
     }
 }
 #endif
+
+#ifdef NCM_CUDA
+__global__ static void k_sdpa_gqa(const float *q, const float *k, const float *v,
+                                  const float *mask, float *out, float *scores,
+                                  int B, int Hq, int Hkv, int Tq, int Tkv, int hd, float scale) {
+    int64_t row = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= (int64_t)B * Hq * Tq) return;
+    int b = (int)(row / (Hq * Tq)); int h = (int)((row / Tq) % Hq); int tq = (int)(row % Tq);
+    int rep = Hq / Hkv, kvh = h / rep;
+    const float *qr = q + ((int64_t)b * Hq + h) * Tq * hd + (int64_t)tq * hd;
+    float *sh = scores + row * Tkv;
+    float mx = -1e30f;
+    for (int tk = 0; tk < Tkv; tk++) {
+        const float *kr = k + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+        double s = 0; for (int d = 0; d < hd; d++) s += (double)qr[d] * kr[d];
+        float sc = (float)(s * scale);
+        if (mask) sc += mask[(int64_t)tq * Tkv + tk];
+        sh[tk] = sc;
+        if (sc > mx) mx = sc;
+    }
+    double den = 0; for (int tk = 0; tk < Tkv; tk++) den += exp((double)sh[tk] - mx);
+    float *or_ = out + ((int64_t)b * Hq + h) * Tq * hd + (int64_t)tq * hd;
+    for (int d = 0; d < hd; d++) or_[d] = 0;
+    for (int tk = 0; tk < Tkv; tk++) {
+        float p = (float)(exp((double)sh[tk] - mx) / den);
+        const float *vr = v + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+        for (int d = 0; d < hd; d++) or_[d] += p * vr[d];
+    }
+}
+#endif
+
+/* GQA SDPA: q has Hq heads, k/v have Hkv heads (kvh = h / (Hq/Hkv)). */
+void sdpa_fwd_gqa(const float *q, const float *k, const float *v, const float *mask,
+                  float *out, int B, int Hq, int Hkv, int Tq, int Tkv, int hd) {
+    float scale = 1.0f / sqrtf((float)hd);
+#ifdef NCM_CUDA
+    {
+        int64_t rows = (int64_t)B * Hq * Tq;
+        float *dscores = arena_alloc((size_t)rows * Tkv);
+        int blocks = (int)((rows + NCM_THREADS - 1) / NCM_THREADS);
+        k_sdpa_gqa<<<blocks, NCM_THREADS>>>(
+            q, k, v, mask, out, dscores, B, Hq, Hkv, Tq, Tkv, hd, scale);
+    }
+#else
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)B * Hq * Tq > 4)
+    for (int b = 0; b < B; b++) for (int h = 0; h < Hq; h++) {
+        int kvh = h / (Hq / Hkv);
+        for (int tq = 0; tq < Tq; tq++) {
+            const float *qr = q + ((int64_t)b * Hq + h) * Tq * hd + (int64_t)tq * hd;
+            double mx = -1e300, den = 0;
+            for (int tk = 0; tk < Tkv; tk++) {
+                const float *kr = k + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+                double s = 0; for (int d = 0; d < hd; d++) s += (double)qr[d] * kr[d];
+                s *= scale;
+                if (mask) s += mask[(int64_t)tq * Tkv + tk];
+                if (s > mx) mx = s;
+            }
+            float *or_ = out + ((int64_t)b * Hq + h) * Tq * hd + (int64_t)tq * hd;
+            for (int d = 0; d < hd; d++) or_[d] = 0;
+                for (int tk = 0; tk < Tkv; tk++) {
+                    const float *kr = k + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+                    double s = 0; for (int d = 0; d < hd; d++) s += (double)qr[d] * kr[d];
+                    s *= scale;
+                    if (mask) s += mask[(int64_t)tq * Tkv + tk];
+                    double p = exp(s - mx); den += p;
+                    const float *vr = v + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+                    for (int d = 0; d < hd; d++) or_[d] += (float)p * vr[d];
+                }
+                double inv = 1.0 / den;
+                for (int d = 0; d < hd; d++) or_[d] = (float)(or_[d] * inv);
+        }
+    }
+#endif
+}
 
 void sdpa_fwd(const float *q, const float *k, const float *v, const float *mask,
               float *out, int B, int H, int Tq, int Tkv, int hd) {
@@ -710,6 +820,23 @@ void add_fwd(const float *a, const float *b, float *y, int64_t n) {
     NCM_LAUNCH(n, k_add, a, b, y, n);
 #else
     for (int64_t i = 0; i < n; i++) y[i] = a[i] + b[i];
+#endif
+}
+
+#ifdef NCM_CUDA
+__global__ static void k_mul(const float *a, const float *b, float *y, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) y[i] = a[i] * b[i];
+}
+#endif
+
+/* Elementwise multiply (SwiGLU gating). */
+void mul_fwd(const float *a, const float *b, float *y, int64_t n) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH(n, k_mul, a, b, y, n);
+#else
+#pragma omp parallel for schedule(static) if(n > 512)
+    for (int64_t i = 0; i < n; i++) y[i] = a[i] * b[i];
 #endif
 }
 

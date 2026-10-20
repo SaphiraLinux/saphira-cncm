@@ -1,0 +1,191 @@
+{
+ "texts": {
+  "s1": {
+   "text": "Hello, my dog is cute",
+   "ids": [
+    9707,
+    11,
+    847,
+    5562,
+    374,
+    18838
+   ]
+  },
+  "s2": {
+   "text": "The quick brown fox jumps over the lazy dog.",
+   "ids": [
+    785,
+    3974,
+    13876,
+    38835,
+    34208,
+    916,
+    279,
+    15678,
+    5562,
+    13
+   ]
+  },
+  "num": {
+   "text": "The price is 12345 dollars and 678 cents.",
+   "ids": [
+    785,
+    3349,
+    374,
+    220,
+    16,
+    17,
+    18,
+    19,
+    20,
+    11192,
+    323,
+    220,
+    21,
+    22,
+    23,
+    30191,
+    13
+   ]
+  },
+  "uni": {
+   "text": "caf\u00e9 na\u00efve \u2014 \u201cquoted\u201d",
+   "ids": [
+    924,
+    58858,
+    94880,
+    586,
+    1959,
+    1036,
+    63725,
+    854
+   ]
+  },
+  "punct": {
+   "text": "She said, \"Hello... world!\" \u2014 and left.",
+   "ids": [
+    7941,
+    1053,
+    11,
+    330,
+    9707,
+    1112,
+    1879,
+    8958,
+    1959,
+    323,
+    2115,
+    13
+   ]
+  }
+ },
+ "logits_files": {
+  "s1": {
+   "file": "qwen_logits_s1.f32",
+   "T": 6,
+   "V": 151936
+  },
+  "s2": {
+   "file": "qwen_logits_s2.f32",
+   "T": 10,
+   "V": 151936
+  },
+  "num": {
+   "file": "qwen_logits_num.f32",
+   "T": 17,
+   "V": 151936
+  },
+  "uni": {
+   "file": "qwen_logits_uni.f32",
+   "T": 8,
+   "V": 151936
+  },
+  "punct": {
+   "file": "qwen_logits_punct.f32",
+   "T": 12,
+   "V": 151936
+  }
+ },
+ "generations": {
+  "gen1": {
+   "prompt": "Hello, my dog is cute and",
+   "ids": [
+    18838,
+    11,
+    714,
+    358,
+    1513,
+    944,
+    1414,
+    1246,
+    311,
+    1281,
+    432,
+    803,
+    18838,
+    13,
+    358,
+    1366,
+    311,
+    1281,
+    432,
+    803
+   ],
+   "text": " cute, but I don't know how to make it more cute. I want to make it more"
+  },
+  "gen2": {
+   "prompt": "In the beginning",
+   "ids": [
+    11,
+    1052,
+    1033,
+    220,
+    16,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15
+   ],
+   "text": ", there were 1000000000000000"
+  }
+ },
+ "ppl": {
+  "text": "The Washington Post reported that the committee would meet on Tuesday to discuss the new proposal for high-speed rail.",
+  "ids": [
+   785,
+   6515,
+   3877,
+   4961,
+   429,
+   279,
+   12801,
+   1035,
+   3367,
+   389,
+   7589,
+   311,
+   4263,
+   279,
+   501,
+   13734,
+   369,
+   1550,
+   29599,
+   13569,
+   13
+  ],
+  "nll": 3.1283376216888428,
+  "ppl": 22.83598592359319
+ }
+}
