@@ -92,14 +92,16 @@ static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
 static int cmd_infer(App *a, const char *ids_csv) {
     int P = a->cfg.prefix_len;
-    int *ids = (int *)malloc((P > 0 ? P : 1024) * sizeof(int));
-    int n = parse_ids(ids_csv, ids, P > 0 ? P : 1024);
-    if (n == 0) { fprintf(stderr, "no ids\n"); return 1; }
     int T = a->cfg.vq_context_length;
     int B = 1;
+    /* ids csv holds prefix (P) followed by chunk (T) */
+    int *ids = (int *)malloc((size_t)(P + T) * sizeof(int));
+    int n = parse_ids(ids_csv, ids, P + T);
+    if (n == 0) { fprintf(stderr, "no ids\n"); return 1; }
     int *inp = (int *)calloc(B * T, sizeof(int));
-    /* pad/truncate like eval_shard.prefix(): ids[:P] + [PAD]*P, here into T */
-    for (int i = 0; i < T && i < n; i++) inp[i] = ids[i];
+    /* chunk = ids[P:P+T]; fall back to ids[0:T] when only P ids given */
+    for (int i = 0; i < T; i++)
+        inp[i] = (P + i < n) ? ids[P + i] : (i < n ? ids[i] : 0);
 
     float *z = arena_alloc((size_t)B * T * a->cfg.vq_embed_dim);
     vqvae_encode_z(a->vqvae, inp, z, B);

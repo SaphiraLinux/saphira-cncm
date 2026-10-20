@@ -22,8 +22,12 @@ struct VQState {
     int n_phi;
     double *ticks;                   /* phi tick positions */
     int has_l1;
-    float *downW, *downB, *upW, *upB;
-    int downK, upK;
+    int n_down, n_up;                /* cascade stages */
+    float **downWs, **downBs;        /* [D,D,K=s] each */
+    int *downKs;
+    float **upWs, **upBs;            /* convT [D,D,K=s] each */
+    int *upKs;
+    int l1_norm, l1_norm_final;
     int has_all;
     float **drefW, **drefB, **urefW, **urefB; /* per middle level or NULL */
 };
@@ -122,28 +126,42 @@ VQState *vq_load(const NCMConfig *c, WeightStore *ws, const char *prefix) {
 
     if (c->learned_l1_sampling) {
         v->has_l1 = 1;
-        /* cascaded Sequential: load .0, .1, ... until missing */
-        v->downW = v->downB = v->upW = v->upB = NULL;
-        v->downK = v->upK = 0;
-        for (int s = 0; ; s++) {
+        v->l1_norm = c->learned_l1_norm;
+        v->l1_norm_final = c->learned_l1_norm_final;
+        /* cascaded Sequential: conv weights live at module indices; GroupNorm
+         * (affine=False) contributes no keys, so probe each index and keep
+         * the ones that have weights — convs arrive in application order. */
+        v->downWs = (float **)calloc(16, sizeof(float *));
+        v->downBs = (float **)calloc(16, sizeof(float *));
+        v->downKs = (int *)calloc(16, sizeof(int));
+        v->upWs = (float **)calloc(16, sizeof(float *));
+        v->upBs = (float **)calloc(16, sizeof(float *));
+        v->upKs = (int *)calloc(16, sizeof(int));
+        v->n_down = v->n_up = 0;
+        /* Norm layers (affine=False) contribute no keys, so module indices
+         * may skip; scan a fixed window and keep weights in order. */
+        for (int s = 0; s < 16; s++) {
             char nm[64];
             snprintf(nm, sizeof(nm), "learned_down_l1.%d.weight", s);
-            if (!haskey(ws, prefix, nm)) break;
-            Tensor *t = req(ws, prefix, nm);
-            if (s == 0) { v->downW = t->data; v->downK = (int)t->shape[2]; }
-            snprintf(nm, sizeof(nm), "learned_down_l1.%d.bias", s);
-            if (s == 0) v->downB = req(ws, prefix, nm)->data;
+            if (haskey(ws, prefix, nm)) {
+                Tensor *t = req(ws, prefix, nm);
+                v->downWs[v->n_down] = t->data;
+                v->downKs[v->n_down] = (int)t->shape[2];
+                snprintf(nm, sizeof(nm), "learned_down_l1.%d.bias", s);
+                v->downBs[v->n_down] = req(ws, prefix, nm)->data;
+                v->n_down++;
+            }
             snprintf(nm, sizeof(nm), "learned_up_l1.%d.weight", s);
-            Tensor *u = haskey(ws, prefix, nm) ? req(ws, prefix, nm) : NULL;
-            if (s == 0 && u) { v->upW = u->data; v->upK = (int)u->shape[2]; }
-            snprintf(nm, sizeof(nm), "learned_up_l1.%d.bias", s);
-            if (s == 0 && u) v->upB = req(ws, prefix, nm)->data;
-            if (s > 0) {
-                fprintf(stderr, "multi-stage learned_l1 cascade not supported in C port\n");
-                exit(1);
+            if (haskey(ws, prefix, nm)) {
+                Tensor *u = req(ws, prefix, nm);
+                v->upWs[v->n_up] = u->data;
+                v->upKs[v->n_up] = (int)u->shape[2];
+                snprintf(nm, sizeof(nm), "learned_up_l1.%d.bias", s);
+                v->upBs[v->n_up] = req(ws, prefix, nm)->data;
+                v->n_up++;
             }
         }
-        if (!v->downW) { fprintf(stderr, "learned_l1 weights missing\n"); exit(1); }
+        if (!v->n_down) { fprintf(stderr, "learned_l1 weights missing\n"); exit(1); }
     }
 
     if (c->learned_all_sampling) {
@@ -177,6 +195,8 @@ void vq_free(VQState *vq) {
     free(vq->levels); free(vq->vocabs); free(vq->E);
     free(vq->phiW); free(vq->phib); free(vq->ticks);
     free(vq->drefW); free(vq->drefB); free(vq->urefW); free(vq->urefB);
+    free(vq->downWs); free(vq->downBs); free(vq->downKs);
+    free(vq->upWs); free(vq->upBs); free(vq->upKs);
     free(vq);
 }
 
@@ -250,11 +270,30 @@ static void down_for_quant(VQState *vq, const float *z, int B, int Lin,
     int D = vq->D;
     int tlen = vq->levels[level];
     if (level == 0 && vq->has_l1) {
+        /* cascaded learned downsampler: [GN?] conv_s per stage */
         float *bcl = arena_alloc((size_t)B * Lin * D);
-        float *cv = arena_alloc((size_t)B * tlen * D);
         transpose_bld(bcl, z, B, Lin, D);
-        conv1d_fwd(bcl, vq->downW, vq->downB, cv, B, D, D, Lin, vq->downK, vq->downK, 0);
-        transpose_bld(out, cv, B, D, tlen);
+        int Tc = Lin;
+        float *cur = bcl, *nxt = NULL;
+        for (int i = 0; i < vq->n_down; i++) {
+            int s = vq->downKs[i];
+            int To = Tc / s;
+            if (vq->l1_norm && i > 0) {
+                float *gn = arena_alloc((size_t)B * Tc * D);
+                groupnorm_fwd(cur, gn, B, 8, D, Tc);
+                cur = gn;
+            }
+            nxt = arena_alloc((size_t)B * To * D);
+            conv1d_fwd(cur, vq->downWs[i], vq->downBs[i], nxt, B, D, D, Tc, s, s, 0);
+            cur = nxt;
+            Tc = To;
+        }
+        if (vq->l1_norm_final) {
+            float *gn = arena_alloc((size_t)B * Tc * D);
+            groupnorm_fwd(cur, gn, B, 8, D, Tc);
+            cur = gn;
+        }
+        transpose_bld(out, cur, B, D, Tc);
     } else {
         /* F.interpolate area on BCL */
         float *bcl = arena_alloc((size_t)B * Lin * D);
@@ -287,10 +326,28 @@ static void up_to_full(VQState *vq, const float *q, int B, int tlen,
     int D = vq->D, L = vq->L;
     if (level == 0 && vq->has_l1) {
         float *bcl = arena_alloc((size_t)B * tlen * D);
-        float *cv = arena_alloc((size_t)B * L * D);
         transpose_bld(bcl, q, B, tlen, D);
-        convtranspose1d_fwd(bcl, vq->upW, vq->upB, cv, B, D, D, tlen, vq->upK, vq->upK);
-        transpose_bld(out, cv, B, D, L);
+        int Tc = tlen;
+        float *cur = bcl, *nxt = NULL;
+        for (int i = 0; i < vq->n_up; i++) {
+            int s = vq->upKs[i];
+            int To = (Tc - 1) * s + s;
+            if (vq->l1_norm && i > 0) {
+                float *gn = arena_alloc((size_t)B * Tc * D);
+                groupnorm_fwd(cur, gn, B, 8, D, Tc);
+                cur = gn;
+            }
+            nxt = arena_alloc((size_t)B * To * D);
+            convtranspose1d_fwd(cur, vq->upWs[i], vq->upBs[i], nxt, B, D, D, Tc, s, s);
+            cur = nxt;
+            Tc = To;
+        }
+        if (vq->l1_norm_final) {
+            float *gn = arena_alloc((size_t)B * Tc * D);
+            groupnorm_fwd(cur, gn, B, 8, D, Tc);
+            cur = gn;
+        }
+        transpose_bld(out, cur, B, D, Tc);
     } else {
         float *bcl = arena_alloc((size_t)B * tlen * D);
         float *cv = arena_alloc((size_t)B * L * D);

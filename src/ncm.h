@@ -111,6 +111,7 @@ typedef struct {
     int   quant_resi_share_mode;
     int   learned_l1_sampling, learned_l1_cascade;
     int   learned_l1_cascade_base;
+    int   learned_l1_norm, learned_l1_norm_final;
     int   learned_all_sampling;
     int   pre_quant_groupnorm;
     int   vq_qk_norm;

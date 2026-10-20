@@ -210,6 +210,8 @@ int config_load(NCMConfig *c, const char *path) {
         else if KEY("vq.l1_sampling") c->learned_l1_sampling = atoi(v);
         else if KEY("vq.l1_cascade") c->learned_l1_cascade = atoi(v);
         else if KEY("vq.l1_base") c->learned_l1_cascade_base = atoi(v);
+        else if KEY("vq.l1_norm") c->learned_l1_norm = parse_int(v);
+        else if KEY("vq.l1_norm_final") c->learned_l1_norm_final = parse_int(v);
         else if KEY("vq.all_sampling") c->learned_all_sampling = atoi(v);
         else if KEY("vq.pre_quant_gn") c->pre_quant_groupnorm = atoi(v);
         else if KEY("vq.qk_norm") c->vq_qk_norm = parse_int(v);

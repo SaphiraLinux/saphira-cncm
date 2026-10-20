@@ -33,7 +33,9 @@ $(BIN): $(OBJ)
 
 $(ODIR)/%.o: src/%.c
 	@mkdir -p $(ODIR)
-	$(CC) $(XFLAG) $(CFLAGS) -c $< -o $@
+	$(CC) $(XFLAG) $(CFLAGS) -MMD -MP -c $< -o $@
+
+-include $(OBJ:.o=.d)
 
 cuda:
 	$(MAKE) BUILD=cuda BIN=cncm-cuda
