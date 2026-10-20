@@ -48,6 +48,10 @@ make cuda       # -> ./cncm-cuda (sm_86, no other deps)
 ./cncm gradcheck --conf ... --weights ... --data weights/sudoku-easy/train64.nctrain [--n 4]
 ./cncm train --conf ... --weights ... --data train64.nctrain [--steps N]
 ./cncm train-vq --conf ... --weights ... --data train_ids.nctrain [--steps N]
+./cncm gpt2-gen --conf weights/gpt2/model.conf --weights weights/gpt2/model.ncm \
+    --asset-dir weights/gpt2 --prompt TEXT [--n N]
+./cncm gpt2-verify --conf weights/gpt2/model.conf --weights weights/gpt2/model.ncm \
+    --asset-dir weights/gpt2 --fixtures tests/fixtures
 ```
 
 Training data: `tools/export_train.py` writes `.nctrain` shards
@@ -67,17 +71,24 @@ src/
   train_tape.c   reverse-mode autograd tape + all backward kernels
   train.c        AdamW, recording NCP forward, NCP training step/loop
   train_vq.c     recording VAE forward, VQ-VAE training step/loop + EMA
-  metrics.c      eval metrics (BLEU/chrF/ROUGE — in progress)
-  gpt2.c         GPT-2 reference scorer for genPPL (in progress)
-  main.c         `cncm` CLI
+   metrics.c      eval metrics (BLEU/chrF/ROUGE — in progress)
+   gpt2.c         native GPT-2 decoder (124M verified vs transformers:
+                  exact ids, logits maxrel~1e-6, greedy gen, ppl) +
+                  gpt2-gen / gpt2-ppl / gpt2-verify
+   main.c         `cncm` CLI
 tools/
-  export.py        .pt -> .ncm + .conf (one-time, needs torch)
-  export_data.py   eval pickles -> plain text
-  export_train.py  training rows -> .nctrain
+   export.py        .pt -> .ncm + .conf (one-time, needs torch)
+   export_data.py   eval pickles -> plain text
+   export_train.py  training rows -> .nctrain
+   gpt2import.c     HF safetensors/vocab/merges -> .ncm + cncm BPE text (pure C)
+   gpt2-124m.conf   template config for a converted GPT-2 124M dir
+   gen_gpt2_ref.py  one-time transformers fixtures (offline only)
+   gen_unitables.py one-time Unicode table generator for tok_tables.c
 tests/
-  ktest_kernels.c  kernel parity harness (CPU vs CUDA)
-  gcheck.c         host-side grad-check pieces
-  train_smoke.py   (see TRAINING.md)
+   fixtures/      GPT-2 transformers references (ids, logits, generations, ppl)
+   ktest_kernels.c  kernel parity harness (CPU vs CUDA)
+   gcheck.c         host-side grad-check pieces
+   train_smoke.py   (see TRAINING.md)
 ```
 
 ## Design notes
