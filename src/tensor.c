@@ -345,3 +345,25 @@ void *backend_to_host(const float *d, size_t nbytes) {
     mem_d2h(h, d, nbytes);
     return h;
 }
+
+TrainData *train_data_load(const char *path, int max_rows) {
+    FILE *f = fopen(path, "rb");
+    if (!f) { fprintf(stderr, "cannot open %s\n", path); return NULL; }
+    char magic[4];
+    if (fread(magic, 1, 4, f) != 4 || memcmp(magic, "NCMT", 4) != 0) {
+        fprintf(stderr, "%s: bad magic\n", path); fclose(f); return NULL;
+    }
+    uint64_t nr = 0, rl = 0;
+    if (fread(&nr, 8, 1, f) != 1 || fread(&rl, 8, 1, f) != 1) { fclose(f); return NULL; }
+    if (max_rows > 0 && (int)nr > max_rows) nr = (uint64_t)max_rows;
+    TrainData *d = (TrainData *)calloc(1, sizeof(TrainData));
+    d->n_rows = (int)nr; d->row_len = (int)rl;
+    d->rows = (int *)malloc(nr * rl * sizeof(int));
+    if (fread(d->rows, sizeof(int), nr * rl, f) != nr * rl) {
+        fprintf(stderr, "%s: short read\n", path);
+        free(d->rows); free(d); fclose(f); return NULL;
+    }
+    fclose(f);
+    return d;
+}
+void train_data_free(TrainData *d) { if (d) { free(d->rows); free(d); } }

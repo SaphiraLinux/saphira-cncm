@@ -21,7 +21,7 @@ typedef enum {
     TOP_GELU, TOP_SILU,
     TOP_SOFTMAX, TOP_ROPE, TOP_SDPA,
     TOP_CONV, TOP_CONVT, TOP_IAREA, TOP_ILIN,
-    TOP_ADD, TOP_SCALE, TOP_CONCAT, TOP_GATHER, TOP_MUL, TOP_RELU2, TOP_JOIN,
+    TOP_ADD, TOP_SCALE, TOP_CONCAT, TOP_GATHER, TOP_MUL, TOP_RELU2, TOP_JOIN, TOP_MSE,
     TOP_SPLIT, TOP_MERGE,
     TOP_CE, TOP_TIED,
 } TopKind;
@@ -427,6 +427,19 @@ void t_ce(Tape *t, const float *logits, const int *tgt, const float *wmask,
 }
 
 /* Tied codebook head forward (distance form) + record. */
+void t_mse(Tape *t, const float *a, const float *b_const, float *loss, int64_t n, double weight) {
+    float *ha = stage_h(a, (size_t)n);
+    float *hb = stage_h(b_const, (size_t)n);
+    double s = 0;
+    for (int64_t i = 0; i < n; i++) { double d = ha[i] - hb[i]; s += d * d; }
+    free(ha); free(hb);
+    float lh = (float)(s / n * weight);
+    mem_h2d(loss, &lh, sizeof(float));
+    TopRec *r = emit(t, TOP_MSE);
+    r->a = (float *)a; r->b = (float *)b_const; r->y = loss;
+    r->n = n; r->s = weight;
+}
+
 void t_tied(Tape *t, const float *z, const float *E, const float *bias,
             float *out, int64_t rows, int Dd, int V, double dscale, double invT) {
     float *hz = stage_h(z, (size_t)rows * Dd);
@@ -478,7 +491,8 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
     for (int i = t->n - 1; i >= 0; i--) {
         TopRec *r = &t->r[i];
         float *dy = gmap_find(gm, r->y);
-        if (!dy && r->op != TOP_CE) continue;
+        /* loss records (CE/MSE) always contribute (they are terminal) */
+        if (!dy && r->op != TOP_CE && r->op != TOP_MSE) continue;
         switch (r->op) {
         case TOP_CE: {
             /* dL/dlogits = (p - onehot)/cnt (mean reduction) */
@@ -1041,6 +1055,23 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++)
                 dx[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] += hdy[((size_t)b * T + t) * C + h * hd + d];
             free(hdy);
+            break;
+        }
+        case TOP_MSE: {
+            int64_t n = r->n;
+            float *ha = stage_h(r->a, (size_t)n);
+            float *hb = stage_h(r->b, (size_t)n);
+            /* seed g=1 when this loss record is terminal (dy==NULL) */
+            double g = 1.0;
+            if (dy) {
+                float *hdy = stage_h(dy, 1);
+                g = hdy[0];
+                free(hdy);
+            }
+            float *dx = gmap_get(gm, r->a, n);
+            double sc = 2.0 * r->s / n * g;
+            for (int64_t i = 0; i < n; i++) dx[i] += (float)((ha[i] - hb[i]) * sc);
+            free(ha); free(hb);
             break;
         }
         case TOP_TIED: {

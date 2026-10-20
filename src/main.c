@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     if (!conf || !weights) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && !adir) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -229,6 +229,15 @@ int main(int argc, char **argv) {
         if (config_load(&cfg, conf)) return 1;
         extern int gradcheck_run_cfg(const NCMConfig*, const char*, const char*, int);
         return gradcheck_run_cfg(&cfg, weights, data, nn ? atoi(nn) : 6);
+    }
+    if (strcmp(argv[1], "train-vq") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *steps = opt(&argc, &argv, "--steps");
+        if (!data || !conf || !weights) { fprintf(stderr, "train-vq needs --data <ids.nctrain> [--steps N]\n"); return 2; }
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        extern int train_vq_run(const NCMConfig *c, const char *weights, const char *data, int steps);
+        return train_vq_run(&cfg, weights, data, steps ? atoi(steps) : 200);
     }
     if (strcmp(argv[1], "train") == 0) {
         const char *data = opt(&argc, &argv, "--data");

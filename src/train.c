@@ -12,18 +12,8 @@
 
 /* ---------------- AdamW ---------------- */
 
-typedef struct {
-    float **params;   /* backend pointers (WeightStore tensors) */
-    float **m, **v;   /* host first/second moments */
-    float **g;        /* host grad accumulators */
-    int64_t *sizes;
-    double *lr;       /* per-param lr multiplier (1.0 default) */
-    int n;
-    double b1, b2, eps, wd;
-    long step;
-} AdamW;
-
-static AdamW *adamw_new(WeightStore *ws, const int *frozen) {
+/* AdamW struct in ncm.h */
+AdamW *adamw_new(WeightStore *ws, const int *frozen) {
     AdamW *o = (AdamW *)calloc(1, sizeof(AdamW));
     o->b1 = 0.9; o->b2 = 0.95; o->eps = 1e-8; o->wd = 0.01;
     o->step = 0;
@@ -48,15 +38,16 @@ static AdamW *adamw_new(WeightStore *ws, const int *frozen) {
     return o;
 }
 
-static void adamw_zero_grad(AdamW *o) {
+void adamw_zero_grad(AdamW *o) {
     for (int i = 0; i < o->n; i++)
         memset(o->g[i], 0, o->sizes[i] * sizeof(float));
 }
 
-/* single AdamW step over all params; lr = base * schedule(step) */
-static void adamw_step(AdamW *o, double base_lr, double (*sched)(long, void *), void *sarg) {
+/* single AdamW step over all params; lr = base * cosine(warmup,total) */
+static double sched_cosine_warmup(long step, double warmup, double total);
+void adamw_step(AdamW *o, double base_lr, double warmup, double total) {
     o->step++;
-    double lr_t = base_lr * (sched ? sched(o->step, sarg) : 1.0);
+    double lr_t = base_lr * sched_cosine_warmup(o->step, warmup, total);
     for (int i = 0; i < o->n; i++) {
         int64_t n = o->sizes[i];
         float *p_host = (float *)malloc(n * sizeof(float));
@@ -78,16 +69,26 @@ static void adamw_step(AdamW *o, double base_lr, double (*sched)(long, void *), 
     }
 }
 
-static void adamw_free(AdamW *o) {
+void adamw_free(AdamW *o) {
     for (int i = 0; i < o->n; i++) { free(o->m[i]); free(o->v[i]); free(o->g[i]); }
     free(o->params); free(o->m); free(o->v); free(o->g);
     free(o->sizes); free(o->lr);
     free(o);
 }
 
-static double sched_cosine_warmup(long step, void *arg) {
-    double *p = (double *)arg; /* [warmup, total] */
-    double w = p[0], T = p[1];
+/* PMap view sharing the optimizer's grad buffers (no copy). */
+PMap *pmap_from_adam(AdamW *o) {
+    PMap *pm = (PMap *)malloc(sizeof(PMap));
+    pm->params = o->params;
+    pm->grads = o->g;
+    pm->sizes = o->sizes;
+    pm->n = o->n;
+    return pm;
+}
+void pmap_free(PMap *pm) { free(pm); }
+
+static double sched_cosine_warmup(long step, double warmup, double total) {
+    double w = warmup, T = total;
     if (step < w) return step / (w > 0 ? w : 1);
     if (step >= T) return 0.0;
     double x = (step - w) / (T - w);
@@ -662,7 +663,7 @@ static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
         }
         fprintf(stderr, "  [train] loss=%.4f gnorm=%.3f\n", loss, gnorm);
     }
-    adamw_step(t->opt, t->lr, sched_cosine_warmup, t->sched_p);
+    adamw_step(t->opt, t->lr, t->warmup, t->total);
     adamw_zero_grad(t->opt);
     return loss;
 }
@@ -670,7 +671,7 @@ static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
 
 /* ---------------- checkpoint save/load (.ncm) ---------------- */
 
-static int weights_save(WeightStore *ws, const char *path) {
+int weights_save(WeightStore *ws, const char *path) {
     FILE *f = fopen(path, "wb");
     if (!f) { fprintf(stderr, "cannot write %s\n", path); return -1; }
     fwrite("NCM1", 1, 4, f);
@@ -696,36 +697,6 @@ static int weights_save(WeightStore *ws, const char *path) {
     }
     fclose(f);
     return 0;
-}
-
-/* ---------------- training data (.nctrain) ----------------
- * magic "NCMT", u64 n_rows, u64 row_len, int32 rows (row-major). */
-
-typedef struct {
-    int *rows;      /* [n_rows][row_len] host ints */
-    int n_rows, row_len;
-} TrainData;
-
-static TrainData *train_data_load(const char *path, int max_rows) {
-    FILE *f = fopen(path, "rb");
-    if (!f) { fprintf(stderr, "cannot open %s\n", path); return NULL; }
-    char magic[4];
-    if (fread(magic, 1, 4, f) != 4 || memcmp(magic, "NCMT", 4) != 0) {
-        fprintf(stderr, "%s: bad magic\n", path); fclose(f); return NULL;
-    }
-    uint64_t nr = 0, rl = 0;
-    if (fread(&nr, 8, 1, f) != 1 || fread(&rl, 8, 1, f) != 1) { fclose(f); return NULL; }
-    if (max_rows > 0 && (int)nr > max_rows) nr = max_rows;
-    TrainData *d = (TrainData *)calloc(1, sizeof(TrainData));
-    d->n_rows = (int)nr; d->row_len = (int)rl;
-    d->rows = (int *)malloc(nr * rl * sizeof(int));
-    if (fread(d->rows, sizeof(int), nr * rl, f) != nr * rl) {
-        fprintf(stderr, "%s: short read\n", path);
-        free(d->rows); free(d); fclose(f);
-        return NULL;
-    }
-    fclose(f);
-    return d;
 }
 
 /* ---------------- train entry ---------------- */

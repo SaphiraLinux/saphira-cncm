@@ -203,6 +203,19 @@ typedef struct VQVAEState VQVAEState;
 VQVAEState *vqvae_load(const NCMConfig *c, WeightStore *ws);
 void        vqvae_free(VQVAEState *v);
 VQState    *vqvae_vq(VQVAEState *v);
+void vq_ema_init(VQState *vq);
+void vq_ema_update(VQState *vq, const float *z, const int *codes, int B, double decay, double eps);
+int vq_nlevels(const VQState *vq);
+int vq_level_len(const VQState *vq, int k);
+int vq_level_V(const VQState *vq, int k);
+int vq_Ltotal(const VQState *vq);
+int vq_Ddim(const VQState *vq);
+typedef struct VQTrainer VQTrainer;
+VQTrainer *vqtrainer_new(VQVAEState *vqvae, WeightStore *ws, NCMConfig *c,
+                         double lr, double wd, double warmup, double total);
+double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B);
+void vqtrainer_free(VQTrainer *t);
+void vqtrainer_free(VQTrainer *t);
 void vqvae_encode_z(VQVAEState *v, const int *ids, float *z, int B); /* [B][T][D] */
 void vqvae_decode(VQVAEState *v, const float *zhat, float *logits, int B);
 
@@ -219,6 +232,10 @@ float *ncp_rope_gen_cos(NCPState *m, int k);
 struct VQState *ncp_vq(NCPState *m);
 float *ncp_rope_gen_sin(NCPState *m, int k);
 void *backend_to_host(const float *d, size_t nbytes);
+typedef struct { int *rows; int n_rows, row_len; } TrainData;
+TrainData *train_data_load(const char *path, int max_rows);
+void train_data_free(TrainData *d);
+int weights_save(WeightStore *ws, const char *path);
 /* Full forward used in training/scoring: x:[B][P+T][D] in vqvae space. */
 void ncp_forward(NCPState *m, const float *x, const int *prefix_ids,
                  float *logits, int B);
@@ -294,6 +311,7 @@ void t_gather_rows(Tape *t, const float *x, const int *rows, int nrows, int C, f
 void t_scale(Tape *t, const float *x, float s, float *y, int64_t n);
 void t_ce(Tape *t, const float *logits, const int *tgt, const float *wmask,
           float *loss, float *probs, int64_t rows, int V, double weight);
+void t_mse(Tape *t, const float *a, const float *b_const, float *loss, int64_t n, double weight);
 void t_tied(Tape *t, const float *z, const float *E, const float *bias,
             float *out, int64_t rows, int Dd, int V, double dscale, double invT);
 typedef struct {
@@ -303,5 +321,22 @@ typedef struct {
     int n;
 } PMap;
 void tape_backward(Tape *t, PMap *pm, float seed);
+typedef struct AdamW {
+    float **params;   /* backend pointers (WeightStore tensors) */
+    float **m, **v;   /* host first/second moments */
+    float **g;        /* host grad accumulators */
+    int64_t *sizes;
+    double *lr;       /* per-param lr multiplier */
+    int n;
+    double b1, b2, eps, wd;
+    long step;
+} AdamW;
+AdamW *adamw_new(WeightStore *ws, const int *frozen);
+void adamw_zero_grad(AdamW *o);
+void adamw_step(AdamW *o, double base_lr, double warmup, double total);
+void adamw_free(AdamW *o);
+/* PMap view over an AdamW (shares grad buffers) */
+PMap *pmap_from_adam(AdamW *o);
+void pmap_free(PMap *pm);
 
 #endif /* NCM_H */

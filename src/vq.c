@@ -30,6 +30,7 @@ struct VQState {
     int l1_norm, l1_norm_final;
     int has_all;
     float **drefW, **drefB, **urefW, **urefB; /* per middle level or NULL */
+    float **ema_cs, **ema_w;             /* host EMA buffers (training) */
 };
 
 /* backend->host staging: TWO rotating slots so that two consecutive b2h
@@ -197,6 +198,8 @@ void vq_free(VQState *vq) {
     free(vq->drefW); free(vq->drefB); free(vq->urefW); free(vq->urefB);
     free(vq->downWs); free(vq->downBs); free(vq->downKs);
     free(vq->upWs); free(vq->upBs); free(vq->upKs);
+    if (vq->ema_cs) { for (int i = 0; i < vq->n_levels; i++) free(vq->ema_cs[i]); free(vq->ema_cs); }
+    if (vq->ema_w) { for (int i = 0; i < vq->n_levels; i++) free(vq->ema_w[i]); free(vq->ema_w); }
     free(vq);
 }
 
@@ -632,3 +635,131 @@ void vq_idx_to_ncm_input(VQState *vq, const int *idx, int B, float *x_out) {
 #endif
     free(full);
 }
+
+/* ---- EMA codebook maintenance (training) ---- */
+void vq_ema_init(VQState *vq) {
+    /* host-side EMA buffers, cold-started from current codebooks */
+    if (vq->ema_cs) return;
+    vq->ema_cs = (float **)calloc(vq->n_levels, sizeof(float *));
+    vq->ema_w = (float **)calloc(vq->n_levels, sizeof(float *));
+    for (int i = 0; i < vq->n_levels; i++) {
+        int V = vq->vocabs[i];
+        /* NOTE: Python inits cluster counts to ZERO; we init to ONE to avoid
+         * cold-start blowup at small batch sizes (zero init makes the
+         * smoothed denominator ~0.0025 -> ~400x codebook explosion on step
+         * 0). Steady state is identical (real counts dominate after a few
+         * steps). Set to 0.0 for bit-exact paper parity at large batches. */
+        vq->ema_cs[i] = (float *)malloc(V * sizeof(float));
+        for (int v = 0; v < V; v++) vq->ema_cs[i][v] = 1.0f;
+        vq->ema_w[i] = (float *)malloc((size_t)V * vq->D * sizeof(float));
+        float *hE = b2h(vq->E[i], (size_t)V * vq->D);
+        memcpy(vq->ema_w[i], hE, (size_t)V * vq->D * sizeof(float));
+    }
+}
+
+void vq_ema_update(VQState *vq, const float *z, const int *codes, int B, double decay, double eps) {
+    vq_ema_init(vq);
+    int D = vq->D, L = vq->L;
+    float *z_rest = arena_alloc((size_t)B * L * D);
+    float *z_hat = arena_alloc((size_t)B * L * D);
+#ifdef NCM_CUDA
+    cudaMemcpy(z_rest, z, (size_t)B * L * D * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#else
+    memcpy(z_rest, z, (size_t)B * L * D * sizeof(float));
+    memset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#endif
+    float *up = arena_alloc((size_t)B * L * D);
+    float *down = arena_alloc((size_t)B * L * D);
+    int off = 0;
+    for (int lv = 0; lv < vq->n_levels; lv++) {
+        int tlen = vq->levels[lv], V = vq->vocabs[lv];
+        down_for_quant(vq, z_rest, B, L, lv, down);
+        /* stage flat inputs + gather assigned rows */
+        float *hf = b2h(down, (size_t)B * tlen * D);
+        float *hfc = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+        memcpy(hfc, hf, (size_t)B * tlen * D * sizeof(float));
+        /* EMA stats on host */
+        double *enc = (double *)calloc(V, sizeof(double));
+        for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++)
+            enc[codes[b * vq_total_codes(vq) + off + t]] += 1.0;
+        if (getenv("CNCM_DUMPEMA") && lv == 0) {
+            fprintf(stderr, "C enc_sum:");
+            for (int v = 0; v < V; v++) fprintf(stderr, " %.1f", enc[v]);
+            fprintf(stderr, "\nC dw[7,0:4]=%.4f %.4f %.4f %.4f\n",
+                    0.0, 0.0, 0.0, 0.0);
+        }
+        for (int v = 0; v < V; v++) {
+            vq->ema_cs[lv][v] = (float)(decay * vq->ema_cs[lv][v] + (1 - decay) * enc[v]);
+            for (int d = 0; d < D; d++) {
+                double dw = 0;
+                for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++)
+                    if (codes[b * vq_total_codes(vq) + off + t] == v)
+                        dw += hfc[((size_t)b * tlen + t) * D + d];
+                vq->ema_w[lv][v * D + d] = (float)(decay * vq->ema_w[lv][v * D + d] + (1 - decay) * dw);
+            }
+        }
+        free(enc);
+        /* write back smoothed codebook */
+        double n = 0;
+        for (int v = 0; v < V; v++) n += vq->ema_cs[lv][v];
+        float *hE = (float *)malloc((size_t)V * D * sizeof(float));
+        for (int v = 0; v < V; v++) {
+            double sm = (vq->ema_cs[lv][v] + eps) / (n + V * eps) * n;
+            for (int d = 0; d < D; d++)
+                hE[v * D + d] = (float)(vq->ema_w[lv][v * D + d] / sm);
+        }
+#ifdef NCM_CUDA
+        cudaMemcpy((void *)vq->E[lv], hE, (size_t)V * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy((void *)vq->E[lv], hE, (size_t)V * D * sizeof(float));
+#endif
+        free(hE); free(hfc);
+        /* advance residual (host-gathered q, backend upsample) */
+        float *Eh = b2h(vq->E[lv], (size_t)V * D);
+        float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+        memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+        float *qq = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+        for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++) {
+            int code = codes[b * vq_total_codes(vq) + off + t];
+            memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+        }
+        free(Ec);
+        float *q = arena_alloc((size_t)B * tlen * D);
+#ifdef NCM_CUDA
+        cudaMemcpy(q, qq, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(q, qq, (size_t)B * tlen * D * sizeof(float));
+#endif
+        free(qq);
+        up_to_full(vq, q, B, tlen, lv, up);
+        apply_resi(vq, up, B, L, lv);
+        {
+            float *zh = b2h(z_hat, (size_t)B * L * D);
+            float *uu = b2h(up, (size_t)B * L * D);
+            float *zrc;
+            {
+                /* z_hat += up (host), write back */
+                float *uc = (float *)malloc((size_t)B * L * D * sizeof(float));
+                memcpy(uc, uu, (size_t)B * L * D * sizeof(float));
+                for (size_t i = 0; i < (size_t)B * L * D; i++) zh[i] += uc[i];
+                free(uc);
+                mem_h2d(z_hat, zh, (size_t)B * L * D * sizeof(float));
+                /* z_rest -= up */
+                float *zr = b2h(z_rest, (size_t)B * L * D);
+                zrc = (float *)malloc((size_t)B * L * D * sizeof(float));
+                memcpy(zrc, zr, (size_t)B * L * D * sizeof(float));
+                for (size_t i = 0; i < (size_t)B * L * D; i++) zrc[i] -= uu[i];
+                mem_h2d(z_rest, zrc, (size_t)B * L * D * sizeof(float));
+                free(zrc);
+            }
+        }
+        off += tlen;
+    }
+}
+
+int vq_nlevels(const VQState *vq) { return vq->n_levels; }
+int vq_level_len(const VQState *vq, int k) { return vq->levels[k]; }
+int vq_level_V(const VQState *vq, int k) { return vq->vocabs[k]; }
+int vq_Ltotal(const VQState *vq) { return vq->L; }
+int vq_Ddim(const VQState *vq) { return vq->D; }
