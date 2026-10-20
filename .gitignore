@@ -1,0 +1,8 @@
+build/
+cncm
+cncm-cuda
+src/*.o
+weights/
+*.bin
+*.pkl
+eval/

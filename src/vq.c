@@ -1,0 +1,577 @@
+/* vq.c — MultiscaleResidualVectorQuantizer inference path.
+ * Mirrors models/quant.py (z_to_idx / idx_to_zhats / idx_to_ncm_input /
+ * get_next_autoregressive_input, _down_for_quant, _up_to_full, Phi resi).
+ */
+#include "ncm.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef NCM_CUDA
+#include <cuda_runtime.h>
+#endif
+
+struct VQState {
+    int n_levels, *levels, *vocabs, D, L;
+    float **E;                       /* codebooks on backend */
+    int resi_enabled;
+    float resi_ratio;
+    float **phiW, **phib;            /* per stored phi */
+    int n_phi;
+    double *ticks;                   /* phi tick positions */
+    int has_l1;
+    float *downW, *downB, *upW, *upB;
+    int downK, upK;
+    int has_all;
+    float **drefW, **drefB, **urefW, **urefB; /* per middle level or NULL */
+};
+
+/* backend->host staging: TWO rotating slots so that two consecutive b2h
+ * results stay live simultaneously (accumulate / resi / refine sites). */
+static float *stage[2] = {NULL, NULL};
+static size_t stage_n = 0;
+static int stage_flip = 0;
+
+static float *b2h(const float *dev, size_t n) {
+    if (n > stage_n) {
+        for (int i = 0; i < 2; i++) {
+            free(stage[i]);
+            stage[i] = (float *)malloc(n * sizeof(float));
+            if (!stage[i]) { fprintf(stderr, "oom stage\n"); exit(1); }
+        }
+        stage_n = n;
+    }
+    stage_flip ^= 1;
+    float *st = stage[stage_flip];
+#ifdef NCM_CUDA
+    cudaMemcpy(st, dev, n * sizeof(float), cudaMemcpyDeviceToHost);
+#else
+    memcpy(st, dev, n * sizeof(float));
+#endif
+    return st;
+}
+
+static Tensor *req(WeightStore *ws, const char *prefix, const char *name) {
+    char key[320];
+    snprintf(key, sizeof(key), "%s%s", prefix, name);
+    Tensor *t = weights_get(ws, key);
+    if (!t) { fprintf(stderr, "missing weight %s\n", key); exit(1); }
+    return t;
+}
+
+static int haskey(WeightStore *ws, const char *prefix, const char *name) {
+    char key[320];
+    snprintf(key, sizeof(key), "%s%s", prefix, name);
+    return weights_get(ws, key) != NULL;
+}
+
+VQState *vq_load(const NCMConfig *c, WeightStore *ws, const char *prefix) {
+    VQState *v = (VQState *)calloc(1, sizeof(VQState));
+    v->n_levels = c->n_qlevels;
+    v->levels = (int *)malloc(v->n_levels * sizeof(int));
+    v->vocabs = (int *)malloc(v->n_levels * sizeof(int));
+    memcpy(v->levels, c->levels, v->n_levels * sizeof(int));
+    memcpy(v->vocabs, c->vq_vocab, v->n_levels * sizeof(int));
+    v->D = c->vq_embed_dim;
+    v->L = c->levels[c->n_qlevels - 1];
+
+    v->E = (float **)malloc(v->n_levels * sizeof(float *));
+    for (int i = 0; i < v->n_levels; i++) {
+        char nm[64];
+        snprintf(nm, sizeof(nm), "embeddings.%d.weight", i);
+        Tensor *t = req(ws, prefix, nm);
+        v->E[i] = t->data;
+    }
+
+    v->resi_enabled = c->quant_resi_enabled && fabsf(c->quant_resi_ratio) > 1e-6f;
+    v->resi_ratio = c->quant_resi_ratio;
+    if (v->resi_enabled) {
+        if (c->quant_resi_share_mode == 0) {
+            v->n_phi = v->n_levels;
+        } else if (c->quant_resi_share_mode == 1) {
+            v->n_phi = 1;
+        } else {
+            v->n_phi = c->quant_resi_share_mode;
+        }
+        v->phiW = (float **)malloc(v->n_phi * sizeof(float *));
+        v->phib = (float **)malloc(v->n_phi * sizeof(float *));
+        for (int i = 0; i < v->n_phi; i++) {
+            char nm[64];
+            snprintf(nm, sizeof(nm), "quant_resi.%d.weight", i);
+            if (!haskey(ws, prefix, nm) && v->n_phi == 1) {
+                snprintf(nm, sizeof(nm), "quant_resi.weight");
+            }
+            v->phiW[i] = req(ws, prefix, nm)->data;
+            snprintf(nm, sizeof(nm), "quant_resi.%d.bias", i);
+            if (!haskey(ws, prefix, nm) && v->n_phi == 1)
+                snprintf(nm, sizeof(nm), "quant_resi.bias");
+            v->phib[i] = req(ws, prefix, nm)->data;
+        }
+        /* ticks replicate PhiNonShared / PhiPartiallyShared */
+        v->ticks = (double *)malloc(v->n_phi * sizeof(double));
+        int K = v->n_phi;
+        for (int i = 0; i < K; i++) {
+            if (K == 4)
+                v->ticks[i] = (i + 1.0 / 3.0) / K;   /* linspace(1/3K, 1-1/3K) */
+            else
+                v->ticks[i] = (i + 0.5) / K;
+        }
+    }
+
+    if (c->learned_l1_sampling) {
+        v->has_l1 = 1;
+        /* cascaded Sequential: load .0, .1, ... until missing */
+        v->downW = v->downB = v->upW = v->upB = NULL;
+        v->downK = v->upK = 0;
+        for (int s = 0; ; s++) {
+            char nm[64];
+            snprintf(nm, sizeof(nm), "learned_down_l1.%d.weight", s);
+            if (!haskey(ws, prefix, nm)) break;
+            Tensor *t = req(ws, prefix, nm);
+            if (s == 0) { v->downW = t->data; v->downK = (int)t->shape[2]; }
+            snprintf(nm, sizeof(nm), "learned_down_l1.%d.bias", s);
+            if (s == 0) v->downB = req(ws, prefix, nm)->data;
+            snprintf(nm, sizeof(nm), "learned_up_l1.%d.weight", s);
+            Tensor *u = haskey(ws, prefix, nm) ? req(ws, prefix, nm) : NULL;
+            if (s == 0 && u) { v->upW = u->data; v->upK = (int)u->shape[2]; }
+            snprintf(nm, sizeof(nm), "learned_up_l1.%d.bias", s);
+            if (s == 0 && u) v->upB = req(ws, prefix, nm)->data;
+            if (s > 0) {
+                fprintf(stderr, "multi-stage learned_l1 cascade not supported in C port\n");
+                exit(1);
+            }
+        }
+        if (!v->downW) { fprintf(stderr, "learned_l1 weights missing\n"); exit(1); }
+    }
+
+    if (c->learned_all_sampling) {
+        v->has_all = 1;
+        int n = v->n_levels;
+        v->drefW = (float **)calloc(n - 1, sizeof(float *));
+        v->drefB = (float **)calloc(n - 1, sizeof(float *));
+        v->urefW = (float **)calloc(n - 1, sizeof(float *));
+        v->urefB = (float **)calloc(n - 1, sizeof(float *));
+        for (int i = 1; i <= n - 2; i++) {
+            char nm[64];
+            snprintf(nm, sizeof(nm), "learned_down_refine.%d.weight", i);
+            if (haskey(ws, prefix, nm)) {
+                v->drefW[i] = req(ws, prefix, nm)->data;
+                snprintf(nm, sizeof(nm), "learned_down_refine.%d.bias", i);
+                v->drefB[i] = req(ws, prefix, nm)->data;
+            }
+            snprintf(nm, sizeof(nm), "learned_up_refine.%d.weight", i);
+            if (haskey(ws, prefix, nm)) {
+                v->urefW[i] = req(ws, prefix, nm)->data;
+                snprintf(nm, sizeof(nm), "learned_up_refine.%d.bias", i);
+                v->urefB[i] = req(ws, prefix, nm)->data;
+            }
+        }
+    }
+    return v;
+}
+
+void vq_free(VQState *vq) {
+    if (!vq) return;
+    free(vq->levels); free(vq->vocabs); free(vq->E);
+    free(vq->phiW); free(vq->phib); free(vq->ticks);
+    free(vq->drefW); free(vq->drefB); free(vq->urefW); free(vq->urefB);
+    free(vq);
+}
+
+int vq_total_codes(const VQState *vq) {
+    int s = 0;
+    for (int i = 0; i < vq->n_levels; i++) s += vq->levels[i];
+    return s;
+}
+
+static int phi_index(const VQState *vq, int level_idx) {
+    if (vq->n_phi == 1) return 0;
+    double at = (double)level_idx / (vq->n_levels - 1);
+    int best = 0; double bd = 1e300;
+    for (int j = 0; j < vq->n_phi; j++) {
+        double d = fabs(vq->ticks[j] - at);
+        if (d < bd) { bd = d; best = j; }
+    }
+    return best;
+}
+
+/* BLC <-> BCL transpose, backend-resident */
+#ifdef NCM_CUDA
+__global__ static void k_tr_b12(float *y, const float *x, int B, int L, int D) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= (int64_t)B * L * D) return;
+    int d = (int)(i % D); int l = (int)((i / D) % L); int b = (int)(i / (D * L));
+    y[((int64_t)b * D + d) * L + l] = x[((int64_t)b * L + l) * D + d];
+}
+#endif
+
+static void transpose_bld(float *y, const float *x, int B, int L, int D) {
+#ifdef NCM_CUDA
+    int64_t n = (int64_t)B * L * D;
+    k_tr_b12<<<(n + 255) / 256, 256>>>(y, x, B, L, D);
+#else
+    for (int b = 0; b < B; b++) for (int l = 0; l < L; l++) for (int d = 0; d < D; d++)
+        y[((int64_t)b * D + d) * L + l] = x[((int64_t)b * L + l) * D + d];
+#endif
+}
+
+/* in-place residual conv on [B][L][D] */
+static void apply_resi(VQState *vq, float *h, int B, int L, int level_idx) {
+    if (!vq->resi_enabled) return;
+    int j = phi_index(vq, level_idx);
+    int D = vq->D;
+    float *bcl = arena_alloc((size_t)B * L * D);
+    float *cv = arena_alloc((size_t)B * L * D);
+    transpose_bld(bcl, h, B, L, D);
+    conv1d_fwd(bcl, vq->phiW[j], vq->phib[j], cv, B, D, D, L, 3, 1, 1);
+    transpose_bld(bcl, cv, B, D, L); /* back to BLD into bcl */
+    /* h = (1-r) h + r conv(h) — needs elementwise; do on host-staged? No:
+     * add a tiny kernel path via existing ops is overkill; do it with a
+     * dedicated loop on staged memory only if small, else inline below. */
+    /* backend elementwise blend: stage through host is O(B*L*D) memcpy, fine */
+    float *hh = b2h(h, (size_t)B * L * D);
+    float *cc = b2h(bcl, (size_t)B * L * D);
+    float r = vq->resi_ratio;
+    for (size_t i = 0; i < (size_t)B * L * D; i++) hh[i] = (1 - r) * hh[i] + r * cc[i];
+#ifdef NCM_CUDA
+    cudaMemcpy(h, hh, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+    /* b2h memcpy'd; hh aliases stage, h already updated? No: h IS backend==host
+     * on CPU so memcpy into stage didn't touch h. Copy back. */
+    memcpy(h, hh, (size_t)B * L * D * sizeof(float));
+#endif
+}
+
+/* downsample z_rest [B][L0][D] -> [B][tlen][D] for quantization at level */
+static void down_for_quant(VQState *vq, const float *z, int B, int Lin,
+                           int level, float *out) {
+    int D = vq->D;
+    int tlen = vq->levels[level];
+    if (level == 0 && vq->has_l1) {
+        float *bcl = arena_alloc((size_t)B * Lin * D);
+        float *cv = arena_alloc((size_t)B * tlen * D);
+        transpose_bld(bcl, z, B, Lin, D);
+        conv1d_fwd(bcl, vq->downW, vq->downB, cv, B, D, D, Lin, vq->downK, vq->downK, 0);
+        transpose_bld(out, cv, B, D, tlen);
+    } else {
+        /* F.interpolate area on BCL */
+        float *bcl = arena_alloc((size_t)B * Lin * D);
+        float *cv = arena_alloc((size_t)B * tlen * D);
+        transpose_bld(bcl, z, B, Lin, D);
+        interpolate_area_fwd(bcl, cv, B, D, Lin, tlen);
+        transpose_bld(out, cv, B, D, tlen);
+    }
+    if (vq->has_all && level >= 1 && level <= vq->n_levels - 2 && vq->drefW[level]) {
+        float *bcl = arena_alloc((size_t)B * tlen * D);
+        float *cv = arena_alloc((size_t)B * tlen * D);
+        transpose_bld(bcl, out, B, tlen, D);
+        conv1d_fwd(bcl, vq->drefW[level], vq->drefB[level], cv, B, D, D, tlen, 3, 1, 1);
+        transpose_bld(bcl, cv, B, D, tlen);
+        /* out += refine(out): need out + bcl */
+        float *a = b2h(out, (size_t)B * tlen * D);
+        float *b = b2h(bcl, (size_t)B * tlen * D);
+        for (size_t i = 0; i < (size_t)B * tlen * D; i++) a[i] += b[i];
+#ifdef NCM_CUDA
+        cudaMemcpy(out, a, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(out, a, (size_t)B * tlen * D * sizeof(float));
+#endif
+    }
+}
+
+/* upsample q [B][tlen][D] -> [B][L][D] */
+static void up_to_full(VQState *vq, const float *q, int B, int tlen,
+                       int level, float *out) {
+    int D = vq->D, L = vq->L;
+    if (level == 0 && vq->has_l1) {
+        float *bcl = arena_alloc((size_t)B * tlen * D);
+        float *cv = arena_alloc((size_t)B * L * D);
+        transpose_bld(bcl, q, B, tlen, D);
+        convtranspose1d_fwd(bcl, vq->upW, vq->upB, cv, B, D, D, tlen, vq->upK, vq->upK);
+        transpose_bld(out, cv, B, D, L);
+    } else {
+        float *bcl = arena_alloc((size_t)B * tlen * D);
+        float *cv = arena_alloc((size_t)B * L * D);
+        transpose_bld(bcl, q, B, tlen, D);
+        interpolate_linear_fwd(bcl, cv, B, D, tlen, L);
+        transpose_bld(out, cv, B, D, L);
+    }
+    if (vq->has_all && level >= 1 && level <= vq->n_levels - 2 && vq->urefW[level]) {
+        float *bcl = arena_alloc((size_t)B * L * D);
+        float *cv = arena_alloc((size_t)B * L * D);
+        transpose_bld(bcl, out, B, L, D);
+        conv1d_fwd(bcl, vq->urefW[level], vq->urefB[level], cv, B, D, D, L, 3, 1, 1);
+        transpose_bld(bcl, cv, B, D, L);
+        float *a = b2h(out, (size_t)B * L * D);
+        float *b = b2h(bcl, (size_t)B * L * D);
+        for (size_t i = 0; i < (size_t)B * L * D; i++) a[i] += b[i];
+#ifdef NCM_CUDA
+        cudaMemcpy(out, a, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(out, a, (size_t)B * L * D * sizeof(float));
+#endif
+    }
+}
+
+void vq_z_to_idx(VQState *vq, const float *z, int B, int *idx) {
+    int D = vq->D, L = vq->L;
+    float *z_rest = arena_alloc((size_t)B * L * D);
+    float *z_hat = arena_alloc((size_t)B * L * D);
+    float *down = arena_alloc((size_t)B * L * D);   /* max tlen = L */
+    float *d2 = arena_alloc((size_t)B * L * 16);    /* max V rows reused below */
+    (void)d2;
+    /* copy z -> z_rest (backend copy) */
+#ifdef NCM_CUDA
+    cudaMemcpy(z_rest, z, (size_t)B * L * D * sizeof(float), cudaMemcpyDeviceToDevice);
+    cudaMemset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#else
+    memcpy(z_rest, z, (size_t)B * L * D * sizeof(float));
+    memset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#endif
+    float *up = arena_alloc((size_t)B * L * D);
+    int off = 0;
+    for (int lv = 0; lv < vq->n_levels; lv++) {
+        int tlen = vq->levels[lv], V = vq->vocabs[lv];
+        float *dd = arena_alloc((size_t)B * tlen * V);
+        down_for_quant(vq, z_rest, B, L, lv, down);
+        rowwise_l2sq(down, vq->E[lv], dd, (int64_t)B * tlen, V, D);
+        float *hd = b2h(dd, (size_t)B * tlen * V);
+        int total = vq_total_codes(vq);
+        for (int r = 0; r < B * tlen; r++) {
+            int bi = 0; float bv = hd[r * V];
+            for (int j = 1; j < V; j++) if (hd[r * V + j] < bv) { bv = hd[r * V + j]; bi = j; }
+            int b = r / tlen, t = r % tlen;
+            idx[b * total + off + t] = bi;
+        }
+        off += tlen;
+        /* q = E[idx] (host gather, codebooks are small), then upsample. */
+        float *qh = b2h(up, 1); /* ensure stage big enough later; no-op */
+        (void)qh;
+        {
+            float *q = arena_alloc((size_t)B * tlen * D);
+            /* host-side gather from codebook (codebooks small: V*D) */
+            float *Eh = b2h(vq->E[lv], (size_t)V * D);
+            /* NOTE: b2h reuses one stage buffer; Eh invalid after next b2h.
+             * Copy codebook to a private host buffer. */
+            float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+            memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+            /* level-major idx base for this level */
+            int base = 0;
+            for (int k = 0; k < lv; k++) base += vq->levels[k];
+            float *qq = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+            for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++) {
+                int code = idx[b * vq_total_codes(vq) + base + t];
+                memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+            }
+            free(Ec);
+#ifdef NCM_CUDA
+            cudaMemcpy(q, qq, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(q, qq, (size_t)B * tlen * D * sizeof(float));
+#endif
+            free(qq);
+            up_to_full(vq, q, B, tlen, lv, up);
+        }
+        apply_resi(vq, up, B, L, lv);
+        /* z_hat += up; z_rest -= up */
+        {
+            float *zh = b2h(z_hat, (size_t)B * L * D);
+            float *uu = b2h(up, (size_t)B * L * D);
+            float *uc = (float *)malloc((size_t)B * L * D * sizeof(float));
+            memcpy(uc, uu, (size_t)B * L * D * sizeof(float));
+            for (size_t i = 0; i < (size_t)B * L * D; i++) zh[i] += uc[i];
+#ifdef NCM_CUDA
+            cudaMemcpy(z_hat, zh, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(z_hat, zh, (size_t)B * L * D * sizeof(float));
+#endif
+            float *zr = b2h(z_rest, (size_t)B * L * D);
+            float *zrc = (float *)malloc((size_t)B * L * D * sizeof(float));
+            memcpy(zrc, zr, (size_t)B * L * D * sizeof(float));
+            for (size_t i = 0; i < (size_t)B * L * D; i++) zrc[i] -= uc[i];
+            free(uc);
+#ifdef NCM_CUDA
+            cudaMemcpy(z_rest, zrc, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(z_rest, zrc, (size_t)B * L * D * sizeof(float));
+#endif
+            free(zrc);
+        }
+    }
+}
+
+void vq_idx_to_zhats(VQState *vq, const int *idx, int B, float **zhats) {
+    int D = vq->D, L = vq->L;
+    float *z_hat = arena_alloc((size_t)B * L * D);
+#ifdef NCM_CUDA
+    cudaMemset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#else
+    memset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#endif
+    float *up = arena_alloc((size_t)B * L * D);
+    int base = 0;
+    for (int lv = 0; lv < vq->n_levels; lv++) {
+        int tlen = vq->levels[lv], V = vq->vocabs[lv];
+        float *Eh = b2h(vq->E[lv], (size_t)V * D);
+        float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+        memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+        float *qq = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+        for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++) {
+            int code = idx[b * vq_total_codes(vq) + base + t];
+            memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+        }
+        free(Ec);
+        float *q = arena_alloc((size_t)B * tlen * D);
+#ifdef NCM_CUDA
+        cudaMemcpy(q, qq, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(q, qq, (size_t)B * tlen * D * sizeof(float));
+#endif
+        free(qq);
+        up_to_full(vq, q, B, tlen, lv, up);
+        apply_resi(vq, up, B, L, lv);
+        {
+            float *zh = b2h(z_hat, (size_t)B * L * D);
+            float *uu = b2h(up, (size_t)B * L * D);
+            float *uc = (float *)malloc((size_t)B * L * D * sizeof(float));
+            memcpy(uc, uu, (size_t)B * L * D * sizeof(float));
+            for (size_t i = 0; i < (size_t)B * L * D; i++) zh[i] += uc[i];
+#ifdef NCM_CUDA
+            cudaMemcpy(z_hat, zh, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(z_hat, zh, (size_t)B * L * D * sizeof(float));
+#endif
+            free(uc);
+        }
+        /* snapshot */
+#ifdef NCM_CUDA
+        cudaMemcpy(zhats[lv], z_hat, (size_t)B * L * D * sizeof(float), cudaMemcpyDeviceToDevice);
+#else
+        memcpy(zhats[lv], z_hat, (size_t)B * L * D * sizeof(float));
+#endif
+        base += tlen;
+    }
+}
+
+void vq_next_input(VQState *vq, const int *codes, int level_idx,
+                   float *z_hat, float *x_out, int B) {
+    int D = vq->D, L = vq->L;
+    int tlen = vq->levels[level_idx], V = vq->vocabs[level_idx];
+    float *Eh = b2h(vq->E[level_idx], (size_t)V * D);
+    float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+    memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+    float *qq = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+    for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++) {
+        int code = codes[b * tlen + t];
+        memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+    }
+    free(Ec);
+    float *q = arena_alloc((size_t)B * tlen * D);
+#ifdef NCM_CUDA
+    cudaMemcpy(q, qq, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+    memcpy(q, qq, (size_t)B * tlen * D * sizeof(float));
+#endif
+    free(qq);
+    float *up = arena_alloc((size_t)B * L * D);
+    up_to_full(vq, q, B, tlen, level_idx, up);
+    apply_resi(vq, up, B, L, level_idx);
+    {
+        float *zh = b2h(z_hat, (size_t)B * L * D);
+        float *uu = b2h(up, (size_t)B * L * D);
+        float *uc = (float *)malloc((size_t)B * L * D * sizeof(float));
+        memcpy(uc, uu, (size_t)B * L * D * sizeof(float));
+        for (size_t i = 0; i < (size_t)B * L * D; i++) zh[i] += uc[i];
+#ifdef NCM_CUDA
+        cudaMemcpy(z_hat, zh, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(z_hat, zh, (size_t)B * L * D * sizeof(float));
+#endif
+        /* x_out = area(z_hat -> levels[level_idx+1]) in BLD */
+        float *bcl = arena_alloc((size_t)B * L * D);
+        float *cv = arena_alloc((size_t)B * vq->levels[level_idx + 1] * D);
+        transpose_bld(bcl, z_hat, B, L, D);
+        interpolate_area_fwd(bcl, cv, B, D, L, vq->levels[level_idx + 1]);
+        transpose_bld(x_out, cv, B, D, vq->levels[level_idx + 1]);
+        free(uc);
+    }
+}
+
+/* idx [B][total] level-major -> NCM target input [B][T][D] (idx_to_ncm_input).
+ * x_out lives on the backend; assembled via host staging. */
+void vq_idx_to_ncm_input(VQState *vq, const int *idx, int B, float *x_out) {
+    int D = vq->D, L = vq->L;
+    int T = vq_total_codes(vq) - vq->levels[0];
+    float *z_hat = arena_alloc((size_t)B * L * D);
+#ifdef NCM_CUDA
+    cudaMemset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#else
+    memset(z_hat, 0, (size_t)B * L * D * sizeof(float));
+#endif
+    float *up = arena_alloc((size_t)B * L * D);
+    float *full = (float *)malloc((size_t)B * T * D * sizeof(float));
+    int base = 0, off = 0;
+    for (int li = 0; li < vq->n_levels - 1; li++) {
+        int tlen = vq->levels[li], V = vq->vocabs[li];
+        int nlen = vq->levels[li + 1];
+        float *Eh = b2h(vq->E[li], (size_t)V * D);
+        float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+        memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+        float *qq = (float *)malloc((size_t)B * tlen * D * sizeof(float));
+        for (int b = 0; b < B; b++) for (int t = 0; t < tlen; t++) {
+            int code = idx[b * vq_total_codes(vq) + base + t];
+            memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+        }
+        free(Ec);
+        float *q = arena_alloc((size_t)B * tlen * D);
+#ifdef NCM_CUDA
+        cudaMemcpy(q, qq, (size_t)B * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+        memcpy(q, qq, (size_t)B * tlen * D * sizeof(float));
+#endif
+        free(qq);
+        up_to_full(vq, q, B, tlen, li, up);
+        apply_resi(vq, up, B, L, li);
+        {
+            float *zh = b2h(z_hat, (size_t)B * L * D);
+            float *uu = b2h(up, (size_t)B * L * D);
+            float *uc = (float *)malloc((size_t)B * L * D * sizeof(float));
+            memcpy(uc, uu, (size_t)B * L * D * sizeof(float));
+            for (size_t i = 0; i < (size_t)B * L * D; i++) zh[i] += uc[i];
+            free(uc);
+#ifdef NCM_CUDA
+            cudaMemcpy(z_hat, zh, (size_t)B * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(z_hat, zh, (size_t)B * L * D * sizeof(float));
+#endif
+        }
+        /* x_out chunk = area(z_hat -> nlen), BLD */
+        float *bcl = arena_alloc((size_t)B * L * D);
+        float *cv = arena_alloc((size_t)B * nlen * D);
+        transpose_bld(bcl, z_hat, B, L, D);
+        interpolate_area_fwd(bcl, cv, B, D, L, nlen);
+        float *hc = (float *)malloc((size_t)B * nlen * D * sizeof(float));
+#ifdef NCM_CUDA
+        cudaMemcpy(hc, cv, (size_t)B * nlen * D * sizeof(float), cudaMemcpyDeviceToHost);
+        /* cv is BCL; transpose to BLD on host */
+#else
+        memcpy(hc, cv, (size_t)B * nlen * D * sizeof(float));
+#endif
+        {
+            /* hc is BCL [B][D][nlen] -> BLD chunk */
+            for (int b = 0; b < B; b++) for (int t = 0; t < nlen; t++) for (int d = 0; d < D; d++)
+                full[((size_t)b * T + off + t) * D + d] = hc[((size_t)b * D + d) * nlen + t];
+        }
+        free(hc);
+        base += tlen;
+        off += nlen;
+    }
+#ifdef NCM_CUDA
+    cudaMemcpy(x_out, full, (size_t)B * T * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+    memcpy(x_out, full, (size_t)B * T * D * sizeof(float));
+#endif
+    free(full);
+}
