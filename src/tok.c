@@ -23,6 +23,11 @@ struct TokState {
     /* hash reverse map: bytes -> id */
     int *htable;  /* open addressing over (hash of bytes) */
     int hcap;
+    /* hash merge-rank map: (pair bytes) -> rank (file order).
+     * Same ranks as linear scan, O(1) lookup. Built once at load;
+     * the BPE loop is otherwise untouched, so output is identical. */
+    int *mhtable; /* open addressing over (hash of a ++ b), value = merge idx */
+    int mhcap;
     char **specials;
     int n_special;
     unsigned char *skip; /* n_vocab bitmap for skip_special */
@@ -76,6 +81,15 @@ static unsigned char *unhex(const char *s, int *out_len) {
 static unsigned long long fnv(const unsigned char *b, int n) {
     unsigned long long h = 1469598103934665603ULL;
     for (int i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ULL; }
+    return h;
+}
+
+/* FNV-1a over concatenated pair (a ++ b) without materializing it. */
+static unsigned long long fnv2(const unsigned char *a, int na,
+                               const unsigned char *b, int nb) {
+    unsigned long long h = 1469598103934665603ULL;
+    for (int i = 0; i < na; i++) { h ^= a[i]; h *= 1099511628211ULL; }
+    for (int i = 0; i < nb; i++) { h ^= b[i]; h *= 1099511628211ULL; }
     return h;
 }
 
@@ -396,6 +410,24 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
             while (t->htable[h] != -1) h = (h + 1) & (t->hcap - 1);
             t->htable[h] = id;
         }
+        /* merge-rank map (sized for merges; first file occurrence wins,
+         * preserving file-order ranks on duplicate pairs) */
+        t->mhcap = 16384;
+        while (t->mhcap < t->n_merges * 2) t->mhcap *= 2;
+        t->mhtable = (int *)malloc(t->mhcap * sizeof(int));
+        for (int i = 0; i < t->mhcap; i++) t->mhtable[i] = -1;
+        for (int i = 0; i < t->n_merges; i++) {
+            unsigned long long h = fnv2(t->ma[i], t->mlen_a[i], t->mb[i], t->mlen_b[i]) & (t->mhcap - 1);
+            for (;;) {
+                int cur = t->mhtable[h];
+                if (cur < 0) { t->mhtable[h] = i; break; }
+                if (t->mlen_a[cur] == t->mlen_a[i] && t->mlen_b[cur] == t->mlen_b[i] &&
+                    memcmp(t->ma[cur], t->ma[i], t->mlen_a[i]) == 0 &&
+                    memcmp(t->mb[cur], t->mb[i], t->mlen_b[i]) == 0)
+                    break; /* duplicate pair: keep earliest (lowest rank) */
+                h = (h + 1) & (t->mhcap - 1);
+            }
+        }
         t->n_special = 0;
         if (t->eos_id >= 0 && t->eos_id + 1 > t->n_special) t->n_special = t->eos_id + 1;
         if (t->pad_id >= 0 && t->pad_id + 1 > t->n_special) t->n_special = t->pad_id + 1;
@@ -442,6 +474,7 @@ void tok_free(TokState *t) {
     for (int i = 0; i < t->n_merges; i++) { free(t->ma[i]); free(t->mb[i]); }
     free(t->ma); free(t->mb); free(t->mlen_a); free(t->mlen_b);
     free(t->htable);
+    free(t->mhtable);
     free(t->skip);
     for (int i = 0; i < t->n_special; i++) if (t->specials) free(t->specials[i]);
     free(t->specials);
@@ -460,11 +493,21 @@ static int bpe_lookup(TokState *t, const unsigned char *b, int n) {
 
 static int merge_rank(TokState *t, const unsigned char *a, int na,
                       const unsigned char *b, int nb) {
-    /* linear scan is O(M) — words are short; fine for eval scale */
-    for (int i = 0; i < t->n_merges; i++)
-        if (t->mlen_a[i] == na && t->mlen_b[i] == nb &&
-            memcmp(t->ma[i], a, na) == 0 && memcmp(t->mb[i], b, nb) == 0)
-            return i;
+    if (!t->mhtable) { /* unbuilt (tests): fall back to file-order scan */
+        for (int i = 0; i < t->n_merges; i++)
+            if (t->mlen_a[i] == na && t->mlen_b[i] == nb &&
+                memcmp(t->ma[i], a, na) == 0 && memcmp(t->mb[i], b, nb) == 0)
+                return i;
+        return -1;
+    }
+    unsigned long long h = fnv2(a, na, b, nb) & (unsigned long long)(t->mhcap - 1);
+    for (int k = 0; k < t->mhcap; k++) {
+        int id = t->mhtable[(h + (unsigned long long)k) & (unsigned long long)(t->mhcap - 1)];
+        if (id < 0) return -1;
+        if (t->mlen_a[id] == na && t->mlen_b[id] == nb &&
+            memcmp(t->ma[id], a, na) == 0 && memcmp(t->mb[id], b, nb) == 0)
+            return id;
+    }
     return -1;
 }
 
