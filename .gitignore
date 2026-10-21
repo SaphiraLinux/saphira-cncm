@@ -12,5 +12,7 @@ eval/
 ckpt-*.ncm
 ckpt-*.nckpt
 *.tmp.*
+tests/gcheck
+tests/ckpt_unit
 
 tools/qwenimport
