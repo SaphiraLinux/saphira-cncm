@@ -41,9 +41,11 @@ static void usage(const char *a) {
 }
 
 static const char *opt(int *argc, char ***argv, const char *flag) {
+    /* last occurrence wins, so callers can append overrides */
+    const char *v = NULL;
     for (int i = 1; i < *argc - 1; i++)
-        if (strcmp((*argv)[i], flag) == 0) return (*argv)[i + 1];
-    return NULL;
+        if (strcmp((*argv)[i], flag) == 0) v = (*argv)[i + 1];
+    return v;
 }
 
 typedef struct {

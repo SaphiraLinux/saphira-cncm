@@ -40,8 +40,22 @@ $(ODIR)/%.o: src/%.c
 cuda:
 	$(MAKE) BUILD=cuda BIN=cncm-cuda
 
-test: $(BIN)
-	python3 tests/test_parity.py --bin ./$(BIN)
+# Test binaries link the full CPU object set (minus main); gcheck and
+# ckpt_unit are synthetic and need no weights.
+CPU_OBJ := $(patsubst src/%.c,build/cpu/%.o,$(SRC))
+CPU_TESTOBJ := $(filter-out build/cpu/main.o,$(CPU_OBJ))
+tests/gcheck: tests/gcheck.c $(CPU_TESTOBJ)
+	$(CC) $(CFLAGS) -o $@ tests/gcheck.c $(CPU_TESTOBJ) $(LDFLAGS)
+tests/ckpt_unit: tests/ckpt_unit.c $(CPU_TESTOBJ)
+	$(CC) $(CFLAGS) -o $@ tests/ckpt_unit.c $(CPU_TESTOBJ) $(LDFLAGS)
+
+test: cncm tests/gcheck tests/ckpt_unit
+	./tests/test_units.sh
+	./tests/test_ckpt.sh --bin ./cncm --quick
+test-resume: cncm
+	./tests/test_ckpt.sh --bin ./cncm
+test-resume-cuda: cncm-cuda
+	./tests/test_ckpt.sh --bin ./cncm-cuda --cuda-tol 1e-3
 
 tools/gpt2import: tools/gpt2import.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<
@@ -53,6 +67,6 @@ tools/export_text: tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -Isrc -o $@ tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c -lm
 
 clean:
-	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport tools/export_text
+	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport tools/export_text tests/gcheck tests/ckpt_unit
 
-.PHONY: all cuda test clean tools/gpt2import tools/qwenimport tools/export_text
+.PHONY: all cuda test test-resume test-resume-cuda clean tools/gpt2import tools/qwenimport tools/export_text

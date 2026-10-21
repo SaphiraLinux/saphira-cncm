@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* ---------------- AdamW ---------------- */
 
@@ -806,11 +807,17 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
         ex.eps = t->opt->eps; ex.wd = t->opt->wd;
         CkptRunState lrs;
         char err[512] = {0};
-        if (ckpt_load_training(o.resume_path, &ws, t->opt, &ex, &lrs, err, sizeof(err))) {
+        struct timespec lt0, lt1;
+        clock_gettime(CLOCK_MONOTONIC, &lt0);
+        int lrc = ckpt_load_training(o.resume_path, &ws, t->opt, &ex, &lrs, err, sizeof(err));
+        clock_gettime(CLOCK_MONOTONIC, &lt1);
+        double ldt = (lt1.tv_sec - lt0.tv_sec) + (lt1.tv_nsec - lt0.tv_nsec) * 1e-9;
+        if (lrc) {
             fprintf(stderr, "[train] resume REFUSED: %s\n"
                     "[train] active training state was not modified.\n", err);
             return 1;
         }
+        fprintf(stderr, "[train] checkpoint loaded in %.2fs\n", ldt);
         completed = lrs.global_step;
         rng = lrs.batch_rng;
         noise_sd = lrs.noise_sd; /* inherited; CNCM_NOISE ignored on resume */
@@ -881,11 +888,17 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
             rs.conf_hash = conf_hash; rs.tokenizer_id = tokid;
             rs.noise_sd = noise_sd; rs.train_cfg_json = cfg_json;
             char err[512] = {0};
-            if (ckpt_save_atomic(&ws, t->opt, &rs, save_path, err, sizeof(err))) {
+            struct timespec st0, st1;
+            clock_gettime(CLOCK_MONOTONIC, &st0);
+            int src_ = ckpt_save_atomic(&ws, t->opt, &rs, save_path, err, sizeof(err));
+            clock_gettime(CLOCK_MONOTONIC, &st1);
+            double sdt = (st1.tv_sec - st0.tv_sec) + (st1.tv_nsec - st0.tv_nsec) * 1e-9;
+            if (src_) {
                 fprintf(stderr, "[train] CHECKPOINT SAVE FAILED: %s\n", err);
                 rc = 1;
                 break;
             }
+            fprintf(stderr, "[train] checkpoint saved in %.2fs\n", sdt);
         }
         printf("[train] step %ld loss %.4f%s%s%s\n", completed - 1, loss,
                save_path ? " (saved " : "", save_path ? save_path : "",

@@ -453,6 +453,8 @@ int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data
         }
         adamw_step(t->opt, t->lr, t->warmup, t->total);
         adamw_zero_grad(t->opt);
+        /* Weight-only snapshots (optimizer/EMA/RNG state not stored):
+         * fine for warm-starting, NOT exact-resume checkpoints. */
         if (step % 10 == 0) {
             char path[256];
             snprintf(path, sizeof(path), "ckpt-vq-step%d.ncm", step);

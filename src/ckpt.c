@@ -468,12 +468,11 @@ int ckpt_load_training(const char *path, WeightStore *ws, AdamW *opt,
     }
     /* ---- optimizer ---- */
     {
-        char om[4];
-        rraw(&r, om, 4);
+        uint32_t om = ru32(&r); /* 'ADAM' as LE u32 */
         double b1 = rf64(&r), b2 = rf64(&r), ep = rf64(&r), wd = rf64(&r);
         uint32_t on = ru32(&r);
         long ostep = (long)ri64(&r);
-        if (r.err || memcmp(om, "ADAM", 4) != 0 || (int)on != opt->n ||
+        if (r.err || om != 0x4D414441u || (int)on != opt->n ||
             b1 != ex->b1 || b2 != ex->b2 || ep != ex->eps || wd != ex->wd) {
             snprintf(err, errcap, "%s: optimizer mismatch (section/n/hyperparams)", path);
             goto fail;
@@ -674,8 +673,7 @@ int ckpt_info(const char *path) {
         uint64_t nb = ru64(&r); r.p += nb;
         wbytes += nb;
     }
-    char om[4] = {0, 0, 0, 0};
-    rraw(&r, om, 4);
+    uint32_t om = ru32(&r); /* 'ADAM' as LE u32; r.err set if truncated */
     double b1 = rf64(&r), b2 = rf64(&r), ep = rf64(&r), wd = rf64(&r);
     uint32_t on = ru32(&r);
     long ostep = (long)ri64(&r);
@@ -699,12 +697,17 @@ int ckpt_info(const char *path) {
            (int)tl, tk ? tk : "");
     printf("tensors: %u weights=%.1f MiB\n", n, wbytes / 1048576.0);
     printf("cfg: %.*s\n", (int)jl, js ? js : "");
-    if (r.err || r.p != r.end || memcmp(om, "ADAM", 4) != 0) {
+    if (!cksum_ok) {
+        printf("status: CHECKSUM MISMATCH - refused, do not resume from this file\n");
+        memset(buf, 0, len); free(buf);
+        return 1;
+    }
+    if (r.err || r.p != r.end || om != 0x4D414441u) {
         printf("status: STRUCTURALLY INVALID\n");
         memset(buf, 0, len); free(buf);
         return 1;
     }
     printf("status: valid, exact-resume ready\n");
     memset(buf, 0, len); free(buf);
-    return cksum_ok ? 0 : 1;
+    return 0;
 }
