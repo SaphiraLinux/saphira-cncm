@@ -14,5 +14,6 @@ ckpt-*.nckpt
 *.tmp.*
 tests/gcheck
 tests/ckpt_unit
+tests/fontcheck
 
 tools/qwenimport

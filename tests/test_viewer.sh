@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# tests/test_viewer.sh — deterministic Sudoku viewer tests.
+# tests/test_viewer.sh — deterministic tests for the native SDL viewer and
+# the machine interfaces it builds on (sudoku-stream, sudoku-check).
 #
-# Covers: golden boards (stepper refactor guard), streamed == gen
-# (the stream IS the model), run-to-run determinism, sudoku-check
-# valid/invalid + bad-unit flags, prefix validation, and the relay
-# (page markers + begin/step-through to done).
+# Covers: golden boards (stepper == verified monolithic gen), streamed ==
+# gen output (the stream IS the model), run-to-run determinism,
+# sudoku-check valid/invalid + bad-unit flags, prefix validation, font
+# strip md5 (pixel-exact bitmap font), and headless SDL smoke runs:
+# train --view loss/checkpoint identity vs no-view (the viewer must not
+# change numerics), gen --view completing with the same board.
 #
 # Usage: test_viewer.sh --bin ./cncm
 set -u
@@ -12,7 +15,8 @@ BIN="./cncm"
 while [ $# -gt 0 ]; do case "$1" in
   --bin) BIN="$2"; shift 2;;
   *) echo "unknown arg $1"; exit 2;;
-esac done
+esac
+done
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$REPO/$BIN"
 NFAIL=0
@@ -23,20 +27,20 @@ if [ ! -x "$BIN" ]; then echo "SKIP: binary $BIN not built"; exit 0; fi
 CONF="$REPO/weights/sudoku-easy/model.conf"
 W0="$REPO/weights/sudoku-easy/model.ncm"
 ADIR="$REPO/weights/sudoku-easy"
-FIX="$REPO/tests/fixtures/sudoku_viewer_golden.txt"
-if [ ! -f "$W0" ] || [ ! -f "$CONF" ]; then
-  echo "SKIP: sudoku weights not present (git-ignored); nothing to prove against"
+DATA="$REPO/weights/sudoku-easy/train64.nctrain"
+FIX="$REPO/tests/fixtures/sudoku_stream_golden.txt"
+if [ ! -f "$W0" ] || [ ! -f "$DATA" ]; then
+  echo "SKIP: sudoku weights/data not present (git-ignored); nothing to prove against"
   exit 0
 fi
-if ! command -v python3 >/dev/null 2>&1; then echo "SKIP: no python3 (relay is stdlib python)"; exit 0; fi
-if ! command -v curl >/dev/null 2>&1; then echo "SKIP: no curl"; exit 0; fi
 
 WORK="$(mktemp -d /tmp/opencode/viewertest.XXXXXX)"
 echo "work=$WORK bin=$BIN"
+export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy
 
 norm_ms(){ sed -E 's/"ms":[0-9.]+/"ms":0/; s/"elapsed_ms":[0-9.]+/"elapsed_ms":0/' "$1"; }
 
-# ---------- 1. golden boards (stepper == pre-refactor monolithic gen) ----------
+# ---------- 1. golden boards ----------
 GOLD_OK=1
 while read -r seed prefix board; do
   [ -z "$seed" ] && continue
@@ -86,40 +90,35 @@ echo "$badout" | grep -q '"valid":false,"bad_rows":\[8\],"bad_cols":\[8\],"bad_b
 "$BIN" sudoku-check --board "123" >/dev/null 2>&1
 [ $? -eq 2 ] && pass "reject short board" || fail "short board accepted"
 
-# ---------- 6. relay: page + full live walk ----------
-PORT=8909
-python3 "$REPO/tools/viewer/server.py" --cncm "$BIN" --conf "$CONF" \
-  --weights "$W0" --asset-dir "$ADIR" --port "$PORT" >"$WORK/relay.log" 2>&1 &
-RPID=$!
-trap 'kill $RPID 2>/dev/null' EXIT
-sleep 1
-curl -s -m 5 "http://127.0.0.1:$PORT/" | grep -q 'id="grid"' \
-  && pass "relay serves page with grid" || fail "relay page"
-curl -s -m 5 "http://127.0.0.1:$PORT/" | grep -q 'LIVE' \
-  && pass "page carries LIVE badge" || fail "page LIVE marker"
-curl -s -m 5 "http://127.0.0.1:$PORT/" | grep -q 'REPLAY' \
-  && pass "page carries REPLAY badge" || fail "page REPLAY marker"
-BSID="$(curl -s -m 10 -X POST "http://127.0.0.1:$PORT/api/begin" \
-  -d "{\"prefix\": \"$prefix\", \"seed\": $seed}" | \
-  python3 -c "import json,sys; print(json.load(sys.stdin).get('sid',''))")"
-[ -n "$BSID" ] && pass "relay begin" || fail "relay begin"
-WBOARD=""; WVALID=""
-for _ in $(seq 1 15); do
-  EV="$(curl -s -m 60 "http://127.0.0.1:$PORT/api/step?sid=$BSID")"
-  ET="$(echo "$EV" | python3 -c "import json,sys; print(json.load(sys.stdin).get('type','?'))")"
-  if [ "$ET" = "done" ]; then
-    WBOARD="$(echo "$EV" | python3 -c "import json,sys; print(json.load(sys.stdin)['board'])")"
-    WVALID="$(echo "$EV" | python3 -c "import json,sys; print(json.load(sys.stdin)['valid'])")"
-    break
-  fi
-  [ "$ET" = "level" ] || [ "$ET" = "header" ] || { fail "relay walk event ($ET)"; break; }
-done
-[ "$WBOARD" = "$gboard" ] && [ "$WVALID" = "True" ] \
-  && pass "relay walk reaches done (valid board)" \
-  || fail "relay walk: board=${WBOARD:0:18} valid=$WVALID"
-curl -s -m 10 -X POST "http://127.0.0.1:$PORT/api/end" -d "{\"sid\": \"$BSID\"}" \
-  | grep -q '"ok": true' && pass "relay end" || fail "relay end"
-kill $RPID 2>/dev/null; trap - EXIT
+# ---------- 6. font strip md5 (pixel-exact bitmap font) ----------
+if [ ! -x "$REPO/tests/fontcheck" ]; then
+  fail "fontcheck binary missing (run make tests/fontcheck)"
+else
+  "$REPO/tests/fontcheck" "$WORK/fontstrip.bmp" || fail "fontcheck run"
+  FM="$(md5sum "$WORK/fontstrip.bmp" | awk '{print $1}')"
+  FX="$(cat "$REPO/tests/fixtures/viewer_font.md5")"
+  [ "$FM" = "$FX" ] && pass "font strip md5 $FM" || fail "font md5: got $FM want $FX"
+fi
+
+# ---------- 7. train --view identity (viewer must not change numerics) ----------
+"$BIN" train --conf "$CONF" --weights "$W0" --data "$DATA" \
+  --steps 2 --ckpt-every 2 --ckpt-out "$WORK/off.nckpt" >"$WORK/off.log" 2>&1
+off_loss="$(grep -o 'loss [0-9.]*' "$WORK/off.log" | tr '\n' ' ')"
+"$BIN" train --conf "$CONF" --weights "$W0" --data "$DATA" \
+  --steps 2 --ckpt-every 2 --ckpt-out "$WORK/on.nckpt" --view >"$WORK/on.log" 2>&1
+[ $? -eq 0 ] && pass "train --view completes headless" || fail "train --view exit"
+on_loss="$(grep -o 'loss [0-9.]*' "$WORK/on.log" | tr '\n' ' ')"
+[ "$off_loss" = "$on_loss" ] && [ -n "$off_loss" ] \
+  && pass "viewer on/off loss identical ($off_loss)" \
+  || fail "loss drift: off='$off_loss' on='$on_loss'"
+if cmp -s "$WORK/off.nckpt" "$WORK/on.nckpt"; then pass "viewer on/off ckpt identical"; else
+  fail "ckpt drift with viewer"; fi
+
+# ---------- 8. gen --view completes with the same board ----------
+vboard="$("$BIN" gen --conf "$CONF" --weights "$W0" --asset-dir "$ADIR" \
+  --prefix "$prefix" --seed "$seed" --view 2>/dev/null | tail -1 | tr -d '|')"
+[ "$vboard" = "$gboard" ] && pass "gen --view same board" \
+  || fail "gen --view: ${vboard:0:18} vs ${gboard:0:18}"
 
 if [ "$NFAIL" = 0 ]; then echo "ALL VIEWER TESTS PASSED (work=$WORK)"; else
   echo "VIEWER-FAIL ($NFAIL)"; fi

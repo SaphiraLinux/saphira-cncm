@@ -179,6 +179,14 @@ static double sched_cosine_warmup(long step, double warmup, double total) {
 
 /* ---------------- recording NCP forward (training) ---------------- */
 
+/* live-viewer capture (train_ncp_loss fills these when view_cap_on; the
+ * train loop copies them into snapshots). Read-only staging + host
+ * argmax: no RNG, no math, no arena impact — numerics and determinism
+ * are untouched. Viewer off: a single branch per level. */
+static int view_cap_on = 0;
+static double view_lvl_loss[VIEW_MAXLV];
+static double view_lvl_agree[VIEW_MAXLV];
+
 static int vq_total_dummy(NCMConfig *c);
 
 static Tensor *TW(WeightStore *ws, const char *name) {
@@ -542,6 +550,24 @@ static double train_ncp_loss(Tape *tp, NCPState *m, WeightStore *ws, NCMConfig *
         float lh = 0;
         mem_d2h(&lh, loss1, sizeof(float));
         loss_sum += lh;
+        if (view_cap_on && k < VIEW_MAXLV) {
+            /* batch-averaged exact-code agreement for this level */
+            view_lvl_loss[k] = lh;
+            float *h = (float *)malloc((size_t)B * lk * V * sizeof(float));
+            mem_d2h(h, lg, (size_t)B * lk * V * sizeof(float));
+            long hit = 0;
+            for (int bb = 0; bb < B; bb++) for (int tti = 0; tti < lk; tti++) {
+                int best = 0;
+                float bv = h[((size_t)bb * lk + tti) * V];
+                for (int v = 1; v < V; v++) {
+                    float x = h[((size_t)bb * lk + tti) * V + v];
+                    if (x > bv) { bv = x; best = v; }
+                }
+                if (best == tgt[bb * lk + tti]) hit++;
+            }
+            free(h);
+            view_lvl_agree[k] = (double)hit / ((double)B * lk);
+        }
 
         free(tgt);
         off += lk;
@@ -871,6 +897,20 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
              t->lr, t->warmup, t->total, B, noise_sd, tokid,
              data_path, o.conf_path ? o.conf_path : "");
     int rc = 0;
+    /* live native viewer (explicit --view only; read-only snapshots, so
+     * numerics and determinism are identical with or without it) */
+    int view_on = 0;
+    struct timespec vt0;
+    if (o.view) {
+        char vtitle[128];
+        snprintf(vtitle, sizeof(vtitle), "CNCM train %s", c.task);
+        if (viewer_open(vtitle) == 0) view_on = 1;
+        else fprintf(stderr, "[train] viewer: no display/SDL2, continuing headless\n");
+        clock_gettime(CLOCK_MONOTONIC, &vt0);
+    }
+    view_cap_on = view_on;
+    int lvl_first = ncp_lvlfirst(m);
+    int ntgt = ncp_ntgt(m);
     while (completed < target) {
         /* random batch (with replacement) */
         for (int b = 0; b < B; b++) {
@@ -881,6 +921,56 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
         }
         double loss = train_ncp_step(t, tp, pbuf, cbuf, B);
         completed++;
+        if (view_on) {
+            ViewSnap vs;
+            memset(&vs, 0, sizeof(vs));
+            vs.mode = 0;
+            vs.step = (int)completed; vs.total = (int)target;
+            vs.loss = loss;
+            vs.lr = t->lr * sched_cosine_warmup(completed, t->warmup, t->total);
+            struct timespec vtn;
+            clock_gettime(CLOCK_MONOTONIC, &vtn);
+            vs.elapsed = (vtn.tv_sec - vt0.tv_sec) + (vtn.tv_nsec - vt0.tv_nsec) * 1e-9;
+            /* clues from board 0 of the batch (sudoku prefix framing) */
+            if (P == 91 && pbuf[0] == 11 && pbuf[P - 1] == 11) {
+                int okf = 1;
+                for (int r = 0; r < 9 && okf; r++) {
+                    if (r < 8 && pbuf[10 + r * 10] != 10) { okf = 0; break; }
+                    for (int cc = 0; cc < 9; cc++) {
+                        int id = pbuf[1 + r * 10 + cc];
+                        if (id < 0 || id > 9) { okf = 0; break; }
+                        vs.clues[r * 9 + cc] = id ? (char)('0' + id) : '.';
+                    }
+                }
+                if (okf) vs.clues[81] = 0;
+                else vs.clues[0] = 0;
+            }
+            /* per-level loss/agreement + code-weighted accuracy */
+            vs.nlv = ntgt < VIEW_MAXLV ? ntgt : VIEW_MAXLV;
+            double hsum = 0, wsum = 0;
+            for (int k = 0; k < vs.nlv; k++) {
+                int lk = c.levels[k + lvl_first];
+                vs.lvl_loss[k] = view_lvl_loss[k];
+                vs.lvl_acc[k] = view_lvl_agree[k];
+                hsum += view_lvl_agree[k] * lk;
+                wsum += lk;
+            }
+            vs.acc = wsum > 0 ? hsum / wsum : 0;
+            snprintf(vs.model, sizeof(vs.model), "%s", c.task);
+#ifdef NCM_CUDA
+            snprintf(vs.backend, sizeof(vs.backend), "cuda");
+#else
+            snprintf(vs.backend, sizeof(vs.backend), "cpu");
+#endif
+            snprintf(vs.status, sizeof(vs.status), "training B=%d", B);
+            vs.ckpt = (completed % ckpt_every == 0 || completed == target) ? 1 : 0;
+            viewer_push(&vs);
+            if (viewer_stop_requested()) {
+                printf("[train] stopped by viewer (step %ld)\n", completed);
+                fflush(stdout);
+                break;
+            }
+        }
         const char *save_path = NULL;
         char rot[256];
         if (completed % ckpt_every == 0 || completed == target) {
@@ -914,6 +1004,9 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
                save_path ? ")" : "");
         fflush(stdout);
     }
+    view_cap_on = 0;
+    viewer_hold();
+    viewer_close();
     free(pbuf); free(cbuf);
     free(d->rows); free(d);
     return rc;

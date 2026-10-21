@@ -329,6 +329,7 @@ typedef struct {
     double sched_total;       /* scheduler horizon; <=0 = default (target steps) */
     const char *conf_path;    /* hashed into checkpoint identity (may be NULL) */
     const char *tokenizer_id; /* operator-supplied tokenizer identity (may be NULL) */
+    int view;                 /* open the native live viewer (no-op headless) */
 } TrainOpts;
 int train_run_ex(const NCMConfig *c, const char *weights_path,
                  const char *data_path, int max_steps, double lr,
@@ -349,6 +350,31 @@ float *train_qwen_forward(Tape *tp, WeightStore *ws, const NCMConfig *c,
                           const int *ids, int B, int T);
 int qwen_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
                    const char *prompt, int T);
+/* ---- live native viewer (viewer.c, SDL2; silent no-ops when the display
+ * or SDL2 is unavailable). Snapshots are plain data: pushing never blocks
+ * computation and cannot change numerics or determinism. */
+#define VIEW_MAXLV 16
+typedef struct {
+    int mode; /* 0=train, 1=solve */
+    int step, total;
+    double loss, acc, lr, elapsed;
+    int nlv;
+    double lvl_loss[VIEW_MAXLV], lvl_acc[VIEW_MAXLV], lvl_ms[VIEW_MAXLV];
+    int lvl_n[VIEW_MAXLV], lvl_done_count;
+    char clues[82];
+    char board[82]; /* solve: final board when available */
+    int valid, nr, nc, nb;
+    int bad_r[9], bad_c[9], bad_b[9];
+    char model[64], backend[16], status[160];
+    int ckpt; /* checkpoint saved on this step (train) */
+} ViewSnap;
+int viewer_open(const char *title);
+void viewer_push(const ViewSnap *s);
+int viewer_stop_requested(void);
+void viewer_hold(void);
+void viewer_close(void);
+int viewer_active(void);
+int viewer_font_test_bmp(const char *path); /* test/diagnostic helper */
 
 typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
 

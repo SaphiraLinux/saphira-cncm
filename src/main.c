@@ -17,7 +17,7 @@ static void usage(const char *a) {
         "  %s infer   --conf M.conf --weights M.ncm --asset-dir D --ids 1,2,3..\n"
         "  %s gen     --conf M.conf --weights M.ncm --asset-dir D [--prefix IDS|TEXT]\n"
         "             [--temp f] [--top-k n] [--top-p f] [--cfg f] [--freq f] [--mu f]\n"
-        "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE]\n"
+        "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE] [--view]\n"
         "  %s eval-sudoku --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --inputs inputs.txt --refs refs.txt [--n N]\n"
         "  %s sudoku-stream --conf M.conf --weights M.ncm --asset-dir D\n"
@@ -42,7 +42,7 @@ static void usage(const char *a) {
         "             --prompt TEXT [--tokens N] (taped vs reference parity)\n"
         "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
-        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
+        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S] [--view]\n"
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
@@ -121,6 +121,11 @@ static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
 static int cmd_sudoku_stream(App *a, int argc, char **argv);
 static int cmd_sudoku_check(int argc, char **argv);
+static int prefix_clues(const int *prefix, int P, char *out);
+static double stream_now_ms(void);
+static void sudoku_cells(const char *s, char *out);
+static int stream_bad_units(const char *cells, int *br, int *nb_r,
+                            int *bc, int *nb_c, int *bb, int *nb_b);
 static int cmd_infer(App *a, const char *ids_csv) {
     int P = a->cfg.prefix_len;
     int T = a->cfg.vq_context_length;
@@ -365,7 +370,9 @@ int main(int argc, char **argv) {
         const char *ckptevery = opt(&argc, &argv, "--ckpt-every");
         const char *total = opt(&argc, &argv, "--total");
         const char *tokid = opt(&argc, &argv, "--tokenizer-id");
-        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S]\n"); return 2; }
+        int viewf = 0;
+        for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--view")) viewf = 1;
+        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S] [--view]\n"); return 2; }
         if (!conf || !weights) usage(argv[1]);
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
@@ -378,6 +385,7 @@ int main(int argc, char **argv) {
         to.sched_total = total ? atof(total) : 0.0;
         to.conf_path = conf;
         to.tokenizer_id = tokid;
+        to.view = viewf;
         return train_run_ex(&cfg, weights, data, steps ? atoi(steps) : 200,
                             lr ? atof(lr) : 0.0, &to);
     }
@@ -543,9 +551,111 @@ static int cmd_gen(App *a, int argc, char **argv) {
     }
     int na = 0;
     double *allow = load_allow(&a->ws, "inference.token_unigram", &na);
-    int *codes = ncp_generate(a->ncp, have_l0 ? l0 : NULL, prefix, B, g.temp, g.top_k, g.top_p,
-                              g.cfg, g.freq, g.mu, g.adj_a, g.adj_w, g.adj_d,
-                              allow, g.seed);
+    int viewf = 0;
+    for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--view")) viewf = 1;
+    int *codes = NULL;
+    if (viewf && viewer_open("CNCM solve") == 0) {
+        /* live solve: drive the stepper so each pushed level follows a
+         * real model forward; board 0 shown (B>1 displays board 0). */
+        ViewSnap vs0;
+        memset(&vs0, 0, sizeof(vs0));
+        vs0.mode = 1;
+        if (prefix_clues(prefix, P, vs0.clues)) vs0.clues[81] = 0;
+        snprintf(vs0.model, sizeof(vs0.model), "%s", a->cfg.task);
+#ifdef NCM_CUDA
+        snprintf(vs0.backend, sizeof(vs0.backend), "cuda");
+#else
+        snprintf(vs0.backend, sizeof(vs0.backend), "cpu");
+#endif
+        snprintf(vs0.status, sizeof(vs0.status), "solving B=%d", B);
+        viewer_push(&vs0);
+        NCPGen *gg = ncp_gen_begin(a->ncp, have_l0 ? l0 : NULL, prefix, B,
+                                   g.temp, g.top_k, g.top_p, g.cfg, g.freq,
+                                   g.mu, g.adj_a, g.adj_w, g.adj_d,
+                                   allow, g.seed);
+        int ns = ncp_gen_nsteps(gg);
+        int mx = 0;
+        int lsizes[VIEW_MAXLV];
+        int nls = ns < VIEW_MAXLV ? ns : VIEW_MAXLV;
+        for (int s = 0; s < ns; s++) {
+            int sz = ncp_gen_step_size(gg, s);
+            if (sz > mx) mx = sz;
+            if (s < nls) lsizes[s] = sz;
+        }
+        int *one = (int *)malloc((size_t)(mx > 0 ? mx : 1) * sizeof(int));
+        double t0s = stream_now_ms();
+        int aborted = 0;
+        for (int s = 0; s < ns; s++) {
+            double st = stream_now_ms();
+            int n = 0;
+            if (ncp_gen_step(gg, one, &n)) { aborted = 1; break; }
+            double ms = stream_now_ms() - st;
+            ViewSnap vs;
+            memset(&vs, 0, sizeof(vs));
+            vs.mode = 1; vs.total = ns; vs.step = s + 1;
+            vs.nlv = nls;
+            vs.lvl_done_count = s + 1;
+            for (int k = 0; k <= s && k < nls; k++) {
+                vs.lvl_n[k] = lsizes[k];
+                vs.lvl_ms[k] = (k == s) ? ms : 0;
+            }
+            if (prefix_clues(prefix, P, vs.clues)) vs.clues[81] = 0;
+            snprintf(vs.model, sizeof(vs.model), "%s", a->cfg.task);
+#ifdef NCM_CUDA
+            snprintf(vs.backend, sizeof(vs.backend), "cuda");
+#else
+            snprintf(vs.backend, sizeof(vs.backend), "cpu");
+#endif
+            vs.elapsed = (stream_now_ms() - t0s) / 1000.0;
+            snprintf(vs.status, sizeof(vs.status), "level %d/%d", s + 1, ns);
+            viewer_push(&vs);
+            if (viewer_stop_requested()) { aborted = 1; break; }
+        }
+        free(one);
+        if (aborted) {
+            ncp_gen_abort(gg);
+            viewer_close();
+            printf("gen: stopped\n");
+            free(allow); free(l0); free(prefix);
+            return 0;
+        }
+        codes = ncp_gen_finish(gg);
+        /* final board + validity for board 0, shown when available */
+        {
+            char *txt = decode_board(a, codes);
+            char cells[128];
+            sudoku_cells(txt, cells);
+            free(txt);
+            ViewSnap vd;
+            memset(&vd, 0, sizeof(vd));
+            vd.mode = 1; vd.total = ns; vd.step = ns;
+            vd.nlv = nls;
+            vd.lvl_done_count = ns;
+            for (int k = 0; k < nls; k++) vd.lvl_n[k] = lsizes[k];
+            if (prefix_clues(prefix, P, vd.clues)) vd.clues[81] = 0;
+            if (strlen(cells) == 81) {
+                memcpy(vd.board, cells, 82);
+                vd.valid = stream_bad_units(cells, vd.bad_r, &vd.nr,
+                                            vd.bad_c, &vd.nc, vd.bad_b, &vd.nb);
+            }
+            snprintf(vd.model, sizeof(vd.model), "%s", a->cfg.task);
+#ifdef NCM_CUDA
+            snprintf(vd.backend, sizeof(vd.backend), "cuda");
+#else
+            snprintf(vd.backend, sizeof(vd.backend), "cpu");
+#endif
+            vd.elapsed = (stream_now_ms() - t0s) / 1000.0;
+            snprintf(vd.status, sizeof(vd.status), "done valid=%d", vd.valid);
+            viewer_push(&vd);
+            viewer_hold();
+            viewer_close();
+        }
+    } else {
+        if (viewf) fprintf(stderr, "gen: viewer unavailable, continuing headless\n");
+        codes = ncp_generate(a->ncp, have_l0 ? l0 : NULL, prefix, B, g.temp, g.top_k, g.top_p,
+                             g.cfg, g.freq, g.mu, g.adj_a, g.adj_w, g.adj_d,
+                             allow, g.seed);
+    }
     free(allow);
     int total = 0;
     for (int i = 0; i < a->cfg.n_qlevels; i++) total += a->cfg.levels[i];
@@ -706,6 +816,22 @@ static void stream_json_ints(FILE *f, const int *xs, int n) {
     fputc(']', f);
 }
 
+/* clues from a sudoku prefix row (91 ids, 11/10 framing). Returns 1 with
+ * 81 chars in out ('1'-'9' or '.'), 0 when the framing does not match. */
+static int prefix_clues(const int *prefix, int P, char *out) {
+    if (P != 91 || prefix[0] != 11 || prefix[P - 1] != 11) return 0;
+    for (int r = 0; r < 9; r++) {
+        if (r < 8 && prefix[10 + r * 10] != 10) return 0;
+        for (int c = 0; c < 9; c++) {
+            int id = prefix[1 + r * 10 + c];
+            if (id < 0 || id > 9) return 0;
+            out[r * 9 + c] = id ? (char)('0' + id) : '.';
+        }
+    }
+    out[81] = 0;
+    return 1;
+}
+
 /* sudoku-stream: live level-by-level solve as NDJSON (one object per line).
  * B=1. Drives the NCPGen stepper so each event follows a real model step;
  * --step waits for a stdin line after each level (EOF runs to completion).
@@ -726,30 +852,12 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
         free(prefix);
         return 2;
     }
-    /* structural check: 11 | 9 cells | 10 ... | 9 cells | 11 */
-    if (prefix[0] != 11 || prefix[P - 1] != 11) {
-        fprintf(stderr, "sudoku-stream: bad prefix framing (want 11 ... 11)\n");
+    char clues[82];
+    if (!prefix_clues(prefix, P, clues)) {
+        fprintf(stderr, "sudoku-stream: bad prefix framing/ids (want 11 | cells | 10 ...)\n");
         free(prefix);
         return 2;
     }
-    char clues[82];
-    for (int r = 0; r < 9; r++) {
-        if (r < 8 && prefix[10 + r * 10] != 10) {
-            fprintf(stderr, "sudoku-stream: bad row separator at prefix[%d]\n", 10 + r * 10);
-            free(prefix);
-            return 2;
-        }
-        for (int c = 0; c < 9; c++) {
-            int id = prefix[1 + r * 10 + c];
-            if (id < 0 || id > 9) {
-                fprintf(stderr, "sudoku-stream: bad cell id %d at row %d col %d\n", id, r, c);
-                free(prefix);
-                return 2;
-            }
-            clues[r * 9 + c] = id ? (char)('0' + id) : '.';
-        }
-    }
-    clues[81] = 0;
     int na = 0;
     double *allow = load_allow(&a->ws, "inference.token_unigram", &na);
     unsigned long long seed = ss ? strtoull(ss, NULL, 10) : 0;
