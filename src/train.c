@@ -48,13 +48,15 @@ static double sched_cosine_warmup(long step, double warmup, double total);
 void adamw_step(AdamW *o, double base_lr, double warmup, double total) {
     o->step++;
     double lr_t = base_lr * sched_cosine_warmup(o->step, warmup, total);
+    double b1t = 1.0 - pow(o->b1, (double)o->step);
+    double b2t = 1.0 - pow(o->b2, (double)o->step);
+    /* independent per param: same serial arithmetic in every thread */
+#pragma omp parallel for schedule(static) if(o->n > 1)
     for (int i = 0; i < o->n; i++) {
         int64_t n = o->sizes[i];
         float *p_host = (float *)malloc(n * sizeof(float));
         mem_d2h(p_host, o->params[i], n * sizeof(float));
         double lr = lr_t * o->lr[i];
-        double b1t = 1.0 - pow(o->b1, (double)o->step);
-        double b2t = 1.0 - pow(o->b2, (double)o->step);
         for (int64_t k = 0; k < n; k++) {
             float g = o->g[i][k];
             /* decoupled weight decay */

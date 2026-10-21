@@ -34,12 +34,30 @@ builds a CPU binary (`make` → `cncm`) and a CUDA binary (`make cuda` →
 - **Decode**: GPT-2/Qwen forward → tied-head logits → greedy or top-k/top-p
   sampling (`sample_topkp`); perplexity via chunked NLL.
 
-## Threading (status)
+## Threading (CPU)
 
-Forward kernels use OpenMP `parallel for` where profitable (guarded by size
-thresholds); backward staging is host-side. Thread count follows the OpenMP
-runtime (`OMP_NUM_THREADS`, else core count); see `docs` for the determinism
-and benchmark record. Generation is sequential per token by construction.
+Thread count: `NCM_THREADS` env var, default **8 workers**
+(`omp_set_num_threads` at startup; `if(...)` guards keep small shapes
+serial). No other configuration needed.
+
+| Path | Status |
+|---|---|
+| Forward kernels (`kernels.c`, `ncp.c`) | OpenMP `parallel for` (pre-existing) |
+| Training backward (`train_tape.c`) | OpenMP on all major ops (linear/CE/SDPA/LN/RMSN/GN/conv/split/merge/elementwise/adam); scatter-adds (embed/gather) intentionally serial |
+| `adamw_step` | OpenMP over params |
+| Stay serial by design | generation loop (autoregressive), tokenizer (single pass is fast), `hadd_into` (called from parallel regions; nesting stays serial) |
+
+Determinism contract: every parallel loop partitions *outputs* and keeps
+the serial summation order inside, so results are **bit-identical at any
+thread count**. Proof (sudoku NCP, one train step): sha256 of the saved
+checkpoint identical for NCM_THREADS=1,2,4,8. Tokenizer and greedy
+generation likewise byte-identical across counts.
+
+Measured (32-core box, sudoku train step, interleaved A/B at 32 threads):
+serial-backward 74–77s vs parallel 18–19s (**~4.1x**); scaling 1→32 threads:
+260s → 112s → 57s → 35s → 18s. GPT-2 generation (5 tokens): 2.24s at 1
+thread → 0.67s at 8, flat after (memory-bound). Full 118MB Bible
+tokenization: 6.1s single-threaded.
 
 ## CUDA status
 

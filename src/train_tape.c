@@ -511,11 +511,14 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *hp = stage_h(st->probs, (size_t)rows * V);
             float *dl = (float *)calloc((size_t)rows * V, sizeof(float));
             double inv = (st->cnt > 0 ? 1.0 / st->cnt : 0.0) * r->s;
+            /* independent per (row, vocab): same arithmetic in any thread order */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)rows * V > 512)
             for (int64_t rr = 0; rr < rows; rr++) {
-                float wm = st->w ? st->w[rr] : 1.0f;
-                if (wm == 0) continue;
-                for (int v = 0; v < V; v++)
+                for (int v = 0; v < V; v++) {
+                    float wm = st->w ? st->w[rr] : 1.0f;
+                    if (wm == 0) continue;
                     dl[rr * V + v] = (float)((hp[rr * V + v] - (v == st->tgt[rr] ? 1.0 : 0.0)) * wm * inv);
+                }
             }
             free(hp);
             /* logits grads accumulate in map (or aliased param buffer) */
@@ -531,21 +534,34 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             /* dx */
             float *dx = gmap_get(gm, r->a, batch * K);
             float *hW = stage_h(r->b, (size_t)M * K);
+            /* dx: independent per (row, k) */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)batch * K > 512)
             for (int64_t rr = 0; rr < batch; rr++)
                 for (int k = 0; k < K; k++) {
                     double s = 0;
                     for (int m = 0; m < M; m++) s += (double)hdy[rr * M + m] * hW[m * K + k];
                     dx[rr * K + k] += (float)s;
                 }
-            /* dW, db -> params if registered else map */
+            /* dW, db -> params if registered else map.
+             * Parallel over outputs; inner batch loop keeps the original
+             * rr-ascending accumulation order, so results are bit-identical
+             * at any thread count. */
             {
                 float *dW = (float *)calloc((size_t)M * K, sizeof(float));
                 float *db = (float *)calloc(M, sizeof(float));
-                for (int64_t rr = 0; rr < batch; rr++)
-                    for (int m = 0; m < M; m++) {
-                        db[m] += hdy[rr * M + m];
-                        for (int k = 0; k < K; k++) dW[m * K + k] += hdy[rr * M + m] * hx[rr * K + k];
+#pragma omp parallel for schedule(static) if((int64_t)M * K > 512)
+                for (int m = 0; m < M; m++) {
+                    double bsum = 0;
+                    for (int64_t rr = 0; rr < batch; rr++)
+                        bsum += hdy[rr * M + m];
+                    db[m] += (float)bsum;
+                    for (int k = 0; k < K; k++) {
+                        double s = 0;
+                        for (int64_t rr = 0; rr < batch; rr++)
+                            s += (double)hdy[rr * M + m] * hx[rr * K + k];
+                        dW[m * K + k] += (float)s;
                     }
+                }
                 hadd_into(gmap_get(gm, r->b, (size_t)M * K),  dW, (size_t)M * K);
                 free(dW);
                 if (r->c) {
@@ -582,6 +598,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *dx = gmap_get(gm, r->a, rows * C);
             float *dw = (float *)calloc(C, sizeof(float));
             float *db = (float *)calloc(C, sizeof(float));
+            /* per-row stats first (independent rows) */
+            double *pmean = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
+            double *pinv = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
+#pragma omp parallel for schedule(static) if(rows > 4)
             for (int64_t rr = 0; rr < rows; rr++) {
                 double mean = 0;
                 for (int c = 0; c < C; c++) mean += hx[rr * C + c];
@@ -589,13 +609,28 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                 double var = 0;
                 for (int c = 0; c < C; c++) { double d = hx[rr * C + c] - mean; var += d * d; }
                 var /= C;
-                double inv = 1.0 / sqrt(var + 1e-6);
+                pmean[rr] = mean;
+                pinv[rr] = 1.0 / sqrt(var + 1e-6);
+            }
+            /* param grads: same rr-ascending accumulation order as serial */
+#pragma omp parallel for schedule(static) if((int64_t)rows * C > 512)
+            for (int c = 0; c < C; c++) {
+                double sw = 0, sb = 0;
+                for (int64_t rr = 0; rr < rows; rr++) {
+                    double y = (hx[rr * C + c] - pmean[rr]) * pinv[rr];
+                    sw += hdy[rr * C + c] * y;
+                    sb += hdy[rr * C + c];
+                }
+                dw[c] = (float)sw;
+                db[c] = (float)sb;
+            }
+            /* dx per row (independent rows) */
+#pragma omp parallel for schedule(static) if(rows > 4)
+            for (int64_t rr = 0; rr < rows; rr++) {
+                double mean = pmean[rr], inv = pinv[rr];
                 double dmean = 0, dvar = 0;
                 for (int c = 0; c < C; c++) {
                     double w = hw ? hw[c] : 1.0;
-                    double y = (hx[rr * C + c] - mean) * inv;
-                    dw[c] += hdy[rr * C + c] * y;
-                    db[c] += hdy[rr * C + c];
                     double d = hdy[rr * C + c] * w;
                     dmean += d;
                     dvar += d * (hx[rr * C + c] - mean);
@@ -607,8 +642,8 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                     double d = hdy[rr * C + c] * w;
                     dx[rr * C + c] += (float)((d - dmean) * inv + 2 * (hx[rr * C + c] - mean) * dvar);
                 }
-                (void)hb;
             }
+            free(pmean); free(pinv);
             free(hx); free(hdy);
             if (hw) {
                 hadd_into(gmap_get(gm, r->b, C), dw, C);
@@ -628,15 +663,27 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *hw = r->b ? stage_h(r->b, C) : NULL;
             float *dx = gmap_get(gm, r->a, rows * C);
             float *dw = (float *)calloc(C, sizeof(float));
+            double *pinv = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
+#pragma omp parallel for schedule(static) if(rows > 4)
             for (int64_t rr = 0; rr < rows; rr++) {
                 double ms = 0;
                 for (int c = 0; c < C; c++) ms += (double)hx[rr * C + c] * hx[rr * C + c];
                 ms /= C;
-                double inv = 1.0 / sqrt(ms + 1e-6);
+                pinv[rr] = 1.0 / sqrt(ms + 1e-6);
+            }
+#pragma omp parallel for schedule(static) if((int64_t)rows * C > 512)
+            for (int c = 0; c < C; c++) {
+                float sw = 0;
+                for (int64_t rr = 0; rr < rows; rr++)
+                    sw += (float)(hdy[rr * C + c] * hx[rr * C + c] * pinv[rr]);
+                dw[c] = sw;
+            }
+#pragma omp parallel for schedule(static) if(rows > 4)
+            for (int64_t rr = 0; rr < rows; rr++) {
+                double inv = pinv[rr];
                 double dot = 0;
                 for (int c = 0; c < C; c++) {
                     double w = hw ? hw[c] : 1.0;
-                    dw[c] += hdy[rr * C + c] * hx[rr * C + c] * inv;
                     dot += hdy[rr * C + c] * w * hx[rr * C + c];
                 }
                 dot /= C;
@@ -645,6 +692,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                     dx[rr * C + c] += (float)((hdy[rr * C + c] * w - dot * hx[rr * C + c] * inv * inv) * inv);
                 }
             }
+            free(pinv);
             free(hx); free(hdy);
             if (hw) {
                 hadd_into(gmap_get(gm, r->b, C), dw, C);
@@ -659,6 +707,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *hx = stage_h(r->a, (size_t)N * C * TT);
             float *hdy = stage_h(dy, (size_t)N * C * TT);
             float *dx = gmap_get(gm, r->a, (size_t)N * C * TT);
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * G > 1)
             for (int n = 0; n < N; n++) for (int g = 0; g < G; g++) {
                 double mean = 0;
                 int64_t cnt = (int64_t)Cg * TT;
@@ -696,9 +745,11 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *dx = gmap_get(gm, r->a, n);
             const double s2 = 1.4142135623730951;
             const double ip = 0.3989422804014327;
+            int is_gelu = (r->op == TOP_GELU);
+#pragma omp parallel for schedule(static) if(n > 512)
             for (int64_t i = 0; i < n; i++) {
                 double g;
-                if (r->op == TOP_GELU) {
+                if (is_gelu) {
                     double e = erf(hx[i] / s2);
                     g = 0.5 * (1 + e) + hx[i] * exp(-0.5 * hx[i] * hx[i]) * ip;
                 } else {
@@ -716,6 +767,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *hy = stage_h(r->y, (size_t)rows * C);
             float *hdy = stage_h(dy, (size_t)rows * C);
             float *dx = gmap_get(gm, r->a, rows * C);
+#pragma omp parallel for schedule(static) if(rows > 4)
             for (int64_t rr = 0; rr < rows; rr++) {
                 double dot = 0;
                 for (int c = 0; c < C; c++) dot += (double)hdy[rr * C + c] * hy[rr * C + c];
@@ -736,6 +788,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             if (gdq) {
                 float *dxq = gmap_get(gm, r->a, n);
                 int h = hd / 2;
+#pragma omp parallel for schedule(static) if(n > hd * 4)
                 for (int64_t rr = 0; rr < n / hd; rr++) {
                     int t = (int)(rr % T);
                     for (int d = 0; d < h; d++) {
@@ -751,6 +804,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             if (gdk) {
                 float *dxk = gmap_get(gm, r->b, n);
                 int h = hd / 2;
+#pragma omp parallel for schedule(static) if(n > hd * 4)
                 for (int64_t rr = 0; rr < n / hd; rr++) {
                     int t = (int)(rr % T);
                     for (int d = 0; d < h; d++) {
@@ -778,35 +832,47 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *dq = gmap_get(gm, r->a, (size_t)B * H * Tq * hd);
             float *dk = gmap_get(gm, r->b, (size_t)B * H * Tkv * hd);
             float *dv = gmap_get(gm, r->c, (size_t)B * H * Tkv * hd);
+            /* pass 1 (independent rows): softmax-Jacobian coeffs + dq.
+             * dq[rr] and ds[rr] touch only this row's slots. */
+            double *ds = (double *)malloc((size_t)rows * (size_t)(Tkv > 0 ? Tkv : 1) * sizeof(double));
+#pragma omp parallel for schedule(static) if(rows > 4)
             for (int64_t rr = 0; rr < rows; rr++) {
                 int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H), tq = (int)(rr % Tq);
-                /* dv += P^T dy ; dP = dy v^T ; ds = dP .* P ; dq/dk */
-                double *ds = (double *)malloc(Tkv * sizeof(double));
+                double tot = 0;
                 for (int tk = 0; tk < Tkv; tk++) {
                     const float *vr = hv + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
                     double s = 0;
                     for (int d = 0; d < hd; d++) s += (double)hdy[(rr * hd) + d] * vr[d];
-                    ds[tk] = s * hP[rr * Tkv + tk];
-                    for (int d = 0; d < hd; d++)
-                        dv[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] +=
-                            (float)(hP[rr * Tkv + tk] * hdy[rr * hd + d]);
+                    s *= hP[rr * Tkv + tk];
+                    ds[rr * Tkv + tk] = s;
+                    tot += s;
                 }
-                double tot = 0;
-                for (int tk = 0; tk < Tkv; tk++) tot += ds[tk];
                 /* softmax Jacobian: ds = P .* (dP - sum(dP .* P)) */
-                for (int tk = 0; tk < Tkv; tk++) ds[tk] = ds[tk] - hP[rr * Tkv + tk] * tot;
+                for (int tk = 0; tk < Tkv; tk++) ds[rr * Tkv + tk] -= hP[rr * Tkv + tk] * tot;
                 for (int tk = 0; tk < Tkv; tk++) {
                     const float *kr = hk + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
-                    const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
-                    for (int d = 0; d < hd; d++) {
+                    for (int d = 0; d < hd; d++)
                         dq[((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd + d] +=
-                            (float)(ds[tk] * st->scale * kr[d]);
-                        dk[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] +=
-                            (float)(ds[tk] * st->scale * qr[d]);
-                    }
+                            (float)(ds[rr * Tkv + tk] * st->scale * kr[d]);
                 }
-                free(ds);
             }
+            /* pass 2 (independent (b,h,tk,d)): dk/dv accumulate over tq in the
+             * same ascending order as the serial nest, hence bit-identical */
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)B * H * Tkv > 8)
+            for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int tk = 0; tk < Tkv; tk++) {
+                for (int d = 0; d < hd; d++) {
+                    float sk = 0, sv = 0;
+                    for (int tq = 0; tq < Tq; tq++) {
+                        int64_t rr = ((int64_t)b * H + h) * Tq + tq;
+                        const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
+                        sk += (float)(ds[rr * Tkv + tk] * st->scale * qr[d]);
+                        sv += (float)(hP[rr * Tkv + tk] * hdy[rr * hd + d]);
+                    }
+                    dk[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sk;
+                    dv[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sv;
+                }
+            }
+            free(ds);
             free(hP); free(hq); free(hk); free(hv); free(hdy);
             break;
         }
@@ -820,6 +886,7 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             /* dx (full convolution, flipped) */
             float *dx = gmap_get(gm, r->a, (size_t)N * Cin * T);
             float *hW = stage_h(r->b, (size_t)Cout * Cin * K);
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)N * Cin * T > 512)
             for (int n = 0; n < N; n++) for (int ci = 0; ci < Cin; ci++)
                 for (int ti = 0; ti < T; ti++) {
                     double s = 0;
@@ -833,21 +900,27 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                     }
                     dx[((int64_t)n * Cin + ci) * T + ti] += (float)s;
                 }
-            /* dW, db */
+            /* dW, db: parallel over co, serial (n,t) inner in original order */
             {
                 float *dW = (float *)calloc((size_t)Cout * Cin * K, sizeof(float));
                 float *db = (float *)calloc(Cout, sizeof(float));
-                for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
-                    for (int64_t t = 0; t < Tout; t++) {
-                        db[co] += hdy[((int64_t)n * Cout + co) * Tout + t];
-                        for (int ci = 0; ci < Cin; ci++) for (int kk = 0; kk < K; kk++) {
+#pragma omp parallel for schedule(static) if((int64_t)Cout > 1)
+                for (int co = 0; co < Cout; co++) {
+                    float bsum = 0;
+                    for (int n = 0; n < N; n++) for (int64_t t = 0; t < Tout; t++)
+                        bsum += hdy[((int64_t)n * Cout + co) * Tout + t];
+                    db[co] += bsum;
+                    for (int ci = 0; ci < Cin; ci++) for (int kk = 0; kk < K; kk++) {
+                        float s = 0;
+                        for (int n = 0; n < N; n++) for (int64_t t = 0; t < Tout; t++) {
                             int ti = (int)(t * stride + kk - pad);
                             if (ti < 0 || ti >= T) continue;
-                            dW[((int64_t)co * Cin + ci) * K + kk] +=
-                                hdy[((int64_t)n * Cout + co) * Tout + t] *
-                                hx[((int64_t)n * Cin + ci) * T + ti];
+                            s += hdy[((int64_t)n * Cout + co) * Tout + t] *
+                                 hx[((int64_t)n * Cin + ci) * T + ti];
                         }
+                        dW[((int64_t)co * Cin + ci) * K + kk] += s;
                     }
+                }
                 hadd_into(gmap_get(gm, r->b, (size_t)Cout * Cin * K),  dW, (size_t)Cout * Cin * K);
                 free(dW);
                 if (r->c) {
@@ -869,9 +942,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *hx = stage_h(r->a, (size_t)N * Cin * T);
             float *hdy = stage_h(dy, (size_t)N * Cout * Tout);
             float *hW = stage_h(r->b, (size_t)Cin * Cout * K);
-            float *dx = gmap_get(gm, r->a, (size_t)N * Cin * T);
-            for (int n = 0; n < N; n++) for (int ci = 0; ci < Cin; ci++)
-                for (int ti = 0; ti < T; ti++) {
+        float *dx = gmap_get(gm, r->a, (size_t)N * Cin * T);
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)N * Cin * T > 512)
+        for (int n = 0; n < N; n++) for (int ci = 0; ci < Cin; ci++)
+            for (int ti = 0; ti < T; ti++) {
                     double s = 0;
                     for (int co = 0; co < Cout; co++) for (int kk = 0; kk < K; kk++) {
                         int64_t t = (int64_t)ti * stride + kk;
@@ -883,22 +957,26 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             {
                 float *dW = (float *)calloc((size_t)Cin * Cout * K, sizeof(float));
                 float *db = (float *)calloc(Cout, sizeof(float));
-                for (int n = 0; n < N; n++) for (int co = 0; co < Cout; co++)
-                    for (int64_t t = 0; t < Tout; t++) {
-                        db[co] += hdy[((int64_t)n * Cout + co) * Tout + t];
-                        for (int ci = 0; ci < Cin; ci++) {
-                            /* ti,kk with ti*s+kk == t */
-                            for (int kk = 0; kk < K; kk++) {
-                                int num = (int)(t - kk);
-                                if (num < 0 || num % stride != 0) continue;
-                                int ti = num / stride;
-                                if (ti >= T) continue;
-                                dW[((int64_t)ci * Cout + co) * K + kk] +=
-                                    hdy[((int64_t)n * Cout + co) * Tout + t] *
-                                    hx[((int64_t)n * Cin + ci) * T + ti];
-                            }
+                /* parallel over co; serial (n,t) inner preserves order */
+#pragma omp parallel for schedule(static) if(Cout > 1)
+                for (int co = 0; co < Cout; co++) {
+                    float bsum = 0;
+                    for (int n = 0; n < N; n++) for (int64_t t = 0; t < Tout; t++)
+                        bsum += hdy[((int64_t)n * Cout + co) * Tout + t];
+                    db[co] += bsum;
+                    for (int ci = 0; ci < Cin; ci++) for (int kk = 0; kk < K; kk++) {
+                        float s = 0;
+                        for (int n = 0; n < N; n++) for (int64_t t = 0; t < Tout; t++) {
+                            int num = (int)(t - kk);
+                            if (num < 0 || num % stride != 0) continue;
+                            int ti = num / stride;
+                            if (ti >= T) continue;
+                            s += hdy[((int64_t)n * Cout + co) * Tout + t] *
+                                 hx[((int64_t)n * Cin + ci) * T + ti];
                         }
+                        dW[((int64_t)ci * Cout + co) * K + kk] += s;
                     }
+                }
                 hadd_into(gmap_get(gm, r->b, (size_t)Cin * Cout * K),  dW, (size_t)Cin * Cout * K);
                 free(dW);
                 if (r->c) {
@@ -912,9 +990,12 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
         case TOP_IAREA: {
             int N = (int)r->n, C = r->p1, Tin = r->p2, Tout = r->p3;
             float *hdy = stage_h(dy, (size_t)N * C * Tout);
-            float *dx = gmap_get(gm, r->a, (size_t)N * C * Tin);
-            for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
-                for (int t = 0; t < Tout; t++) {
+        float *dx = gmap_get(gm, r->a, (size_t)N * C * Tin);
+        /* parallel over (n,c) only: t kept serial since neighboring
+         * output buckets can share input bins */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * C > 2)
+        for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
+            for (int t = 0; t < Tout; t++) {
                     int64_t s0 = (int64_t)((double)t * Tin / Tout);
                     int64_t e0 = (int64_t)ceil((double)(t + 1) * Tin / Tout);
                     if (e0 <= s0) e0 = s0 + 1;
@@ -932,8 +1013,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             int N = (int)r->n, C = r->p1, Tin = r->p2, Tout = r->p3;
             float *hdy = stage_h(dy, (size_t)N * C * Tout);
             float *dx = gmap_get(gm, r->a, (size_t)N * C * Tin);
-            double scale = (Tout == 1 || Tin == 1) ? 0 : (double)Tin / Tout;
-            for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
+        double scale = (Tout == 1 || Tin == 1) ? 0 : (double)Tin / Tout;
+        /* (n,c) independent; t kept serial: neighboring t share bins */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)N * C > 2)
+        for (int n = 0; n < N; n++) for (int c = 0; c < C; c++) {
                 for (int t = 0; t < Tout; t++) {
                     float g = hdy[((int64_t)n * C + c) * Tout + t];
                     if (Tout == 1 || Tin == 1) {
@@ -967,8 +1050,9 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             int64_t n = r->n;
             float s = (float)r->s;
             float *hdy = stage_h(dy, (size_t)n);
-            float *dx = gmap_get(gm, r->a, n);
-            for (int64_t i = 0; i < n; i++) dx[i] += hdy[i] * s;
+        float *dx = gmap_get(gm, r->a, n);
+#pragma omp parallel for schedule(static) if(n > 512)
+        for (int64_t i = 0; i < n; i++) dx[i] += hdy[i] * s;
             free(hdy);
             break;
         }
@@ -999,9 +1083,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *ha = stage_h(r->a, (size_t)n);
             float *hb = stage_h(r->b, (size_t)n);
             float *hdy = stage_h(dy, (size_t)n);
-            float *dxa = gmap_get(gm, r->a, n);
-            float *dxb = gmap_get(gm, r->b, n);
-            for (int64_t i = 0; i < n; i++) {
+        float *dxa = gmap_get(gm, r->a, n);
+        float *dxb = gmap_get(gm, r->b, n);
+#pragma omp parallel for schedule(static) if(n > 1024)
+        for (int64_t i = 0; i < n; i++) {
                 dxa[i] += hdy[i] * hb[i];
                 dxb[i] += hdy[i] * ha[i];
             }
@@ -1012,9 +1097,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             int64_t n = r->n;
             float *hx = stage_h(r->a, (size_t)n);
             float *hdy = stage_h(dy, (size_t)n);
-            float *dx = gmap_get(gm, r->a, n);
-            for (int64_t i = 0; i < n; i++)
-                if (hx[i] > 0) dx[i] += hdy[i] * 2 * hx[i];
+        float *dx = gmap_get(gm, r->a, n);
+#pragma omp parallel for schedule(static) if(n > 512)
+        for (int64_t i = 0; i < n; i++)
+            if (hx[i] > 0) dx[i] += hdy[i] * 2 * hx[i];
             free(hx); free(hdy);
             break;
         }
@@ -1022,8 +1108,9 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             int B = (int)r->n, P = r->p1, T = r->p2, C = r->p3;
             float *hdy = stage_h(dy, (size_t)B * (P + T) * C);
             float *dxa = gmap_get(gm, r->a, (size_t)B * P * C);
-            float *dxb = gmap_get(gm, r->b, (size_t)B * T * C);
-            for (int bb = 0; bb < B; bb++) {
+        float *dxb = gmap_get(gm, r->b, (size_t)B * T * C);
+#pragma omp parallel for schedule(static) if(B > 1)
+        for (int bb = 0; bb < B; bb++) {
                 hadd_into(dxa + (size_t)bb * P * C, hdy + ((size_t)bb * (P + T)) * C, (size_t)P * C);
                 hadd_into(dxb + (size_t)bb * T * C, hdy + ((size_t)bb * (P + T) + P) * C, (size_t)T * C);
             }
@@ -1039,22 +1126,38 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             float *gv = gmap_find(gm, r->y);
             int64_t row = (int64_t)C + 2 * K * hd;
             float *dx = gmap_get(gm, r->a, (size_t)B * T * row);
-            if (gq) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++)
-                dx[((size_t)b * T + t) * row + h * hd + d] += gq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
-            if (gk) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
-                int kvh = h / rep;
-                dx[((size_t)b * T + t) * row + C + kvh * hd + d] += gk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
-            }
-            if (gv) for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++) {
-                int kvh = h / rep;
-                dx[((size_t)b * T + t) * row + C + K * hd + kvh * hd + d] += gv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
-            }
+            /* q path: independent per (b,h,t,d) */
+            if (gq)
+#pragma omp parallel for collapse(4) schedule(static) if((int64_t)B * T * C > 512)
+                for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) for (int t = 0; t < T; t++) for (int d = 0; d < hd; d++)
+                    dx[((size_t)b * T + t) * row + h * hd + d] += gq[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+            /* k/v paths: GQA fan-in over h; parallel over (b,t,kvh,d) with the
+             * same ascending-h order as serial, hence bit-identical */
+            if (gk)
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)B * T * K * hd > 512)
+                for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int kvh = 0; kvh < K; kvh++)
+                    for (int d = 0; d < hd; d++) {
+                        float s = 0;
+                        for (int h = kvh * rep; h < (kvh + 1) * rep && h < H; h++)
+                            s += gk[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+                        dx[((size_t)b * T + t) * row + C + kvh * hd + d] += s;
+                    }
+            if (gv)
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)B * T * K * hd > 512)
+                for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int kvh = 0; kvh < K; kvh++)
+                    for (int d = 0; d < hd; d++) {
+                        float s = 0;
+                        for (int h = kvh * rep; h < (kvh + 1) * rep && h < H; h++)
+                            s += gv[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+                        dx[((size_t)b * T + t) * row + C + K * hd + kvh * hd + d] += s;
+                    }
             break;
         }
         case TOP_MERGE: {
             int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
             float *hdy = stage_h(dy, (size_t)B * T * C);
             float *dx = gmap_get(gm, r->a, (size_t)B * H * T * hd);
+#pragma omp parallel for collapse(4) schedule(static) if((int64_t)B * T * C > 512)
             for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++)
                 dx[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] += hdy[((size_t)b * T + t) * C + h * hd + d];
             free(hdy);
@@ -1071,9 +1174,10 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
                 g = hdy[0];
                 free(hdy);
             }
-            float *dx = gmap_get(gm, r->a, n);
-            double sc = 2.0 * r->s / n * g;
-            for (int64_t i = 0; i < n; i++) dx[i] += (float)((ha[i] - hb[i]) * sc);
+        float *dx = gmap_get(gm, r->a, n);
+        double sc = 2.0 * r->s / n * g;
+#pragma omp parallel for schedule(static) if(n > 512)
+        for (int64_t i = 0; i < n; i++) dx[i] += (float)((ha[i] - hb[i]) * sc);
             free(ha); free(hb);
             break;
         }
@@ -1087,20 +1191,28 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
             /* dE, dbias -> params if registered */
             float *dE = (float *)calloc((size_t)V * Dd, sizeof(float));
             float *db = r->c ? (float *)calloc(V, sizeof(float)) : NULL;
-            for (int64_t rr = 0; rr < rows; rr++) {
+            /* dx pass: independent per (rr,d); v reduced serially (same order) */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)rows * Dd > 512)
+            for (int64_t rr = 0; rr < rows; rr++) for (int d = 0; d < Dd; d++) {
+                float s = 0;
                 for (int v = 0; v < V; v++) {
-                    double g = hdy[rr * V + v] * st->invT / st->dscale;
-                    /* out = (2 z.E_v - Esq_v)/ds*T (+b): d(z) += 2 E_v g/ds*T ... */
-                    for (int d = 0; d < Dd; d++) {
-                        dx[rr * Dd + d] += (float)(2 * st->hE[v * Dd + d] * g);
-                        dE[v * Dd + d] += (float)(2 * hz[rr * Dd + d] * g);
-                    }
-                    /* dEsq via chain: d(-Esq)/ds*T, Esq=sum E^2 */
-                    double gesq = -g;
-                    for (int d = 0; d < Dd; d++)
-                        dE[v * Dd + d] += (float)(2 * st->hE[v * Dd + d] * gesq);
-                    if (db) db[v] += hdy[rr * V + v];
+                    double g = (double)hdy[rr * V + v] * st->invT / st->dscale;
+                    s += (float)(2 * st->hE[v * Dd + d] * g);
                 }
+                dx[rr * Dd + d] += s;
+            }
+            /* dE/db pass: independent per (v,d); rr reduced serially (same order) */
+#pragma omp parallel for collapse(2) schedule(static) if((int64_t)V * Dd > 512)
+            for (int v = 0; v < V; v++) for (int d = 0; d < Dd; d++) {
+                float se = 0, sb = 0;
+                for (int64_t rr = 0; rr < rows; rr++) {
+                    double g = (double)hdy[rr * V + v] * st->invT / st->dscale;
+                    se += (float)(2 * hz[rr * Dd + d] * g);
+                    se += (float)(2 * st->hE[v * Dd + d] * -g);
+                    if (r->c) sb += hdy[rr * V + v];
+                }
+                dE[v * Dd + d] += se;
+                if (db) db[v] += sb;
             }
             free(hz); free(hdy);
             /* E is a codebook (frozen under EMA in our trainer): still route

@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 static void usage(const char *a) {
     fprintf(stderr,
         "usage:\n"
@@ -207,6 +211,16 @@ static int cmd_infer(App *a, const char *ids_csv) {
 }
 
 int main(int argc, char **argv) {
+    /* Threading: NCM_THREADS if set, else 8 workers. Applies to forward
+     * kernels and the parallelized training backward. */
+#ifdef _OPENMP
+    {
+        const char *e = getenv("NCM_THREADS");
+        int nt = e ? atoi(e) : 8;
+        if (nt < 1) nt = 1;
+        omp_set_num_threads(nt);
+    }
+#endif
     if (argc < 2) usage(argv[0]);
     const char *conf = opt(&argc, &argv, "--conf");
     const char *weights = opt(&argc, &argv, "--weights");
