@@ -32,7 +32,11 @@ static void usage(const char *a) {
         "  %s qwen-ppl --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --texts FILE (one document per line)\n"
         "  %s qwen-verify --conf M.conf --weights M.ncm --asset-dir D\n"
-        "             --fixtures DIR (qwen_tok/gen/ppl.txt + qwen_logits_*.f32)\n", a, a, a, a, a, a, a, a, a);
+        "             --fixtures DIR (qwen_tok/gen/ppl.txt + qwen_logits_*.f32)\n"
+        "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
+        "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
+        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
+        "  %s ckpt-info --weights F.nckpt\n", a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -225,8 +229,9 @@ int main(int argc, char **argv) {
     const char *conf = opt(&argc, &argv, "--conf");
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
-    if (!conf || !weights) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && !adir) usage(argv[0]);
+    /* ckpt-info inspects a checkpoint file; it needs no model config. */
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -326,12 +331,30 @@ int main(int argc, char **argv) {
         const char *data = opt(&argc, &argv, "--data");
         const char *steps = opt(&argc, &argv, "--steps");
         const char *lr = opt(&argc, &argv, "--lr");
-        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f]\n"); return 2; }
+        const char *resume = opt(&argc, &argv, "--resume");
+        const char *ckptout = opt(&argc, &argv, "--ckpt-out");
+        const char *ckptevery = opt(&argc, &argv, "--ckpt-every");
+        const char *total = opt(&argc, &argv, "--total");
+        const char *tokid = opt(&argc, &argv, "--tokenizer-id");
+        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S]\n"); return 2; }
         if (!conf || !weights) usage(argv[1]);
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
         (void)adir;
-        return train_run(&cfg, weights, data, steps ? atoi(steps) : 200, lr ? atof(lr) : 0.0);
+        TrainOpts to;
+        memset(&to, 0, sizeof(to));
+        to.resume_path = resume;
+        to.ckpt_out = ckptout;
+        to.ckpt_every = ckptevery ? atoi(ckptevery) : 10;
+        to.sched_total = total ? atof(total) : 0.0;
+        to.conf_path = conf;
+        to.tokenizer_id = tokid;
+        return train_run_ex(&cfg, weights, data, steps ? atoi(steps) : 200,
+                            lr ? atof(lr) : 0.0, &to);
+    }
+    if (strcmp(argv[1], "ckpt-info") == 0) {
+        if (!weights) { fprintf(stderr, "ckpt-info needs --weights <file>\n"); return 2; }
+        return ckpt_info(weights);
     }
     fprintf(stderr, "unknown subcommand %s\n", argv[1]);
     return 2;

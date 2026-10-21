@@ -305,6 +305,70 @@ int qwen_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
 int train_run(const NCMConfig *c, const char *weights_path,
               const char *data_path, int max_steps, double lr);
 
+/* ---- resumable training options (train_run_ex) ---- */
+typedef struct {
+    const char *resume_path;  /* NULL = fresh start (or legacy weights below) */
+    const char *ckpt_out;     /* NULL = rotating ckpt-step<N>.nckpt in CWD */
+    int ckpt_every;           /* save every N completed steps; <=0 = default 10 */
+    double sched_total;       /* scheduler horizon; <=0 = default (target steps) */
+    const char *conf_path;    /* hashed into checkpoint identity (may be NULL) */
+    const char *tokenizer_id; /* operator-supplied tokenizer identity (may be NULL) */
+} TrainOpts;
+int train_run_ex(const NCMConfig *c, const char *weights_path,
+                 const char *data_path, int max_steps, double lr,
+                 const TrainOpts *o);
+
+typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
+
+/* ---- versioned training checkpoints (ckpt.c, format "NCK1") ----
+ * A checkpoint holds weights + AdamW moments + counters + RNG + run
+ * identity. Files carry NO wall-clock, pid, hostname or argv: two runs
+ * with identical trajectories produce byte-identical files.
+ * Save is atomic (tmp + validate + fsync + rename + dir fsync); the
+ * previous file is never touched until the new one validates.
+ * Legacy "NCM1" weight-only files are detected by ckpt_probe and load
+ * as a FRESH optimizer start, never as an exact resume. */
+typedef struct {
+    long global_step;          /* completed optimizer steps */
+    unsigned long long batch_rng;
+    double base_lr, warmup, total;
+    int batch_B;
+    int accum_pending;         /* must be 0: boundary-only saves */
+    long n_rows; int row_len;
+    uint64_t data_hash;
+    const char *data_path;
+    uint64_t conf_hash;
+    const char *tokenizer_id;
+    double noise_sd;
+    const char *train_cfg_json; /* deterministic informational blob */
+} CkptRunState;
+/* 1 = NCK1 training checkpoint, 0 = legacy NCM1 weights, <0 = unreadable */
+int ckpt_probe(const char *path);
+/* FNV-1a 64 over file bytes; sets *nbytes_out (0 on error) */
+uint64_t ckpt_file_hash(const char *path, uint64_t *nbytes_out);
+/* Sync CUDA-resident AdamW moments to host (no-op on CPU). Called by
+ * ckpt_save_atomic before writing; call it manually if reading o->m/v. */
+void adamw_sync_to_host(AdamW *o);
+int ckpt_save_atomic(const WeightStore *ws, AdamW *opt, const CkptRunState *rs,
+                     const char *path, char *err, size_t errcap);
+/* Identity the file must match for an exact resume (built by train_run_ex
+ * from the live run config). On success fills out_rs scalars + opt->step,
+ * weights, and moments. Returns 0 on exact resume; nonzero with err set.
+ * Nothing is modified unless every check passes. */
+typedef struct {
+    int batch_B; long n_rows; int row_len; uint64_t data_hash;
+    uint64_t conf_hash; const char *tokenizer_id;
+    double base_lr, warmup, total;
+    double b1, b2, eps, wd;
+} CkptExpect;
+int ckpt_load_training(const char *path, WeightStore *ws, AdamW *opt,
+                       const CkptExpect *ex, CkptRunState *out_rs,
+                       char *err, size_t errcap);
+/* Human-readable summary (validates checksum). 0 ok, nonzero on refuse. */
+int ckpt_info(const char *path);
+/* Weights-only section of an NCK1 file (lets inference load .nckpt). */
+int ckpt_load_weights_only(const char *path, WeightStore *ws, char *err, size_t errcap);
+
 /* ---- training (train_tape.c, train.c) ---- */
 Tape *tape_new(void);
 void  tape_free(Tape *t);

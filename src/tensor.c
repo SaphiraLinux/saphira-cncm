@@ -68,6 +68,16 @@ static int read_u32(FILE *f, uint32_t *out) {
 }
 
 int weights_load(WeightStore *ws, const char *path) {
+    /* NCK1 training checkpoints load anywhere NCM1 weights load
+     * (weights section only; optimizer/run state ignored). */
+    if (ckpt_probe(path) == 1) {
+        char err[256] = {0};
+        if (ckpt_load_weights_only(path, ws, err, sizeof(err))) {
+            fprintf(stderr, "%s\n", err);
+            return -1;
+        }
+        return 0;
+    }
     FILE *f = fopen(path, "rb");
     if (!f) { fprintf(stderr, "cannot open %s\n", path); return -1; }
     char magic[4];

@@ -61,7 +61,8 @@ __global__ static void k_adamw(float *p, const float *g, float *m, float *v, int
     p[k] = p[k] - (float)(lr * mh / (sqrt(vh) + eps));
 }
 
-/* Allocate zeroed device mirrors (moments + grad staging). One-time. */
+/* Allocate device mirrors, seeded FROM the host moments (which carry
+ * the true state both on fresh start (zeros) and on exact resume). */
 static void adamw_dev_init(AdamW *o) {
     o->md = (Tensor **)calloc((size_t)o->n, sizeof(Tensor *));
     o->vd = (Tensor **)calloc((size_t)o->n, sizeof(Tensor *));
@@ -70,14 +71,29 @@ static void adamw_dev_init(AdamW *o) {
         o->md[i] = tensor_alloc(1, &o->sizes[i]);
         o->vd[i] = tensor_alloc(1, &o->sizes[i]);
         o->gd[i] = tensor_alloc(1, &o->sizes[i]);
-        float *z = (float *)calloc((size_t)o->sizes[i], sizeof(float));
-        mem_h2d(o->md[i]->data, z, (size_t)o->sizes[i] * sizeof(float));
-        mem_h2d(o->vd[i]->data, z, (size_t)o->sizes[i] * sizeof(float));
-        free(z);
+        mem_h2d(o->md[i]->data, o->m[i], (size_t)o->sizes[i] * sizeof(float));
+        mem_h2d(o->vd[i]->data, o->v[i], (size_t)o->sizes[i] * sizeof(float));
     }
     o->dev_ready = 1;
 }
+
 #endif
+
+/* Push device moments back to host (checkpoint save path). No-op on CPU. */
+void adamw_sync_to_host(AdamW *o) {
+    if (!o) return;
+#ifdef NCM_CUDA
+    if (!o->dev_ready) return; /* nothing ever ran on device */
+    /* CUDA kernels are launched without explicit sync; the transfers below
+     * are ordered after them on the default stream, so this is safe. */
+    for (int i = 0; i < o->n; i++) {
+        mem_d2h(o->m[i], o->md[i]->data, (size_t)o->sizes[i] * sizeof(float));
+        mem_d2h(o->v[i], o->vd[i]->data, (size_t)o->sizes[i] * sizeof(float));
+    }
+#else
+    (void)o;
+#endif
+}
 
 /* single AdamW step over all params; lr = base * cosine(warmup,total) */
 static double sched_cosine_warmup(long step, double warmup, double total);
@@ -726,10 +742,34 @@ static double train_randn(void) {
     return sqrt(-2 * log(u1)) * cos(2 * 3.141592653589793 * u2);
 }
 
-int train_run(const NCMConfig *c_, const char *weights_path,
-              const char *data_path, int max_steps, double lr) {
+int train_run_ex(const NCMConfig *c_, const char *weights_path,
+                 const char *data_path, int max_steps, double lr,
+                 const TrainOpts *o_) {
+    TrainOpts o = o_ ? *o_ : (TrainOpts){0};
+    int ckpt_every = o.ckpt_every > 0 ? o.ckpt_every : 10;
+    const char *tokid = o.tokenizer_id ? o.tokenizer_id : "";
     NCMConfig c = *c_;
     WeightStore ws = {NULL, 0};
+
+    /* Resume decision first: exact (NCK1) vs fresh start from legacy
+     * weights (NCM1) vs fresh start from --weights. */
+    int want_exact = 0;
+    if (o.resume_path) {
+        int probe = ckpt_probe(o.resume_path);
+        if (probe == 1) want_exact = 1;
+        else if (probe == 0) {
+            fprintf(stderr,
+                "[train] LEGACY weight-only checkpoint '%s': optimizer state\n"
+                "[train] RESET (fresh start, NOT an exact resume). Moments zeroed,\n"
+                "[train] step counters restart at 0, batch RNG restarts at seed.\n",
+                o.resume_path);
+            weights_path = o.resume_path;
+        } else {
+            fprintf(stderr, "[train] cannot read resume file '%s'\n", o.resume_path);
+            return 1;
+        }
+    }
+
     if (weights_load(&ws, weights_path)) return 1;
     arena_init_default();
     parena_init(1ULL << 28);
@@ -738,20 +778,9 @@ int train_run(const NCMConfig *c_, const char *weights_path,
     NCPState *m = ncp_load(&c, &ws, vqvae);
     Tape *tp = tape_new();
     if (!(lr > 0)) lr = 3e-4;
-    NCPTrainer *t = ncptrainer_new(m, &ws, &c, lr, 0.01, 100, max_steps > 0 ? max_steps : 1000);
-    const char *nz = getenv("CNCM_NOISE");
-    if (nz && atof(nz) > 0) {
-        double sd = atof(nz);
-        fprintf(stderr, "[train] adding N(0,%.3f) noise to trainable params\n", sd);
-        for (int i = 0; i < ws.count; i++) {
-            if (is_frozen_ncp(ws.items[i].name)) continue;
-            float *h = (float *)malloc(ws.items[i].t->n * sizeof(float));
-            mem_d2h(h, ws.items[i].t->data, ws.items[i].t->n * sizeof(float));
-            for (int64_t k = 0; k < ws.items[i].t->n; k++) h[k] += (float)(train_randn() * sd);
-            mem_h2d(ws.items[i].t->data, h, ws.items[i].t->n * sizeof(float));
-            free(h);
-        }
-    }
+    long target = max_steps > 0 ? max_steps : 1000;
+    double sched_total = o.sched_total > 0 ? o.sched_total : (double)target;
+    NCPTrainer *t = ncptrainer_new(m, &ws, &c, lr, 0.01, 100, sched_total);
     TrainData *d = train_data_load(data_path, 0);
     if (!d) return 1;
     int P = ncp_P(m);
@@ -760,12 +789,73 @@ int train_run(const NCMConfig *c_, const char *weights_path,
         fprintf(stderr, "row_len %d != P+total %d\n", d->row_len, P + total);
         return 1;
     }
-    printf("[train] %d rows, P=%d total=%d steps=%d\n", d->n_rows, P, total, max_steps);
+    uint64_t data_hash = ckpt_file_hash(data_path, NULL);
+    uint64_t conf_hash = o.conf_path ? ckpt_file_hash(o.conf_path, NULL) : 0;
+
+    long completed = 0;                 /* completed optimizer steps */
+    unsigned long long rng = 0x12345;   /* batch sampler state */
+    double noise_sd = 0;
+
+    if (want_exact) {
+        CkptExpect ex;
+        ex.batch_B = 4; ex.n_rows = d->n_rows; ex.row_len = d->row_len;
+        ex.data_hash = data_hash; ex.conf_hash = conf_hash;
+        ex.tokenizer_id = tokid;
+        ex.base_lr = t->lr; ex.warmup = t->warmup; ex.total = t->total;
+        ex.b1 = t->opt->b1; ex.b2 = t->opt->b2;
+        ex.eps = t->opt->eps; ex.wd = t->opt->wd;
+        CkptRunState lrs;
+        char err[512] = {0};
+        if (ckpt_load_training(o.resume_path, &ws, t->opt, &ex, &lrs, err, sizeof(err))) {
+            fprintf(stderr, "[train] resume REFUSED: %s\n"
+                    "[train] active training state was not modified.\n", err);
+            return 1;
+        }
+        completed = lrs.global_step;
+        rng = lrs.batch_rng;
+        noise_sd = lrs.noise_sd; /* inherited; CNCM_NOISE ignored on resume */
+        const char *nz = getenv("CNCM_NOISE");
+        if (nz && atof(nz) != noise_sd)
+            fprintf(stderr, "[train] note: CNCM_NOISE=%s ignored on exact resume "
+                    "(checkpoint noise_sd=%.3g)\n", nz, noise_sd);
+        fprintf(stderr,
+                "[train] exact resume from '%s': global_step=%ld opt_step=%ld "
+                "batch_rng=0x%016llx\n",
+                o.resume_path, completed, t->opt->step, rng);
+        if (completed >= target) {
+            printf("[train] already complete (%ld >= target %ld), nothing to do\n",
+                   completed, target);
+            return 0;
+        }
+    } else {
+        const char *nz = getenv("CNCM_NOISE");
+        if (nz && atof(nz) > 0) {
+            noise_sd = atof(nz);
+            fprintf(stderr, "[train] adding N(0,%.3f) noise to trainable params\n", noise_sd);
+            for (int i = 0; i < ws.count; i++) {
+                if (is_frozen_ncp(ws.items[i].name)) continue;
+                float *h = (float *)malloc(ws.items[i].t->n * sizeof(float));
+                mem_d2h(h, ws.items[i].t->data, ws.items[i].t->n * sizeof(float));
+                for (int64_t k = 0; k < ws.items[i].t->n; k++) h[k] += (float)(train_randn() * noise_sd);
+                mem_h2d(ws.items[i].t->data, h, ws.items[i].t->n * sizeof(float));
+                free(h);
+            }
+        }
+    }
+
+    printf("[train] %d rows, P=%d total=%d target=%ld schedule_total=%.0f%s\n",
+           d->n_rows, P, total, target, t->total, want_exact ? " (resumed)" : "");
     int B = 4;
-    unsigned long long rng = 0x12345;
     int *pbuf = (int *)malloc(B * P * sizeof(int));
     int *cbuf = (int *)malloc(B * total * sizeof(int));
-    for (int step = 0; step < (max_steps > 0 ? max_steps : 1000); step++) {
+    char cfg_json[2048];
+    snprintf(cfg_json, sizeof(cfg_json),
+             "{\"lr\":%.17g,\"warmup\":%.17g,\"total\":%.17g,\"B\":%d,"
+             "\"noise_sd\":%.17g,\"tokenizer_id\":\"%s\",\"data\":\"%s\",\"conf\":\"%s\"}",
+             t->lr, t->warmup, t->total, B, noise_sd, tokid,
+             data_path, o.conf_path ? o.conf_path : "");
+    int rc = 0;
+    while (completed < target) {
         /* random batch (with replacement) */
         for (int b = 0; b < B; b++) {
             rng = rng_next(&rng);
@@ -774,18 +864,42 @@ int train_run(const NCMConfig *c_, const char *weights_path,
             memcpy(cbuf + b * total, d->rows + r * d->row_len + P, total * sizeof(int));
         }
         double loss = train_ncp_step(t, tp, pbuf, cbuf, B);
-        if (step % 10 == 0) {
-            char path[256];
-            snprintf(path, sizeof(path), "ckpt-step%d.ncm", step);
-            weights_save(&ws, path);
-            printf("[train] step %d loss %.4f (saved %s)\n", step, loss, path);
-            fflush(stdout);
+        completed++;
+        char *save_path = NULL;
+        char rot[256];
+        if (completed % ckpt_every == 0 || completed == target) {
+            if (o.ckpt_out) save_path = (char *)o.ckpt_out;
+            else if (completed == target) save_path = "ckpt-final.nckpt";
+            else { snprintf(rot, sizeof(rot), "ckpt-step%ld.nckpt", completed); save_path = rot; }
+            CkptRunState rs;
+            memset(&rs, 0, sizeof(rs));
+            rs.global_step = completed; rs.batch_rng = rng;
+            rs.base_lr = t->lr; rs.warmup = t->warmup; rs.total = t->total;
+            rs.batch_B = B; rs.accum_pending = 0;
+            rs.n_rows = d->n_rows; rs.row_len = d->row_len;
+            rs.data_hash = data_hash; rs.data_path = data_path;
+            rs.conf_hash = conf_hash; rs.tokenizer_id = tokid;
+            rs.noise_sd = noise_sd; rs.train_cfg_json = cfg_json;
+            char err[512] = {0};
+            if (ckpt_save_atomic(&ws, t->opt, &rs, save_path, err, sizeof(err))) {
+                fprintf(stderr, "[train] CHECKPOINT SAVE FAILED: %s\n", err);
+                rc = 1;
+                break;
+            }
         }
+        printf("[train] step %ld loss %.4f%s%s%s\n", completed - 1, loss,
+               save_path ? " (saved " : "", save_path ? save_path : "",
+               save_path ? ")" : "");
+        fflush(stdout);
     }
     free(pbuf); free(cbuf);
     free(d->rows); free(d);
-    weights_save(&ws, "ckpt-final.ncm");
-    return 0;
+    return rc;
+}
+
+int train_run(const NCMConfig *c_, const char *weights_path,
+              const char *data_path, int max_steps, double lr) {
+    return train_run_ex(c_, weights_path, data_path, max_steps, lr, NULL);
 }
 
 
