@@ -17,7 +17,8 @@ what it implements, what was assumed (and verified), and where it differs.
         |
   AdamW (decoupled weight decay, cosine warmup schedule)
         |
-  .ncm checkpoint (same format as export; resumes anywhere)
+  versioned .nckpt checkpoint (weights + optimizer + RNG + identity;
+  exact resume via --resume; inference also reads .nckpt directly)
 ```
 
 Key files: `src/train_tape.c` (tape + all backward kernels),
@@ -79,8 +80,17 @@ under autograd and updated by EMA (same as the paper's scheme).
 - Data: `tools/export_train.py` builds `.nctrain` shards
   (`[P prefix | total codes]`). For VQ-VAE training, provide raw token-id
   rows of length `vq.context_length` in the same container.
-- Checkpoints are plain `.ncm` files (`ckpt-stepN.ncm`, `ckpt-*.ncm`);
-  resume training from any of them with `--weights`.
+- Checkpoints are versioned `.nckpt` files (format NCK1, see
+  ARCHITECTURE.md): rotating `ckpt-stepN.nckpt` every `--ckpt-every`
+  completed steps (default 10), `ckpt-final.nckpt` at the end, or a rolling
+  `--ckpt-out F`. They hold weights + AdamW moments + counters + RNG +
+  run identity, so `--resume R.nckpt` continues the exact trajectory
+  (same `--steps` target, same data/conf/tokenizer; `--total` is inherited
+  from the checkpoint). `--weights` on a resume run is scaffold only.
+  Passing a legacy `.ncm` to `--resume` is a loud fresh-optimizer start,
+  never exact. `cncm ckpt-info --weights F` inspects a checkpoint.
+  Proven: stopping CNCM does not change the training trajectory under the
+  same deterministic conditions (see `tests/test_ckpt.sh`).
 - `cncm gradcheck` replays one analytic step and finite-differences a few
   params. Treat large *relative* errors on tiny grads with suspicion (see
   above); the forward-match line (`FORWARD-MATCH`) is the strong signal,

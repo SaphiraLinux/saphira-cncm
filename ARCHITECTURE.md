@@ -69,18 +69,54 @@ Qwen within fp32 noise floor). What runs where today:
 | Forward | OpenMP host | device kernels (`NCM_CUDA`) |
 | Backward (tape) | OpenMP host | **same host code** (stages via `mem_d2h`) |
 | AdamW | OpenMP over params (host) | **device kernel** by default (`NCM_ADAMW=cpu` forces host path) |
-| Checkpointing | `.ncm` save/load, bit-exact | same |
+| Checkpointing | NCK1, exact resume | same (moments synced to host on save) |
 
 Device AdamW keeps moments on-device (`Tensor` mirrors allocated once,
 grads staged per step); it is **bit-identical** to the host path
 (verified: identical checkpoint hashes, `NCM_ADAMW=cpu` vs default).
-Training on CUDA works end-to-end (same loss as CPU: 14.2440 both;
-gradcheck passes on both; CPU-vs-CUDA checkpoints agree to 3e-8).
+Training on CUDA works end-to-end (same loss as CPU step-by-step;
+gradcheck passes on both; 4-step CPU-vs-CUDA drift is 9.7e-8 weights,
+~1e-9 moments — well inside the 1e-3 `test-resume-cuda` gate).
 
 Memory: the tape holds all intermediates, plus per-layer CUDA SDPA
 scratch (`dscores`). Default arena is 2 GiB (`NCM_ARENA_MB` overrides);
 a sudoku NCP step needs ~1.1 GiB on CUDA. Qwen-scale fine-tuning does
 *not* fit this model yet — see below.
+
+## Checkpoints: NCK1, exact resume (`src/ckpt.c`)
+
+Format `NCK1` v1, little-endian: tensor names/shapes/weights, AdamW
+moments + step + hyperparameters, global step, batch-RNG state, scheduler
++ training config, dataset/config fingerprints, tokenizer identity,
+trailing FNV-1a-64 checksum. Deliberately absent: wall-clock, pid,
+hostname, argv — identical trajectories yield **byte-identical files**.
+
+- Save is atomic: write `F.tmp.<pid>` → re-read + validate → fsync →
+  `rename(2)` → fsync directory. The previous file is never touched
+  until the replacement validates. Only completed-optimizer-step
+  boundaries are saved (`accum_pending` must be 0).
+- Load verifies checksum first, then parses into an image, runs every
+  compatibility check (shapes, dataset hash/geometry, conf hash, schedule,
+  tokenizer, optimizer hypers), and only then applies — corrupt or
+  incompatible files are refused before live state is touched.
+- `weights_load` accepts NCK1 (weights section only), so every
+  inference/verify command reads `.nckpt` directly.
+- Legacy `NCM1` via `--resume` loads as a loud **fresh-optimizer start**,
+  never an exact resume. VQ snapshots stay weight-only (documented
+  non-resumable): resuming them would also need EMA + xorshift-RNG state.
+- CLI: `--resume R.nckpt` (exact), `--ckpt-out F`, `--ckpt-every N`,
+  `--total T` (scheduler horizon, inherited on resume), `--tokenizer-id S`;
+  `cncm ckpt-info --weights F` prints state + validates checksum.
+
+Measured (sudoku-easy NCP, 200 tensors / 142 trainable):
+`ckpt-final.nckpt` = **348.2 MiB** (153.9 weights + 194.2 moments);
+save ~0.8s, load ~0.5s on local SSD. Exact-resume proof
+(`tests/test_ckpt.sh`, N=4): loss lines continuous vs save/kill/resume
+agree (14.2440 / 13.3810 / 13.0410 / 13.3739); mid and final checkpoints
+byte-identical at NCM_THREADS=1 and 8, and finals match across thread
+counts; CUDA leg resumes with 0.0 numeric diff (gate 1e-3). Refusal matrix:
+truncation, bit-flips, wrong data/lr/tokenizer/dims, missing file —
+all refused with no state touched and no stray files.
 
 ## Qwen2.5-0.5B fine-tuning: memory budget (measured, fp32)
 
@@ -108,8 +144,11 @@ models are the stated ceiling.
   full-logits maxrel vs transformers fp32 fixtures, greedy generation exact,
   perplexity NLL match (`tests/fixtures/`).
 - `tests/roundtrip_text.py`: export round-trip byte-exact over corpora.
-- `make test` runs the parity harness (currently broken upstream:
-  references a `tests/test_parity.py` that was never committed; tracked).
+- `make test`: `tests/test_units.sh` (gcheck + ckpt_unit, weight-free,
+  clean-checkout safe) + `tests/test_ckpt.sh --quick` (format/refusals +
+  N=2 exact-resume proof; skips cleanly without weights).
+  `make test-resume` runs the full N=4 CPU proof (1 and 8 threads verified);
+  `make test-resume-cuda` the CUDA leg (numeric tolerance gate 1e-3).
 
 ## Build requirements
 
