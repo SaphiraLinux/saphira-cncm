@@ -47,6 +47,7 @@ void mem_d2d(void *d, const void *s, size_t n);
 
 /* Bump arena for temporaries: one big backend allocation, reset per pass. */
 void  arena_init(size_t bytes);
+void  arena_init_default(void); /* NCM_ARENA_MB env, else 2048 MB */
 float *arena_alloc(size_t n_floats);
 void  arena_reset(void);
 void  arena_free(void);
@@ -358,6 +359,10 @@ typedef struct AdamW {
     int n;
     double b1, b2, eps, wd;
     long step;
+#ifdef NCM_CUDA
+    Tensor **md, **vd, **gd; /* device mirrors (moments + grad staging) */
+    int dev_ready;
+#endif
 } AdamW;
 AdamW *adamw_new(WeightStore *ws, const int *frozen);
 void adamw_zero_grad(AdamW *o);

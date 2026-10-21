@@ -43,7 +43,7 @@ static float *qw_get(WeightStore *ws, const char *name) {
 
 static int qwen_open(QWEN *m, const NCMConfig *c, const char *weights, const char *adir) {
     memset(m, 0, sizeof(*m));
-    arena_init(1ULL << 30);
+    arena_init_default();
     if (weights_load(&m->ws, weights)) return 1;
     m->tok = tok_load(c, adir);
     m->n_layer = c->n_layer;

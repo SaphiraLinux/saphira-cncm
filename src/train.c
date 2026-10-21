@@ -43,6 +43,42 @@ void adamw_zero_grad(AdamW *o) {
         memset(o->g[i], 0, o->sizes[i] * sizeof(float));
 }
 
+#ifdef NCM_CUDA
+/* Device AdamW update. Bit-identical to the host loop below: same ops,
+ * same order per element (one thread per element, disjoint outputs). */
+__global__ static void k_adamw(float *p, const float *g, float *m, float *v, int64_t n,
+                               double lr, double b1, double b2, double b1t, double b2t,
+                               double eps, double wd) {
+    int64_t k = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (k >= n) return;
+    float gk = g[k];
+    p[k] = p[k] - (float)(lr * wd * p[k]);
+    float mk = (float)(b1 * m[k] + (1.0 - b1) * gk);
+    float vk = (float)(b2 * v[k] + (1.0 - b2) * gk * gk);
+    m[k] = mk;
+    v[k] = vk;
+    double mh = mk / b1t, vh = vk / b2t;
+    p[k] = p[k] - (float)(lr * mh / (sqrt(vh) + eps));
+}
+
+/* Allocate zeroed device mirrors (moments + grad staging). One-time. */
+static void adamw_dev_init(AdamW *o) {
+    o->md = (Tensor **)calloc((size_t)o->n, sizeof(Tensor *));
+    o->vd = (Tensor **)calloc((size_t)o->n, sizeof(Tensor *));
+    o->gd = (Tensor **)calloc((size_t)o->n, sizeof(Tensor *));
+    for (int i = 0; i < o->n; i++) {
+        o->md[i] = tensor_alloc(1, &o->sizes[i]);
+        o->vd[i] = tensor_alloc(1, &o->sizes[i]);
+        o->gd[i] = tensor_alloc(1, &o->sizes[i]);
+        float *z = (float *)calloc((size_t)o->sizes[i], sizeof(float));
+        mem_h2d(o->md[i]->data, z, (size_t)o->sizes[i] * sizeof(float));
+        mem_h2d(o->vd[i]->data, z, (size_t)o->sizes[i] * sizeof(float));
+        free(z);
+    }
+    o->dev_ready = 1;
+}
+#endif
+
 /* single AdamW step over all params; lr = base * cosine(warmup,total) */
 static double sched_cosine_warmup(long step, double warmup, double total);
 void adamw_step(AdamW *o, double base_lr, double warmup, double total) {
@@ -50,6 +86,25 @@ void adamw_step(AdamW *o, double base_lr, double warmup, double total) {
     double lr_t = base_lr * sched_cosine_warmup(o->step, warmup, total);
     double b1t = 1.0 - pow(o->b1, (double)o->step);
     double b2t = 1.0 - pow(o->b2, (double)o->step);
+#ifdef NCM_CUDA
+    {
+        const char *ad = getenv("NCM_ADAMW");
+        int on_device = !(ad && strcmp(ad, "cpu") == 0);
+        if (on_device) {
+            if (!o->dev_ready) adamw_dev_init(o);
+            for (int i = 0; i < o->n; i++) {
+                int64_t n = o->sizes[i];
+                double lr = lr_t * o->lr[i];
+                mem_h2d(o->gd[i]->data, o->g[i], (size_t)n * sizeof(float));
+                int blocks = (int)((n + 255) / 256);
+                k_adamw<<<blocks, 256>>>((float *)o->params[i], (const float *)o->gd[i]->data,
+                                         (float *)o->md[i]->data, (float *)o->vd[i]->data, n,
+                                         lr, o->b1, o->b2, b1t, b2t, o->eps, o->wd);
+            }
+            return;
+        }
+    }
+#endif
     /* independent per param: same serial arithmetic in every thread */
 #pragma omp parallel for schedule(static) if(o->n > 1)
     for (int i = 0; i < o->n; i++) {
@@ -72,7 +127,14 @@ void adamw_step(AdamW *o, double base_lr, double warmup, double total) {
 }
 
 void adamw_free(AdamW *o) {
+    if (!o) return;
     for (int i = 0; i < o->n; i++) { free(o->m[i]); free(o->v[i]); free(o->g[i]); }
+#ifdef NCM_CUDA
+    if (o->dev_ready) {
+        for (int i = 0; i < o->n; i++) { tensor_free(o->md[i]); tensor_free(o->vd[i]); tensor_free(o->gd[i]); }
+        free(o->md); free(o->vd); free(o->gd);
+    }
+#endif
     free(o->params); free(o->m); free(o->v); free(o->g);
     free(o->sizes); free(o->lr);
     free(o);
@@ -669,7 +731,7 @@ int train_run(const NCMConfig *c_, const char *weights_path,
     NCMConfig c = *c_;
     WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights_path)) return 1;
-    arena_init(1ULL << 30);
+    arena_init_default();
     parena_init(1ULL << 28);
     VQVAEState *vqvae = vqvae_load(&c, &ws);
     (void)vqvae;
@@ -928,7 +990,7 @@ int gradcheck_run_cfg(const NCMConfig *c_, const char *weights_path, const char 
     NCMConfig c = *c_;
     WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights_path)) return 1;
-    arena_init(1ULL << 30);
+    arena_init_default();
     parena_init(1ULL << 28);
     VQVAEState *vqvae = vqvae_load(&c, &ws);
     NCPState *m = ncp_load(&c, &ws, vqvae);

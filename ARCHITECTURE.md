@@ -59,12 +59,46 @@ serial-backward 74–77s vs parallel 18–19s (**~4.1x**); scaling 1→32 thread
 thread → 0.67s at 8, flat after (memory-bound). Full 118MB Bible
 tokenization: 6.1s single-threaded.
 
-## CUDA status
+## CUDA status: training (native, incremental)
 
-CUDA covers inference forwards (kernels in the same file, verified vs torch:
-GPT-2 maxrel ~1e-6, Qwen within fp32 noise floor). Backward passes stage to
-host and run as CPU code by explicit design (correctness first); native CUDA
-training (device backward + optimizer) is tracked as future work.
+Forward kernels run on device (verified vs transformers: GPT-2 maxrel ~1e-6,
+Qwen within fp32 noise floor). What runs where today:
+
+| Piece | CPU build | CUDA build |
+|---|---|---|
+| Forward | OpenMP host | device kernels (`NCM_CUDA`) |
+| Backward (tape) | OpenMP host | **same host code** (stages via `mem_d2h`) |
+| AdamW | OpenMP over params (host) | **device kernel** by default (`NCM_ADAMW=cpu` forces host path) |
+| Checkpointing | `.ncm` save/load, bit-exact | same |
+
+Device AdamW keeps moments on-device (`Tensor` mirrors allocated once,
+grads staged per step); it is **bit-identical** to the host path
+(verified: identical checkpoint hashes, `NCM_ADAMW=cpu` vs default).
+Training on CUDA works end-to-end (same loss as CPU: 14.2440 both;
+gradcheck passes on both; CPU-vs-CUDA checkpoints agree to 3e-8).
+
+Memory: the tape holds all intermediates, plus per-layer CUDA SDPA
+scratch (`dscores`). Default arena is 2 GiB (`NCM_ARENA_MB` overrides);
+a sudoku NCP step needs ~1.1 GiB on CUDA. Qwen-scale fine-tuning does
+*not* fit this model yet — see below.
+
+## Qwen2.5-0.5B fine-tuning: memory budget (measured, fp32)
+
+Model: 494M params = **1.98 GiB** fp32 (embeddings alone 544 MB).
+Full-AdamW training needs weights 2.0 + grads 2.0 + moments 4.0 =
+**8.0 GiB** before a single activation. Activations at B=1, T=512 add
+~2 GiB (logits [512×151936] alone are 311 MB; 24 layers × ~70 MB;
+SDPA probs 14×512²×4 B/layer resident in the tape). Total ≈ **10 GiB**,
+fitting a 12 GiB card at B=1/T≤512 with gradient accumulation for
+larger effective batches.
+
+Not yet built (explicit follow-ups, in order): a taped Qwen forward
+(the tape has no GQA-SDPA; verify each op), gradcheck-vs-numeric on a
+small config, then memory-conscious execution: micro-batch accumulation
+(no new machinery), frozen-backbone / PMap-subset updates (the tape
+already supports partial params), and only then fp16 masters +
+activation checkpointing if needed. 1.5B stays a later step; 2B-class
+models are the stated ceiling.
 
 ## Verification (all in-repo, no network at test time)
 

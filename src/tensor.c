@@ -270,6 +270,16 @@ void arena_init(size_t bytes) {
     arena_off = 0;
 }
 
+/* Default scratch size: NCM_ARENA_MB env, else 2048 MB. CUDA training needs
+ * >1 GiB (per-layer sdpa dscores accumulate in-arena); 2 GiB is modest for
+ * the sm_86 12 GiB target and harmless as host malloc. */
+void arena_init_default(void) {
+    const char *e = getenv("NCM_ARENA_MB");
+    size_t mb = e ? (size_t)atol(e) : 2048;
+    if (mb < 64) mb = 64;
+    arena_init(mb * (1ULL << 20));
+}
+
 float *arena_alloc(size_t n_floats) {
     size_t need = n_floats * sizeof(float);
     /* 16-byte align */

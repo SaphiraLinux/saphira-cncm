@@ -53,7 +53,7 @@ typedef struct {
 static void app_load(App *a, const char *conf, const char *weights, const char *adir) {
     if (config_load(&a->cfg, conf)) exit(1);
     if (weights_load(&a->ws, weights)) exit(1);
-    arena_init(1ULL << 30); /* 1 GiB scratch */
+    arena_init_default(); /* 1 GiB scratch */
     a->vqvae = vqvae_load(&a->cfg, &a->ws);
     a->ncp = ncp_load(&a->cfg, &a->ws, a->vqvae);
     a->tok = tok_load(&a->cfg, adir);

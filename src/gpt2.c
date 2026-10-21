@@ -42,7 +42,7 @@ static float *g2w(WeightStore *ws, const char *name) {
 
 static int gpt2_open(GPT2 *g, const NCMConfig *c, const char *weights, const char *adir) {
     memset(g, 0, sizeof(*g));
-    arena_init(1ULL << 30); /* 1 GiB scratch; logits alone are T*V floats */
+    arena_init_default(); /* 1 GiB scratch; logits alone are T*V floats */
     if (weights_load(&g->ws, weights)) return 1;
     g->tok = tok_load(c, adir);
     g->n_layer = c->n_layer;
