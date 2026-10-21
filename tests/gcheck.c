@@ -497,6 +497,120 @@ int main(void) {
         tape_free(tp);
     }
 
+    /* ---- taped Qwen block (1 layer, synthetic) + CE, analytic vs numeric ----
+     * Exercises the real train_qwen_forward end to end: embed, rmsnorm,
+     * q/k/v+bias, headsplit, rope_gqa, sdpa_gqa, merge, swiglu, tied head.
+     * Numeric side re-runs the same taped forward with perturbed weights
+     * (validates the backward only — that is the point of a gradcheck). */
+    {
+        int B = 1, T = 4, C = 32, H = 4, K = 2, hd = 8, I = 64, V = 256;
+        NCMConfig qc;
+        memset(&qc, 0, sizeof(qc));
+        qc.n_layer = 1; qc.n_head = H; qc.n_kv_heads = K; qc.n_embd = C;
+        qc.context_length = 64; qc.rope_theta = 10000.0;
+        struct { const char *nm; int rows, cols; } spec[] = {
+            {"model.embed_tokens.weight", V, C},
+            {"model.norm.weight", 1, C},
+            {"model.layers.0.input_layernorm.weight", 1, C},
+            {"model.layers.0.self_attn.q_proj.weight", C, C},
+            {"model.layers.0.self_attn.q_proj.bias", 1, C},
+            {"model.layers.0.self_attn.k_proj.weight", K * hd, C},
+            {"model.layers.0.self_attn.k_proj.bias", 1, K * hd},
+            {"model.layers.0.self_attn.v_proj.weight", K * hd, C},
+            {"model.layers.0.self_attn.v_proj.bias", 1, K * hd},
+            {"model.layers.0.self_attn.o_proj.weight", C, C},
+            {"model.layers.0.post_attention_layernorm.weight", 1, C},
+            {"model.layers.0.mlp.gate_proj.weight", I, C},
+            {"model.layers.0.mlp.up_proj.weight", I, C},
+            {"model.layers.0.mlp.down_proj.weight", C, I},
+        };
+        int NW = (int)(sizeof(spec) / sizeof(spec[0]));
+        WeightStore qws;
+        qws.items = (NamedTensor *)calloc(NW, sizeof(NamedTensor));
+        qws.count = NW;
+        float **hostw = (float **)malloc(NW * sizeof(float *));
+        for (int i = 0; i < NW; i++) {
+            int n = spec[i].rows * spec[i].cols;
+            hostw[i] = (float *)malloc(n * sizeof(float));
+            for (int k = 0; k < n; k++) hostw[i][k] = (float)frand();
+            Tensor *t = tensor_alloc(2, (int64_t[]){spec[i].rows, spec[i].cols});
+            mem_h2d(t->data, hostw[i], n * sizeof(float));
+            snprintf(qws.items[i].name, sizeof(qws.items[i].name), "%s", spec[i].nm);
+            qws.items[i].t = t;
+        }
+        int hids[4] = {7, 42, 100, 5};
+        int htg[4] = {3, 200, 17, 99};
+        Tape *tp = tape_new();
+        float *logits = train_qwen_forward(tp, &qws, &qc, hids, B, T);
+        float *loss = arena_alloc(1), *probs = arena_alloc((size_t)B * T * V);
+        /* t_ce takes HOST targets (copies internally) */
+        t_ce(tp, logits, htg, NULL, loss, probs, (int64_t)B * T, V, 1.0);
+        float **gr = (float **)malloc(NW * sizeof(float *));
+        PMap pm;
+        float **pp = (float **)malloc(NW * sizeof(float *));
+        float **pg = (float **)malloc(NW * sizeof(float *));
+        int64_t *sz = (int64_t *)malloc(NW * sizeof(int64_t));
+        for (int i = 0; i < NW; i++) {
+            pp[i] = qws.items[i].t->data;
+            gr[i] = (float *)calloc(qws.items[i].t->n, sizeof(float));
+            pg[i] = gr[i];
+            sz[i] = qws.items[i].t->n;
+        }
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = NW;
+        tape_backward(tp, &pm, 0);
+        tape_free(tp);
+        /* numeric: perturb host copy, push to backend, rerun taped forward */
+        double qwen_loss_at(float **hw) {
+            for (int i = 0; i < NW; i++) {
+                int n = spec[i].rows * spec[i].cols;
+                mem_h2d(qws.items[i].t->data, hw[i], n * sizeof(float));
+            }
+            Tape *t2 = tape_new();
+            float *lg2 = train_qwen_forward(t2, &qws, &qc, hids, B, T);
+            float *lo2 = arena_alloc(1), *pr2 = arena_alloc((size_t)B * T * V);
+            t_ce(t2, lg2, htg, NULL, lo2, pr2, (int64_t)B * T, V, 1.0);
+            float lh = 0;
+            mem_d2h(&lh, lo2, sizeof(float));
+            tape_free(t2);
+            return lh;
+        }
+        /* restore backend = unperturbed before numeric loop */
+        for (int i = 0; i < NW; i++) {
+            int n = spec[i].rows * spec[i].cols;
+            mem_h2d(qws.items[i].t->data, hostw[i], n * sizeof(float));
+        }
+        struct { int wi; const char *nm; } checks[] = {
+            {3, "qwen q_proj.weight"}, {4, "qwen q_proj.bias"},
+            {8, "qwen v_proj.weight"}, {11, "qwen gate_proj.weight"},
+            {13, "qwen down_proj.weight"}, {1, "qwen lnf.weight"},
+        };
+        for (unsigned ci = 0; ci < sizeof(checks) / sizeof(checks[0]); ci++) {
+            int wi = checks[ci].wi;
+            /* check the largest-magnitude entry: finite differences on
+             * ~1e-4 grads drown in float32 cancellation, so probe the entry
+             * that actually drives the update (deterministic under the
+             * fixed test RNG). */
+            int idx = 0;
+            double amx = 0;
+            for (int64_t k = 0; k < sz[wi]; k++) {
+                double a = fabs(gr[wi][k]);
+                if (a > amx) { amx = a; idx = (int)k; }
+            }
+            double ana = gr[wi][idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                hostw[wi][idx] += (float)(sgn * eps);
+                v[sgn > 0 ? 1 : 0] = qwen_loss_at(hostw);
+                hostw[wi][idx] -= (float)(sgn * eps);
+            }
+            char nm[64];
+            snprintf(nm, sizeof(nm), "%s[%d]", checks[ci].nm, idx);
+            check(nm, ana, (v[1] - v[0]) / (2 * eps));
+        }
+        for (int i = 0; i < NW; i++) { free(hostw[i]); free(gr[i]); }
+        free(hostw); free(gr); free(pp); free(pg); free(sz);
+        free(qws.items);
+    }
+
     printf(fails ? "GCHECK-FAIL (%d)\n" : "GCHECK-PASS\n", fails);
     return fails != 0;
 }

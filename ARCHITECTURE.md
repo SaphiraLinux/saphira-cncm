@@ -85,7 +85,9 @@ summation order exactly; scatter-adds (EMBED/GATHER) stay host-staged to
 preserve run-to-run determinism. VQ-only conv-family tapes fall back to
 the host backward wholesale (no mixed mode). Verified: `cncm bwd-parity`
 (host vs device grads on the sudoku workload, maxabs 8.6e-7),
-`cncm bwdops` (all 25 non-conv ops on synthetic tensors, maxabs 1.5e-8),
+`cncm bwdops` (all 28 non-conv ops on synthetic tensors, maxabs 1.5e-8;
+includes Qwen-scale LINEAR/SDPA-GQA shapes and a composed 1-layer Qwen
+block with the real taped forward),
 device `gradcheck` passes, and resumed training with device backward is
 byte-identical run-to-run. Sudoku step: ~5s (device) vs ~39s (host
 backward), same losses. `NCM_BWD=cpu` restores the legacy path.

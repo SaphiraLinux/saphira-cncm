@@ -1855,7 +1855,7 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
             return 0;
     }
     cublasHandle_t bh = dbwd_blas();
-    const float one = 1.0f, zero = 0.0f;
+    const float one = 1.0f;
     DMap *gm = dmap_new();
     /* stage per-param device grad buffers (zeroed); d2h+accumulate at end */
     if (pm) for (int pi = 0; pi < pm->n; pi++)
@@ -1907,9 +1907,11 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
              * C^T(n x m) = B^T(n x k) @ A^T(k x m): swap m/n and A/B,
              * read the row-major buffers straight through as the
              * transposed col-major operands. */
-            /* dx = dy @ W */
+            /* dx = dy @ W, accumulated: the input may already hold grads
+             * from other consumers (residuals, split q/k/v heads); buffers
+             * start zeroed so beta=1 is correct in both cases. */
             DBWD_CUBLAS(cublasSgemm(bh, CUBLAS_OP_N, CUBLAS_OP_N, K, (int)batch, M,
-                                    &one, r->b, K, dy, M, &zero, dx, K));
+                                    &one, r->b, K, dy, M, &one, dx, K));
             /* dW = dy^T @ x, accumulated (beta=1 into zeroed buffer) */
             DBWD_CUBLAS(cublasSgemm(bh, CUBLAS_OP_N, CUBLAS_OP_T, K, M, (int)batch,
                                     &one, r->a, K, dy, M, &one, dW, K));

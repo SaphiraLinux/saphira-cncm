@@ -71,6 +71,10 @@ test-viewer: cncm tests/fontcheck
 	./tests/test_viewer.sh --bin ./cncm
 test-viewer-cuda: cncm-cuda tests/fontcheck
 	./tests/test_viewer.sh --bin ./cncm-cuda
+test-train-qwen: cncm tools/mkqwenrows
+	./tests/test_train_qwen.sh --bin ./cncm
+test-train-qwen-cuda: cncm-cuda tools/mkqwenrows
+	./tests/test_train_qwen.sh --bin ./cncm-cuda
 
 tools/gpt2import: tools/gpt2import.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<
@@ -80,8 +84,10 @@ tools/qwenimport: tools/qwenimport.c
 
 tools/export_text: tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -Isrc -o $@ tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c -lm
+tools/mkqwenrows: tools/mkqwenrows.c src/tok.c src/tok_tables.c src/tensor.c
+	$(CC) -O2 -std=c11 -Wall -Wextra -Isrc -ffunction-sections -fdata-sections -o $@ tools/mkqwenrows.c src/tok.c src/tok_tables.c src/tensor.c -lm -Wl,--gc-sections
 
 clean:
-	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport tools/export_text tests/gcheck tests/ckpt_unit tests/fontcheck
+	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport tools/export_text tools/mkqwenrows tests/gcheck tests/ckpt_unit tests/fontcheck build/dbg build/o2g
 
-.PHONY: all cuda test test-resume test-resume-cuda clean tools/gpt2import tools/qwenimport tools/export_text
+.PHONY: all cuda test test-resume test-resume-cuda test-viewer test-viewer-cuda test-train-qwen test-train-qwen-cuda clean tools/gpt2import tools/qwenimport tools/export_text tools/mkqwenrows

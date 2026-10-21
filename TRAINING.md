@@ -1,4 +1,4 @@
-# TRAINING.md — how `cncm train` / `cncm train-vq` work
+# TRAINING.md — how `cncm train` / `cncm train-vq` / `cncm train-qwen` work
 
 The upstream NCM repo ships **checkpoints and eval code only** — there is no
 training script to port. What follows documents the training path built here:
@@ -97,3 +97,58 @@ under autograd and updated by EMA (same as the paper's scheme).
   plus the end-to-end loss curves.
 - Non-RoPE models and the per-batch pad path in training forward are wired
   but untested (all released configs use RoPE; sudoku has no pads).
+
+## Qwen2.5-0.5B fine-tuning (`cncm train-qwen`)
+
+`src/train_qwen.c` implements a complete fine-tuning loop on the taped
+Qwen forward (`train_qwen_forward`, verified bit-exact vs `qwen.c` and
+grad-vs-numeric in `tests/gcheck.c`): B=1 random-row batches of (T+1)
+token ids, causal CE, device backward, global-norm clip 1.0, AdamW with
+the same cosine schedule as NCP training, and NCK1 checkpoints with the
+same exact-resume contract (`--resume`, same identity rules).
+
+```
+rows.nctrain ([T+1 token ids] per row: input first T, target last T)
+        |
+  train_qwen_forward (recorded, GQA, tied dot head) + t_ce
+        |
+  tape_backward (device; NCM_BWD=cpu forces the host path)
+        |
+  AdamW (decoupled wd, cosine warmup; NCM_ADAMW=cpu keeps moments host-side)
+        |
+  versioned .nckpt (weights + optimizer + RNG + identity; qwen-ppl and
+  qwen-gen load .nckpt files directly via weights_load)
+```
+
+Corpus: `tools/mkqwenrows` packs raw text (`--in docs.txt`, one document
+per line, Qwen-tokenized, EOS-joined) or id lists (`--ids`, e.g. recycled
+tokenizer output — valid as long as every id fits the Qwen vocab) into
+`(T+1)`-id rows. `--strip ID` drops a pad id everywhere (fixed-length
+pickles pad interior blocks, not just tails); `--min-unique N` drops
+low-diversity docs. Lesson learned the hard way: an XSum id dump was
+29% pad token with whole single-token rows, which train to loss 0.0 and
+tell you nothing — clean the stream, then trust the curve.
+
+Memory (12 GB card, fp32 0.5B): weights 2.0 + device grad map ~2.0 (lives
+in the arena) + activations. The device AdamW mirrors (+4 GiB) do not
+fit alongside a training-size arena, so Qwen training uses
+`NCM_ADAMW=cpu` (host moments; verified bit-identical update math) and a
+sized arena: `NCM_ARENA_MB=3072` at T=128, 4096 at T=512.
+
+Verified: per-op host-vs-device incl. Qwen-scale LINEAR/SDPA-GQA and a
+composed 1-layer Qwen block (`bwdops`, global maxabs ~1e-7); exact resume
+(`--steps 2` vs 1+resume: identical losses, byte-identical checkpoints);
+checkpoint loads for inference (`qwen-ppl` on the `.nckpt`).
+Measured (xsum ids, B=1, T=128, lr 1e-5, warmup 100, 150 steps): mean loss
+per 10-step window 10.16, 9.47, 8.95, 8.61, 8.41, 8.36, 8.22, 7.83, 7.72,
+7.89, 7.62, 7.70, 7.46, 7.51, 7.28 — steady decrease, no plateau yet.
+Resume from the step-150 checkpoint continues in the same band
+(7.15, 7.92, 7.42, 8.04, 7.78).
+
+Device-LINEAR dx uses beta=1 (accumulate), not beta=0: the output grad
+buffer may already hold contributions from other consumers (residual
+adds, split q/k/v heads reading one hidden state), and overwriting them
+silently drops real gradient paths on Qwen (NCP's fused qkv never
+shares an input this way, which is why only Qwen showed it). Caught by
+the composed-block bwdops case: host-vs-device went from maxrel 0.95 to
+1e-7 with the one-word fix.

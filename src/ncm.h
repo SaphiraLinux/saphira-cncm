@@ -350,6 +350,9 @@ float *train_qwen_forward(Tape *tp, WeightStore *ws, const NCMConfig *c,
                           const int *ids, int B, int T);
 int qwen_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
                    const char *prompt, int T);
+int train_qwen_run(const NCMConfig *c, const char *weights_path,
+                   const char *data_path, int max_steps, double lr,
+                   const TrainOpts *o);
 /* ---- live native viewer (viewer.c, SDL2; silent no-ops when the display
  * or SDL2 is unavailable). Snapshots are plain data: pushing never blocks
  * computation and cannot change numerics or determinism. */

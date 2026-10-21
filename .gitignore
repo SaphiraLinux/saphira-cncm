@@ -5,6 +5,7 @@ src/*.o
 tools/gpt2import
 tools/qwenimport
 tools/export_text
+tools/mkqwenrows
 weights/
 *.bin
 *.pkl

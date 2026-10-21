@@ -1145,9 +1145,9 @@ typedef void (*bwo_build_fn)(Tape *tp, PMap *pm);
 static void bwo_run_one(bwo_build_fn build, const char *op) {
     PMap pm;
     memset(&pm, 0, sizeof(pm));
-    pm.params = (float **)malloc(8 * sizeof(float *));
-    pm.grads = (float **)malloc(8 * sizeof(float *));
-    pm.sizes = (int64_t *)malloc(8 * sizeof(int64_t));
+    pm.params = (float **)malloc(32 * sizeof(float *));
+    pm.grads = (float **)malloc(32 * sizeof(float *));
+    pm.sizes = (int64_t *)malloc(32 * sizeof(int64_t));
     pm.n = 0;
     Tape *tp = tape_new();
     arena_reset();
@@ -1186,6 +1186,17 @@ static void bwo_linear(Tape *tp, PMap *pm) {
     int64_t b = 8, M = 12, K = 16;
     int64_t sx[2] = {b, K}, sw[2] = {M, K}, sv[2] = {b, M}, s1[1] = {M};
     Tensor *x = bwo_tensor(2, sx, -1, 1), *W = bwo_tensor(2, sw, -1, 1);
+    Tensor *bb = bwo_tensor(1, s1, -1, 1), *y = tensor_alloc(2, sv);
+    bwo_reg(pm, x); bwo_reg(pm, W); bwo_reg(pm, bb);
+    t_linear(tp, x->data, W->data, bb->data, y->data, b, (int)M, (int)K);
+    bwo_mse_seed(tp, y->data, b * M);
+}
+/* Qwen-scale linear backward (down_proj dims: M=896 K=4864 batch=16).
+ * Guards cuBLAS-vs-serial agreement at the shapes the Qwen loop uses. */
+static void bwo_linear_big(Tape *tp, PMap *pm) {
+    int64_t b = 16, M = 896, K = 4864;
+    int64_t sx[2] = {b, K}, sw[2] = {M, K}, sv[2] = {b, M}, s1[1] = {M};
+    Tensor *x = bwo_tensor(2, sx, -3, 3), *W = bwo_tensor(2, sw, -0.1, 0.1);
     Tensor *bb = bwo_tensor(1, s1, -1, 1), *y = tensor_alloc(2, sv);
     bwo_reg(pm, x); bwo_reg(pm, W); bwo_reg(pm, bb);
     t_linear(tp, x->data, W->data, bb->data, y->data, b, (int)M, (int)K);
@@ -1349,6 +1360,69 @@ static void bwo_sdpa_gqa(Tape *tp, PMap *pm) {
     t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, K, Tq, Tkv, hd);
     bwo_mse_seed(tp, o->data, (int64_t)B * H * Tq * hd);
 }
+/* Mini Qwen model (1 layer, synthetic) through the REAL train_qwen_forward
+ * + CE: composed GQA path (embed, rmsnorm, q/k/v+bias, headsplit,
+ * rope_gqa, sdpa_gqa, merge, swiglu, tied head) compared host-vs-device.
+ * Catches composition bugs unit ops miss. B=1 fixed (board-0 path). */
+static NamedTensor bwo_qw_items[14];
+static WeightStore bwo_qw_ws;
+static void bwo_qwenblock(Tape *tp, PMap *pm) {
+    int B = 1, T = 4, C = 32, H = 4, K = 2, hd = 8, I = 64, V = 256;
+    NCMConfig qc;
+    memset(&qc, 0, sizeof(qc));
+    qc.n_layer = 1; qc.n_head = H; qc.n_kv_heads = K; qc.n_embd = C;
+    qc.context_length = 64; qc.rope_theta = 10000.0;
+    struct { const char *nm; int rows, cols; } spec[] = {
+        {"model.embed_tokens.weight", V, C},
+        {"model.norm.weight", 1, C},
+        {"model.layers.0.input_layernorm.weight", 1, C},
+        {"model.layers.0.self_attn.q_proj.weight", C, C},
+        {"model.layers.0.self_attn.q_proj.bias", 1, C},
+        {"model.layers.0.self_attn.k_proj.weight", K * hd, C},
+        {"model.layers.0.self_attn.k_proj.bias", 1, K * hd},
+        {"model.layers.0.self_attn.v_proj.weight", K * hd, C},
+        {"model.layers.0.self_attn.v_proj.bias", 1, K * hd},
+        {"model.layers.0.self_attn.o_proj.weight", C, C},
+        {"model.layers.0.post_attention_layernorm.weight", 1, C},
+        {"model.layers.0.mlp.gate_proj.weight", I, C},
+        {"model.layers.0.mlp.up_proj.weight", I, C},
+        {"model.layers.0.mlp.down_proj.weight", C, I},
+    };
+    int NW = (int)(sizeof(spec) / sizeof(spec[0]));
+    int hids[4] = {7, 42, 100, 5};
+    int htg[4] = {3, 200, 17, 99};
+    bwo_qw_ws.items = bwo_qw_items;
+    bwo_qw_ws.count = NW;
+    for (int i = 0; i < NW; i++) {
+        int n = spec[i].rows * spec[i].cols;
+        Tensor *t = tensor_alloc(2, (int64_t[]){spec[i].rows, spec[i].cols});
+        float *h = (float *)malloc(n * sizeof(float));
+        for (int k = 0; k < n; k++) {
+            bwo_rng ^= bwo_rng << 13; bwo_rng ^= bwo_rng >> 7; bwo_rng ^= bwo_rng << 17;
+            h[k] = (float)((bwo_rng >> 11) * (1.0 / 9007199254740992.0) - 0.5);
+        }
+        mem_h2d(t->data, h, n * sizeof(float));
+        free(h);
+        snprintf(bwo_qw_items[i].name, sizeof(bwo_qw_items[i].name), "%s", spec[i].nm);
+        bwo_qw_items[i].t = t;
+        bwo_reg(pm, t);
+    }
+    float *logits = train_qwen_forward(tp, &bwo_qw_ws, &qc, hids, B, T);
+    float *loss = arena_alloc(1), *probs = arena_alloc((size_t)B * T * V);
+    /* t_ce takes HOST targets (copies internally) */
+    t_ce(tp, logits, htg, NULL, loss, probs, (int64_t)B * T, V, 1.0);
+}
+/* Qwen-scale GQA (H=14 K=2 rep=7 T=16 hd=64): rep-dependent indexing only
+ * shows at real reps, so pin the production shape here. */
+static void bwo_sdpa_gqa_big(Tape *tp, PMap *pm) {
+    int B = 1, H = 14, K = 2, Tq = 16, Tkv = 16, hd = 64;
+    int64_t sq[1] = {(int64_t)B * H * Tq * hd}, sk[1] = {(int64_t)B * K * Tkv * hd};
+    Tensor *q = bwo_tensor(1, sq, -1, 1), *k = bwo_tensor(1, sk, -1, 1);
+    Tensor *v = bwo_tensor(1, sk, -1, 1), *o = tensor_alloc(1, sq);
+    bwo_reg(pm, q); bwo_reg(pm, k); bwo_reg(pm, v);
+    t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, K, Tq, Tkv, hd);
+    bwo_mse_seed(tp, o->data, (int64_t)B * H * Tq * hd);
+}
 static void bwo_gather(Tape *tp, PMap *pm) {
     int nrows = 16, C = 16, V = 32;
     int64_t sx[1] = {(int64_t)V * C}, sy[1] = {(int64_t)nrows * C};
@@ -1404,16 +1478,17 @@ int bwdops_run(double tol) {
 #ifdef NCM_CUDA
     arena_init_default();
     static const struct { bwo_build_fn f; const char *nm; } ops[] = {
-        {bwo_linear, "linear"}, {bwo_ln, "ln"}, {bwo_rmsn, "rmsn"},
+        {bwo_linear, "linear"}, {bwo_linear_big, "linear_qwen"}, {bwo_ln, "ln"}, {bwo_rmsn, "rmsn"},
         {bwo_gn, "gn"}, {bwo_gelu, "gelu"}, {bwo_silu, "silu"},
         {bwo_relu2, "relu2"}, {bwo_softmax, "softmax"}, {bwo_rope, "rope"},
         {bwo_sdpa, "sdpa"}, {bwo_add, "add"}, {bwo_scale, "scale"},
         {bwo_concat, "concat"}, {bwo_join, "join"}, {bwo_split, "split"},
         {bwo_merge, "merge"}, {bwo_headsplit, "headsplit"},
         {bwo_rope_gqa, "rope_gqa"}, {bwo_sdpa_gqa, "sdpa_gqa"},
+        {bwo_sdpa_gqa_big, "sdpa_gqa_big"},
         {bwo_mul, "mul"}, {bwo_gather, "gather"},
         {bwo_embed, "embed"}, {bwo_ce, "ce"}, {bwo_tied, "tied"},
-        {bwo_mse, "mse"},
+        {bwo_mse, "mse"}, {bwo_qwenblock, "qwenblock"},
     };
     bwo_nfail = 0; bwo_gmax = 0; bwo_gname = ""; bwo_tol = tol;
     for (unsigned i = 0; i < sizeof(ops) / sizeof(ops[0]); i++)

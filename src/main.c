@@ -43,10 +43,13 @@ static void usage(const char *a) {
         "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
         "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S] [--view]\n"
+        "  %s train-qwen --conf Q.conf --weights Q.ncm --data rows.nctrain\n"
+        "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
+        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -250,7 +253,7 @@ int main(int argc, char **argv) {
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
     if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -388,6 +391,32 @@ int main(int argc, char **argv) {
         to.view = viewf;
         return train_run_ex(&cfg, weights, data, steps ? atoi(steps) : 200,
                             lr ? atof(lr) : 0.0, &to);
+    }
+    if (strcmp(argv[1], "train-qwen") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *steps = opt(&argc, &argv, "--steps");
+        const char *lr = opt(&argc, &argv, "--lr");
+        const char *resume = opt(&argc, &argv, "--resume");
+        const char *ckptout = opt(&argc, &argv, "--ckpt-out");
+        const char *ckptevery = opt(&argc, &argv, "--ckpt-every");
+        const char *total = opt(&argc, &argv, "--total");
+        const char *tokid = opt(&argc, &argv, "--tokenizer-id");
+        if (!data) { fprintf(stderr, "train-qwen needs --data <rows.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S]\n"); return 2; }
+        if (!conf || !weights) usage(argv[1]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        (void)adir;
+        TrainOpts to;
+        memset(&to, 0, sizeof(to));
+        to.resume_path = resume;
+        to.ckpt_out = ckptout;
+        to.ckpt_every = ckptevery ? atoi(ckptevery) : 10;
+        to.sched_total = total ? atof(total) : 0.0;
+        to.conf_path = conf;
+        to.tokenizer_id = tokid;
+        extern int train_qwen_run(const NCMConfig*, const char*, const char*, int, double, const TrainOpts*);
+        return train_qwen_run(&cfg, weights, data, steps ? atoi(steps) : 100,
+                              lr ? atof(lr) : 0.0, &to);
     }
     if (strcmp(argv[1], "ckpt-info") == 0) {
         if (!weights) { fprintf(stderr, "ckpt-info needs --weights <file>\n"); return 2; }
