@@ -3,6 +3,8 @@ cncm
 cncm-cuda
 src/*.o
 tools/gpt2import
+tools/qwenimport
+tools/export_text
 weights/
 *.bin
 *.pkl
