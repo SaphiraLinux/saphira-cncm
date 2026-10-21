@@ -56,6 +56,10 @@ test-resume: cncm
 	./tests/test_ckpt.sh --bin ./cncm
 test-resume-cuda: cncm-cuda
 	./tests/test_ckpt.sh --bin ./cncm-cuda --cuda-tol 1e-3
+test-viewer: cncm
+	./tests/test_viewer.sh --bin ./cncm
+test-viewer-cuda: cncm-cuda
+	./tests/test_viewer.sh --bin ./cncm-cuda
 
 tools/gpt2import: tools/gpt2import.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<

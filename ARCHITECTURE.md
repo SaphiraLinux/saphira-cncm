@@ -178,6 +178,32 @@ models are the stated ceiling.
   skips cleanly without weights or on CPU).
   `make test-resume` runs the full N=4 CPU proof (1 and 8 threads verified);
   `make test-resume-cuda` the CUDA leg (numeric tolerance gate 1e-3).
+- `make test-viewer[-cuda]`: `tests/test_viewer.sh` — golden boards
+  (stepper == pre-refactor monolithic gen), streamed == `gen` output,
+  ms-normalized determinism, `sudoku-check` valid/invalid + bad-unit
+  flags, prefix validation, and a relay walk (page markers, live
+  begin/step-through to a valid done). Skips cleanly without weights,
+  python3, or curl.
+
+## Sudoku viewer (live local web UI, `tools/viewer/`)
+
+`src/ncp.c` exposes a resumable generator (`NCPGen`: begin/step/finish,
+one level per step) that `ncp_generate` itself drives, so there is one
+code path — no duplicated loop. `cncm sudoku-stream` runs a real solve
+(B=1, temp 0) and emits NDJSON: a header (model/backend/level sizes),
+one event per completed level (codes + level ms, flushed as produced),
+then a done event (board, clues, elapsed, validity + offending rows /
+cols / boxes). `--step` pauses for a stdin line per level (EOF runs on);
+`--out` tees the stream for replay. `cncm sudoku-check` answers board
+validity without any model. `tools/viewer/server.py` (stdlib only,
+127.0.0.1) serves `viewer.html` and relays solver subprocesses with
+drain-first pacing (an event already produced is returned without
+releasing another stdin line, so Start/Pause/Step cannot run the solve
+ahead of the client). The page shows LIVE (model events) vs REPLAY
+(loaded file) explicitly; the grid fills once, on done, with generated
+cells faded in together — levels are presented as code counts per
+refinement step, never as logical deductions. Nothing in the training
+path (`train*.c`, `ckpt.c`) is touched.
 
 ## Build requirements
 

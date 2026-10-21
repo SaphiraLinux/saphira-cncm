@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNCM Sudoku Viewer (live local model)</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: system-ui, sans-serif; margin: 1.2em; max-width: 760px; }
+  h1 { font-size: 1.2em; margin: 0 0 .4em; }
+  #badge { display: inline-block; padding: .15em .6em; border-radius: .6em;
+           font-size: .8em; font-weight: bold; color: #fff; background: #888; }
+  #badge.live { background: #1a7f37; } #badge.replay { background: #9a6700; }
+  #grid { display: grid; grid-template-columns: repeat(9, 1fr);
+          width: min(92vw, 450px); border: 3px solid #222; margin: .8em 0; }
+  .cell { aspect-ratio: 1 / 1; display: flex; align-items: center;
+          justify-content: center; font-size: clamp(14px, 4.5vw, 26px);
+          border: 1px solid #bbb; background: #fff; user-select: none; }
+  .cell.clue { font-weight: bold; color: #111; background: #f2f2f2; }
+  .cell.gen { color: #0b5cad; }
+  .cell.gen.fill { animation: fadein .5s ease-in; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .cell:nth-child(3n) { border-right: 2px solid #222; }
+  .cell:nth-child(9n) { border-right: none; }
+  .rowb { border-bottom: 2px solid #222; }
+  .cell.bad { background: #ffd7d7; }
+  .row { margin: .4em 0; } label { font-size: .85em; }
+  button { margin-right: .4em; } #info { font-size: .85em; white-space: pre-wrap;
+          background: #f6f6f6; padding: .5em; border: 1px solid #ddd; }
+  #levels { font-size: .8em; color: #444; }
+  textarea { width: 100%; box-sizing: border-box; font-size: .7em; }
+</style>
+</head>
+<body>
+<h1>CNCM Sudoku Viewer <span id="badge">IDLE</span></h1>
+<div class="row">
+  <label>Puzzle prefix (91 ids):
+    <textarea id="prefix" rows="3"></textarea></label>
+</div>
+<div class="row">
+  <label>Seed: <input id="seed" type="number" value="7" style="width:6em"></label>
+  <label>Speed (ms/level): <input id="speed" type="range" min="50" max="2000" step="50" value="400">
+    <span id="speedv">400</span></label>
+</div>
+<div class="row">
+  <button id="bStart">Start</button><button id="bPause">Pause</button>
+  <button id="bStep">Step</button><button id="bReset">Reset</button>
+  <button id="bSave">Save trace</button>
+  <label>Load trace: <input id="fLoad" type="file" accept=".ndjson,.json,.txt"></label>
+</div>
+<div id="grid"></div>
+<div id="levels">No run yet. Levels here are the model's own coarse-to-fine
+refinement steps (code counts per level), not logical deductions.</div>
+<div id="info">backend: - model: - status: idle</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const grid = $("grid"), badge = $("badge"), info = $("info"), levelsEl = $("levels");
+// build 81 square cells; thick horizontal box separators via row class
+const cells = [];
+for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+  const d = document.createElement("div");
+  d.className = "cell" + ((r === 2 || r === 5) ? " rowb" : "");
+  grid.appendChild(d); cells.push(d);
+}
+let S = { mode: "idle", sid: null, evs: [], li: 0, timer: null, clues: null,
+          board: null, info: null, done: null, speed: 400 };
+
+function setBadge(m) { badge.textContent = m;
+  badge.className = m === "LIVE" ? "live" : (m === "REPLAY" ? "replay" : ""); }
+function setInfo() {
+  const i = S.info || {};
+  info.textContent =
+    "backend: " + (i.backend || "-") + " model: " + (i.model || "-") +
+    " status: " + (S.mode === "live" && S.timer ? "solving" : S.mode) +
+    (S.done ? " elapsed: " + S.done.elapsed_ms + "ms valid: " + S.done.valid : "");
+}
+// 91-id prefix -> 81 clues ('1'-'9' or '.'), or throws
+function parsePrefix(text) {
+  const ids = text.trim().split(/[\s,]+/).filter(x => x.length).map(Number);
+  if (ids.length !== 91) throw new Error("need exactly 91 ids, got " + ids.length);
+  if (ids[0] !== 11 || ids[90] !== 11) throw new Error("bad framing (want 11 ... 11)");
+  const clues = [];
+  for (let r = 0; r < 9; r++) {
+    if (r < 8 && ids[10 + r * 10] !== 10) throw new Error("bad row sep at " + (10 + r * 10));
+    for (let c = 0; c < 9; c++) {
+      const id = ids[1 + r * 10 + c];
+      if (!(id >= 0 && id <= 9)) throw new Error("bad cell id " + id);
+      clues.push(id ? String(id) : ".");
+    }
+  }
+  return clues.join("");
+}
+function validate81(b) {
+  const bad = { rows: [], cols: [], boxes: [] };
+  if (!b || b.length !== 81) return { valid: false, ...bad };
+  const dup = idxs => { const s = new Set(); for (const i of idxs) {
+    const d = b[i]; if (d < "1" || d > "9" || s.has(d)) return true; s.add(d); } return false; };
+  for (let r = 0; r < 9; r++) { const ix = []; for (let c = 0; c < 9; c++) ix.push(r * 9 + c);
+    if (dup(ix)) bad.rows.push(r); }
+  for (let c = 0; c < 9; c++) { const ix = []; for (let r = 0; r < 9; r++) ix.push(r * 9 + c);
+    if (dup(ix)) bad.cols.push(c); }
+  for (let br = 0; br < 3; br++) for (let bc = 0; bc < 3; bc++) { const ix = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) ix.push((br * 3 + r) * 9 + bc * 3 + c);
+    if (dup(ix)) bad.boxes.push(br * 3 + bc); }
+  const valid = !bad.rows.length && !bad.cols.length && !bad.boxes.length;
+  return { valid, ...bad };
+}
+// render: clues fixed bold; board (if any) fills the rest at once
+function render(serverBad) {
+  const v = S.board ? validate81(S.board) : { valid: true, rows: [], cols: [], boxes: [] };
+  const br = new Set([...v.rows, ...((serverBad && serverBad.rows) || [])]);
+  const bc = new Set([...v.cols, ...((serverBad && serverBad.cols) || [])]);
+  const bx = new Set([...v.boxes, ...((serverBad && serverBad.boxes) || [])]);
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+    const i = r * 9 + c, el = cells[i];
+    const clue = S.clues && S.clues[i] !== ".";
+    let cls = "cell" + ((r === 2 || r === 5) ? " rowb" : "");
+    let txt = "";
+    if (clue) { cls += " clue"; txt = S.clues[i]; }
+    else if (S.board) { cls += " gen" + (S.fresh ? " fill" : ""); txt = S.board[i]; }
+    if (br.has(r) || bc.has(c) || bx.has(Math.floor(r / 3) * 3 + Math.floor(c / 3))) cls += " bad";
+    el.className = cls; el.textContent = txt;
+  }
+  S.fresh = false;
+  setInfo();
+}
+function renderLevels() {
+  const parts = S.evs.filter(e => e.type === "level")
+    .map(e => "L" + e.step + ":" + e.size + "c/" + e.ms + "ms");
+  levelsEl.textContent = parts.length
+    ? "model levels (coarse->fine codes): " + parts.join(" ") +
+      (S.done ? " | final board = model output (" + S.done.elapsed_ms + "ms total)" : "")
+    : levelsEl.textContent;
+}
+async function api(path, body) {
+  const o = { method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : {} };
+  if (body) o.body = JSON.stringify(body);
+  const r = await fetch(path, o);
+  return r.json();
+}
+function stopTimer() { if (S.timer) { clearTimeout(S.timer); S.timer = null; } }
+async function ensureSession() {
+  if (S.sid || S.mode === "replay") return true;
+  const prefix = $("prefix").value, seed = Number($("seed").value || 0);
+  try { S.clues = parsePrefix(prefix); } catch (e) { info.textContent = "error: " + e.message; return false; }
+  render();
+  const r = await api("/api/begin", { prefix, seed });
+  if (!r.ok) { info.textContent = "error: " + (r.msg || "begin failed"); return false; }
+  S.mode = "live"; S.sid = r.sid; S.evs = []; S.li = 0; S.board = null; S.done = null;
+  setBadge("LIVE"); setInfo();
+  return true;
+}
+async function doStep() {
+  if (S.mode === "replay") { playReplayStep(); return; }
+  if (!(await ensureSession())) return;
+  let ev;
+  try { ev = await api("/api/step?sid=" + S.sid); }
+  catch (e) { info.textContent = "error: " + e.message; stopTimer(); return; }
+  if (ev.type === "error") { info.textContent = "error: " + ev.msg; stopTimer(); setInfo(); return; }
+  S.evs.push(ev);
+  if (ev.type === "header") { S.info = ev; }
+  else if (ev.type === "level") { S.li++; }
+  else if (ev.type === "done") {
+    S.board = ev.board; S.done = ev; S.fresh = true; stopTimer();
+    if (S.clues === null) S.clues = ev.clues;
+    render({ rows: ev.bad_rows, cols: ev.bad_cols, boxes: ev.bad_boxes });
+  }
+  renderLevels(); setInfo();
+  return ev.type;
+}
+async function loop() {
+  stopTimer();
+  const t = await doStep();
+  if (t === "done" || t === undefined) return;
+  S.timer = setTimeout(loop, S.speed);
+}
+function playReplayStep() {
+  const ev = S.evs[S.li];
+  if (!ev) return;
+  S.li++;
+  if (ev.type === "header") S.info = ev;
+  else if (ev.type === "done") {
+    S.board = ev.board; S.done = ev; S.fresh = true; stopTimer();
+    if (!S.clues) S.clues = ev.clues;
+    render({ rows: ev.bad_rows, cols: ev.bad_cols, boxes: ev.bad_boxes });
+  }
+  renderLevels(); setInfo();
+}
+function playReplayLoop() {
+  stopTimer();
+  if (S.li >= S.evs.length) return;
+  playReplayStep();
+  S.timer = setTimeout(playReplayLoop, S.speed);
+}
+$("bStart").onclick = async () => {
+  if (S.mode === "replay") { playReplayLoop(); return; }
+  stopTimer(); await loop();
+};
+$("bPause").onclick = () => { stopTimer(); setInfo(); };
+$("bStep").onclick = async () => { stopTimer(); await doStep(); };
+$("bReset").onclick = async () => {
+  stopTimer();
+  if (S.sid) { try { await api("/api/end", { sid: S.sid }); } catch (e) {}
+    S.sid = null; }
+  S.mode = "idle"; S.evs = []; S.li = 0; S.board = null; S.done = null; S.info = null;
+  setBadge("IDLE"); renderLevelsReset(); render(); setInfo();
+};
+function renderLevelsReset() {
+  levelsEl.textContent = "No run yet. Levels here are the model's own coarse-to-fine " +
+    "refinement steps (code counts per level), not logical deductions.";
+}
+$("bSave").onclick = () => {
+  const blob = new Blob([S.evs.map(e => JSON.stringify(e)).join("\n") + "\n"],
+    { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "trace.ndjson"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("fLoad").onchange = () => {
+  const f = $("fLoad").files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const evs = String(rd.result).split("\n").filter(x => x.trim()).map(JSON.parse);
+      if (!evs.length || evs[0].type !== "header") throw new Error("no header");
+      stopTimer();
+      if (S.sid) { api("/api/end", { sid: S.sid }).catch(() => {}); S.sid = null; }
+      S.mode = "replay"; S.evs = evs; S.li = 0; S.board = null; S.done = null;
+      S.info = null; S.clues = null;
+      const hd = evs[0]; S.info = hd;
+      try { S.clues = parsePrefix($("prefix").value); } catch (e) { S.clues = null; }
+      setBadge("REPLAY"); render(); renderLevels(); setInfo();
+    } catch (e) { info.textContent = "error: bad trace file (" + e.message + ")"; }
+  };
+  rd.readAsText(f);
+  $("fLoad").value = "";
+};
+$("speed").oninput = () => { S.speed = Number($("speed").value); $("speedv").textContent = S.speed; };
+render();
+</script>
+</body>
+</html>

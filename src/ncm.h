@@ -258,6 +258,20 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
                   float temp, int top_k, float top_p, float cfg_scale,
                   float freq, float mu, float adj_a, int adj_w, float adj_d,
                   const double *allow, unsigned long long seed);
+/* Resumable generation stepper (same math as ncp_generate, one level per
+ * call — powers the live viewer without touching the monolithic path).
+ * Steps: 0 = level-0, 1..nsteps-1 = refinement levels. codes_out (opt)
+ * receives board 0's codes of the step just run (n_out = count). */
+typedef struct NCPGen NCPGen;
+NCPGen *ncp_gen_begin(NCPState *m, const int *l0, const int *prefix_ids, int B,
+                      float temp, int top_k, float top_p, float cfg_scale,
+                      float freq, float mu, float adj_a, int adj_w, float adj_d,
+                      const double *allow, unsigned long long seed);
+int ncp_gen_step(NCPGen *g, int *codes_out, int *n_out); /* 0 = ran, 1 = done */
+int *ncp_gen_finish(NCPGen *g); /* returns all (caller frees), frees state */
+void ncp_gen_abort(NCPGen *g);  /* frees everything including output */
+int ncp_gen_nsteps(NCPGen *g);
+int ncp_gen_step_size(NCPGen *g, int s);
 
 /* ------------------------------------------------------------------ */
 /* tokenizers (tok.h)                                                  */

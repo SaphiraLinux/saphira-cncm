@@ -704,37 +704,65 @@ static void sample_level_rows(NCPState *m __attribute__((unused)), float *hlog, 
     }
 }
 
-int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
-                  float temp, int top_k, float top_p, float cfg_scale,
-                  float freq, float mu, float adj_a, int adj_w, float adj_d,
-                  const double *allow, unsigned long long seed) {
+/* Resumable generation stepper: the body of ncp_generate split at level
+ * boundaries so a caller can run (and observe) one level at a time.
+ * ncp_generate itself drives the stepper, so there is exactly one code
+ * path — the determinism test (stepped vs golden) guards the split. */
+struct NCPGen {
+    NCPState *m;
+    int B, Bm, use_cfg;
+    float temp, top_p, cfg_scale, freq, mu, adj_a, adj_d;
+    int top_k, adj_w;
+    const double *allow;
+    unsigned long long rng;
+    int *mprefix;
+    int *ml0;
+    Tensor *_pembT; float *pemb;
+    int *padcol;
+    int total, lcur, out_off, level_accum, last_n;
+    int *all, *cur;
+    Tensor *_zhat; float *z_hat;
+    double **cntS; int **histS; int *histL;
+    int phase; /* 0 = l0 pending, 1 = refining, 2 = done */
+    int li;    /* next refine index for phase 1 */
+};
+
+static void gen_setup(NCPGen *g, NCPState *m, const int *l0,
+                      const int *prefix_ids, int B,
+                      float temp, int top_k, float top_p, float cfg_scale,
+                      float freq, float mu, float adj_a, int adj_w, float adj_d,
+                      const double *allow, unsigned long long seed) {
     NCMConfig *c = &m->cfg;
     WeightStore *ws = m->ws;
     VQState *vq = vqvae_vq(m->vqvae);
     int P = m->P, C = c->n_embd, D = c->vq_embed_dim;
-    int nlev = c->n_qlevels;
-
+    memset(g, 0, sizeof(*g));
+    g->m = m; g->B = B;
+    g->temp = temp; g->top_k = top_k; g->top_p = top_p; g->cfg_scale = cfg_scale;
+    g->freq = freq; g->mu = mu; g->adj_a = adj_a; g->adj_w = adj_w; g->adj_d = adj_d;
+    g->allow = allow;
     arena_reset(); /* scratch temporaries are per-call */
-    int use_cfg = (cfg_scale > 0);
-    int Bm = use_cfg ? 2 * B : B;   /* model batch */
+    g->use_cfg = (cfg_scale > 0);
+    g->Bm = g->use_cfg ? 2 * B : B;   /* model batch */
+    int Bm = g->Bm;
     /* build model prefix (with null branch for CFG) */
-    int *mprefix = (int *)malloc((size_t)Bm * P * sizeof(int));
-    for (int b = 0; b < B; b++) memcpy(mprefix + (size_t)b * P, prefix_ids + (size_t)b * P, P * sizeof(int));
-    if (use_cfg) {
+    g->mprefix = (int *)malloc((size_t)Bm * P * sizeof(int));
+    for (int b = 0; b < B; b++) memcpy(g->mprefix + (size_t)b * P, prefix_ids + (size_t)b * P, P * sizeof(int));
+    if (g->use_cfg) {
         int null_first = c->eos_token_id >= 0 ? c->eos_token_id : c->prefix_pad_token_id;
         for (int b = 0; b < B; b++) {
-            for (int s = 0; s < P; s++) mprefix[((size_t)B + b) * P + s] = c->prefix_pad_token_id;
-            if (P > 0) mprefix[((size_t)B + b) * P + 0] = null_first;
+            for (int s = 0; s < P; s++) g->mprefix[((size_t)B + b) * P + s] = c->prefix_pad_token_id;
+            if (P > 0) g->mprefix[((size_t)B + b) * P + 0] = null_first;
         }
     }
     /* model l0 (doubled for CFG) */
     int l0len = c->levels[0];
-    int *ml0 = NULL;
+    g->ml0 = NULL;
     if (l0) {
-        ml0 = (int *)malloc((size_t)Bm * l0len * sizeof(int));
-        for (int b = 0; b < B; b++) memcpy(ml0 + (size_t)b * l0len, l0 + (size_t)b * l0len, l0len * sizeof(int));
-        if (use_cfg) for (int b = 0; b < B; b++)
-            memcpy(ml0 + ((size_t)B + b) * l0len, l0 + (size_t)b * l0len, l0len * sizeof(int));
+        g->ml0 = (int *)malloc((size_t)Bm * l0len * sizeof(int));
+        for (int b = 0; b < B; b++) memcpy(g->ml0 + (size_t)b * l0len, l0 + (size_t)b * l0len, l0len * sizeof(int));
+        if (g->use_cfg) for (int b = 0; b < B; b++)
+            memcpy(g->ml0 + ((size_t)B + b) * l0len, l0 + (size_t)b * l0len, l0len * sizeof(int));
     }
 
     /* z_prefix via encoder wte (raw path; all released configs) */
@@ -742,56 +770,71 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
     {
         Tensor *te = W(ws, "tok.encoder.wte.weight");
         int *bids = (int *)arena_alloc((size_t)Bm * P);
-        h2d_i(bids, mprefix, (size_t)Bm * P);
+        h2d_i(bids, g->mprefix, (size_t)Bm * P);
         embedding_fwd(te->data, bids, zpre, (int64_t)Bm * P, D);
     }
-    Tensor *_pembT = tensor_alloc(2, (int64_t[]){(int64_t)Bm * P, C});
-    float *pemb = _pembT->data;
+    g->_pembT = tensor_alloc(2, (int64_t[]){(int64_t)Bm * P, C});
+    g->pemb = g->_pembT->data;
     {
         Tensor *tw = W(ws, "gen.transformer.wte.weight");
         Tensor *tb = weights_get(ws, "gen.transformer.wte.bias");
-        linear_fwd(zpre, tw->data, tb ? tb->data : NULL, pemb, (int64_t)Bm * P, C, D);
+        linear_fwd(zpre, tw->data, tb ? tb->data : NULL, g->pemb, (int64_t)Bm * P, C, D);
     }
     if (!c->use_rope) {
         Tensor *wpe = W(ws, "gen.transformer.wpe.weight");
         size_t n = (size_t)Bm * P * C;
         float *h = (float *)malloc(n * sizeof(float));
         float *hw = (float *)malloc((size_t)P * C * sizeof(float));
-        d2h(h, pemb, n); d2h(hw, wpe->data, (size_t)P * C);
+        d2h(h, g->pemb, n); d2h(hw, wpe->data, (size_t)P * C);
         for (int b = 0; b < Bm; b++) for (int i = 0; i < P * C; i++)
             h[(size_t)b * P * C + i] += hw[i];
-        free(hw); h2d(pemb, h, n); free(h);
+        free(hw); h2d(g->pemb, h, n); free(h);
     }
 
     /* pad bias for gen masks */
-    int *padcol = NULL;
+    g->padcol = NULL;
     if (c->prefix_pad_token_id >= 0) {
-        padcol = (int *)malloc((size_t)Bm * P * sizeof(int));
+        g->padcol = (int *)malloc((size_t)Bm * P * sizeof(int));
         for (int b = 0; b < Bm; b++) for (int s = 0; s < P; s++)
-            padcol[b * P + s] = (mprefix[b * P + s] == c->prefix_pad_token_id);
+            g->padcol[b * P + s] = (g->mprefix[b * P + s] == c->prefix_pad_token_id);
     }
 
-    unsigned long long rng = seed ? seed : 0x9E3779B97F4A7C15ULL;
-    int total = vq_total_codes(vq);
-    int *all = (int *)malloc((size_t)B * total * sizeof(int)); /* model-batch collapsed later */
-    int *cur = NULL;   /* current level codes, model batch [Bm][lcur] */
-    int lcur = 0;
+    g->rng = seed ? seed : 0x9E3779B97F4A7C15ULL;
+    g->total = vq_total_codes(vq);
+    g->all = (int *)malloc((size_t)B * g->total * sizeof(int)); /* model-batch collapsed later */
+    g->cur = NULL;   /* current level codes, model batch [Bm][lcur] */
+    g->lcur = 0;
 
-    /* ---- level 0 ---- */
-    Tensor *_zhat = tensor_alloc(2, (int64_t[]){(int64_t)Bm * m->L, D});
-    float *z_hat = _zhat->data;
+    /* ---- level 0 scratch ---- */
+    g->_zhat = tensor_alloc(2, (int64_t[]){(int64_t)Bm * m->L, D});
+    g->z_hat = g->_zhat->data;
 #ifdef NCM_CUDA
-    cudaMemset(z_hat, 0, (size_t)Bm * m->L * D * sizeof(float));
+    cudaMemset(g->z_hat, 0, (size_t)Bm * m->L * D * sizeof(float));
 #else
-    memset(z_hat, 0, (size_t)Bm * m->L * D * sizeof(float));
+    memset(g->z_hat, 0, (size_t)Bm * m->L * D * sizeof(float));
 #endif
-    if (ml0) {
-        cur = (int *)malloc((size_t)Bm * l0len * sizeof(int));
-        memcpy(cur, ml0, (size_t)Bm * l0len * sizeof(int));
-        lcur = l0len;
+
+    g->phase = 0; g->li = 0; g->last_n = 0;
+}
+
+static void gen_l0(NCPGen *g) {
+    NCPState *m = g->m;
+    NCMConfig *c = &m->cfg;
+    WeightStore *ws = m->ws;
+    int P = m->P, C = c->n_embd, D = c->vq_embed_dim;
+    int B = g->B, Bm = g->Bm, use_cfg = g->use_cfg;
+    float temp = g->temp, top_p = g->top_p;
+    float freq = g->freq, mu = g->mu, adj_a = g->adj_a, adj_d = g->adj_d;
+    int top_k = g->top_k, adj_w = g->adj_w;
+    const double *allow = g->allow;
+    int l0len = c->levels[0];
+    if (g->ml0) {
+        g->cur = (int *)malloc((size_t)Bm * l0len * sizeof(int));
+        memcpy(g->cur, g->ml0, (size_t)Bm * l0len * sizeof(int));
+        g->lcur = l0len;
         /* copy l0 into output */
-        for (int b = 0; b < B; b++) memcpy(all + (size_t)b * total, ml0 + (size_t)b * l0len, l0len * sizeof(int));
-        free(ml0);
+        for (int b = 0; b < B; b++) memcpy(g->all + (size_t)b * g->total, g->ml0 + (size_t)b * l0len, l0len * sizeof(int));
+        free(g->ml0); g->ml0 = NULL;
     } else if (c->query_level0) {
         int l0l = c->levels[0];
         Tensor *tq = W(ws, "gen.l0_queries");
@@ -811,12 +854,12 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
             float *bcl = arena_alloc((size_t)Bm * l0l * D);
             float *cv = arena_alloc((size_t)Bm * l0l * D);
             size_t n = (size_t)Bm * l0l * D;
-            float *h = (float *)malloc(n * sizeof(float));
-            d2h(h, q0, n);
-            float *hb = (float *)malloc(n * sizeof(float));
+            float *hh2 = (float *)malloc(n * sizeof(float));
+            d2h(hh2, q0, n);
+            float *tb = (float *)malloc(n * sizeof(float));
             for (int b = 0; b < Bm; b++) for (int t = 0; t < l0l; t++) for (int d = 0; d < D; d++)
-                hb[((size_t)b * D + d) * l0l + t] = h[((size_t)b * l0l + t) * D + d];
-            free(h); h2d(bcl, hb, n); free(hb);
+                tb[((size_t)b * D + d) * l0l + t] = hh2[((size_t)b * l0l + t) * D + d];
+            free(hh2); h2d(bcl, tb, n); free(tb);
             conv1d_fwd(bcl, W(ws, kw)->data, W(ws, kb)->data, cv, Bm, D, D, l0l, 3, 1, 1);
             /* residual add */
             float *hc = (float *)malloc(n * sizeof(float));
@@ -848,7 +891,7 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
         Tensor *_hh0T = tensor_alloc(2, (int64_t[]){(int64_t)Bm * (P + l0l), C});
         float *hh = _hh0T->data;
         for (int b = 0; b < Bm; b++) {
-            d2d(hh + (size_t)b * (P + l0l) * C, pemb + (size_t)b * P * C, (size_t)P * C);
+            d2d(hh + (size_t)b * (P + l0l) * C, g->pemb + (size_t)b * P * C, (size_t)P * C);
             d2d(hh + ((size_t)b * (P + l0l) + P) * C, qe + (size_t)b * l0l * C, (size_t)l0l * C);
         }
         int S0 = P + l0l;
@@ -858,7 +901,7 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
             for (int i = 0; i < S0; i++) for (int j = 0; j < S0; j++) {
                 float v = 0;
                 if (i < P && j >= P) v = -INFINITY;
-                if (padcol) {
+                if (g->padcol) {
                     /* padcol per batch differs under CFG; bake per-batch below */
                 }
                 h[i * S0 + j] = v;
@@ -866,11 +909,11 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
             /* per-batch pad: run per batch to stay exact */
             for (int b = 0; b < Bm; b++) {
                 arena_reset(); /* per-board temps freed; hh/qe/pemb are tensors */
-                if (padcol) for (int i = 0; i < S0; i++) for (int j = 0; j < P; j++)
-                    if (padcol[b * P + j]) h[i * S0 + j] = -INFINITY;
+                if (g->padcol) for (int i = 0; i < S0; i++) for (int j = 0; j < P; j++)
+                    if (g->padcol[b * P + j]) h[i * S0 + j] = -INFINITY;
                 float *bm = arena_alloc((size_t)S0 * S0);
                 h2d(bm, h, (size_t)S0 * S0);
-                if (padcol) { /* restore base for next batch */ }
+                if (g->padcol) { /* restore base for next batch */ }
                 float *hb = arena_alloc((size_t)S0 * C);
                 d2d(hb, hh + (size_t)b * S0 * C, (size_t)S0 * C);
                 run_stack(m, hb, 1, S0, bm, m->gcos[0], m->gsin[0]);
@@ -889,17 +932,17 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
                 d2h(hl, lg, (size_t)l0l * V0_(m));
                 /* sample (no freq/adj state yet for level 0? Python applies
                  * pick_tokens with same freq/adj — use fresh state) */
-                if (!cur) { cur = (int *)malloc((size_t)Bm * l0l * sizeof(int)); }
+                if (!g->cur) { g->cur = (int *)malloc((size_t)Bm * l0len * sizeof(int)); }
                 /* per-batch state */
                 double *cnt = (double *)calloc(V0_(m), sizeof(double));
                 int *hist = (int *)malloc((l0l * 8 + 64) * sizeof(int));
                 int hll = 0;
                 double *cs[1] = {cnt}; int *hs[1] = {hist}; int ls[1] = {hll};
-                sample_level_rows(m, hl, cur + (size_t)b * l0l, 1, l0l, V0_(m),
+                sample_level_rows(m, hl, g->cur + (size_t)b * l0l, 1, l0l, V0_(m),
                                   temp, top_k, top_p, freq, mu, adj_a, adj_w, adj_d,
-                                  allow, &rng, cs, hs, ls);
+                                  allow, &g->rng, cs, hs, ls);
                 free(cnt); free(hist); free(hl);
-                if (padcol) {
+                if (g->padcol) {
                     /* rebuild base mask */
                     for (int i = 0; i < S0; i++) for (int j = 0; j < S0; j++) {
                         float v = 0;
@@ -912,13 +955,13 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
             (void)m0;
             tensor_free(_hh0T);
         }
-        lcur = l0l;
-        for (int b = 0; b < B; b++) memcpy(all + (size_t)b * total, cur + (size_t)b * l0l, l0l * sizeof(int));
+        g->lcur = l0l;
+        for (int b = 0; b < B; b++) memcpy(g->all + (size_t)b * g->total, g->cur + (size_t)b * l0l, l0len * sizeof(int));
         if (use_cfg) {
             /* collapse: keep first B */
             int *c2 = (int *)malloc((size_t)B * l0l * sizeof(int));
-            memcpy(c2, cur, (size_t)B * l0l * sizeof(int));
-            free(cur); cur = c2;
+            memcpy(c2, g->cur, (size_t)B * l0l * sizeof(int));
+            free(g->cur); g->cur = c2;
         }
         /* NOTE: z_hat stays zero for query_level0 (matches Python: z_hat starts
          * zero and level-0 embedding is added in the loop below). */
@@ -930,161 +973,238 @@ int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
     /* per-batch-row sampling state for freq/adjacency */
     int Vmax = 0;
     for (int k = 0; k < m->n_tgt; k++) if (c->vocab_size[k] > Vmax) Vmax = c->vocab_size[k];
-    double **cntS = (double **)malloc(Bm * sizeof(double *));
-    int **histS = (int **)malloc(Bm * sizeof(int *));
-    int *histL = (int *)calloc(Bm, sizeof(int));
+    g->cntS = (double **)malloc(Bm * sizeof(double *));
+    g->histS = (int **)malloc(Bm * sizeof(int *));
+    g->histL = (int *)calloc(Bm, sizeof(int));
     for (int b = 0; b < Bm; b++) {
-        cntS[b] = (double *)calloc(Vmax, sizeof(double));
-        histS[b] = (int *)malloc((total + 64) * sizeof(int));
+        g->cntS[b] = (double *)calloc(Vmax, sizeof(double));
+        g->histS[b] = (int *)malloc((g->total + 64) * sizeof(int));
     }
 
-    int level_accum = (m->lvl_first == 0) ? c->levels[0] : 0;
-    int out_off = lcur; /* == level_accum for non-query (l0 given) */
-    for (int li = 0; li < nlev - 1; li++) {
-        arena_reset(); /* per-level temps freed; z_hat/pemb live in parena */
-        int hi = li + (1 - m->lvl_first); /* head index */
-        int Lcur = c->levels[li + 1];
-        /* codes of current level, model batch */
-        int *codes = (int *)malloc((size_t)Bm * c->levels[li] * sizeof(int));
-        if (li == 0) {
-            /* cur holds level-0 codes for model batch (or collapsed B for cfg) */
-            if (use_cfg && !ml0) {
-                /* cur was collapsed above; re-duplicate */
-                int *d = (int *)malloc((size_t)Bm * c->levels[li] * sizeof(int));
-                memcpy(d, cur, (size_t)B * c->levels[li] * sizeof(int));
-                memcpy(d + (size_t)B * c->levels[li], cur, (size_t)B * c->levels[li] * sizeof(int));
-                free(cur); cur = d;
-            }
-            memcpy(codes, cur, (size_t)Bm * c->levels[li] * sizeof(int));
-        } else {
-            /* previous iteration stored into all/model buffer: track */
-            memcpy(codes, cur, (size_t)Bm * c->levels[li] * sizeof(int));
+    g->level_accum = (m->lvl_first == 0) ? c->levels[0] : 0;
+    g->out_off = g->lcur; /* == level_accum for non-query (l0 given) */
+    g->last_n = l0len;
+    g->phase = 1; g->li = 0;
+}
+
+static void gen_level(NCPGen *g, int li) {
+    NCPState *m = g->m;
+    NCMConfig *c = &m->cfg;
+    WeightStore *ws = m->ws;
+    VQState *vq = vqvae_vq(m->vqvae);
+    int P = m->P, C = c->n_embd, D = c->vq_embed_dim;
+    int B = g->B, Bm = g->Bm, use_cfg = g->use_cfg;
+    float temp = g->temp, top_p = g->top_p, cfg_scale = g->cfg_scale;
+    float freq = g->freq, mu = g->mu, adj_a = g->adj_a, adj_d = g->adj_d;
+    int top_k = g->top_k, adj_w = g->adj_w;
+    const double *allow = g->allow;
+    int nlev = c->n_qlevels;
+    arena_reset(); /* per-level temps freed; z_hat/pemb live in parena */
+    int hi = li + (1 - m->lvl_first); /* head index */
+    int Lcur = c->levels[li + 1];
+    /* codes of current level, model batch */
+    int *codes = (int *)malloc((size_t)Bm * c->levels[li] * sizeof(int));
+    if (li == 0) {
+        /* cur holds level-0 codes for model batch (or collapsed B for cfg) */
+        if (use_cfg && !g->ml0) {
+            /* cur was collapsed above; re-duplicate */
+            int *d = (int *)malloc((size_t)Bm * c->levels[li] * sizeof(int));
+            memcpy(d, g->cur, (size_t)B * c->levels[li] * sizeof(int));
+            memcpy(d + (size_t)B * c->levels[li], g->cur, (size_t)B * c->levels[li] * sizeof(int));
+            free(g->cur); g->cur = d;
         }
-        free(cur); cur = NULL;
-        /* autoregressive input */
-        float *x_out = arena_alloc((size_t)Bm * Lcur * D);
-        vq_next_input(vq, codes, li, z_hat, x_out, Bm);
-        free(codes);
-        /* post upsample single: x_out += conv(x_out), backend BCL staging */
-        if (c->puc_enabled) {
-            char kw[128], kb[128];
-            snprintf(kw, sizeof(kw), "gen.post_upsample_convs.%d.weight", hi);
-            snprintf(kb, sizeof(kb), "gen.post_upsample_convs.%d.bias", hi);
-            float *bcl = arena_alloc((size_t)Bm * Lcur * D);
-            float *cv = arena_alloc((size_t)Bm * Lcur * D);
-            size_t nn = (size_t)Bm * Lcur * D;
-            float *hh2 = (float *)malloc(nn * sizeof(float));
-            d2h(hh2, x_out, nn);
-            float *tb = (float *)malloc(nn * sizeof(float));
-            for (int b = 0; b < Bm; b++) for (int t = 0; t < Lcur; t++) for (int d = 0; d < D; d++)
-                tb[((size_t)b * D + d) * Lcur + t] = hh2[((size_t)b * Lcur + t) * D + d];
-            free(hh2); h2d(bcl, tb, nn); free(tb);
-            conv1d_fwd(bcl, W(ws, kw)->data, W(ws, kb)->data, cv, Bm, D, D, Lcur, c->puc_kernel, 1, c->puc_kernel / 2);
-            float *hc = (float *)malloc(nn * sizeof(float));
-            float *ho = (float *)malloc(nn * sizeof(float));
-            d2h(hc, cv, nn); d2h(ho, x_out, nn);
-            for (size_t i = 0; i < nn; i++) ho[i] += hc[i];
-            free(hc); h2d(x_out, ho, nn); free(ho);
-        }
-        /* x = wte(x_out) + lvl_pos slice */
-        float *xe = arena_alloc((size_t)Bm * Lcur * C);
-        {
-            Tensor *tw = W(ws, "gen.transformer.wte.weight");
-            Tensor *tb = weights_get(ws, "gen.transformer.wte.bias");
-            linear_fwd(x_out, tw->data, tb ? tb->data : NULL, xe, (int64_t)Bm * Lcur, C, D);
-        }
-        {
-            size_t n = (size_t)Bm * Lcur * C;
-            float *h = (float *)malloc(n * sizeof(float));
-            float *hl = (float *)malloc((size_t)Lcur * C * sizeof(float));
-            d2h(h, xe, n);
-            float *hlp = (float *)malloc((size_t)m->T * C * sizeof(float));
-            d2h(hlp, m->lvl_pos, (size_t)m->T * C);
-            for (int b = 0; b < Bm; b++)
-                for (int i = 0; i < Lcur * C; i++)
-                    h[(size_t)b * Lcur * C + i] += hlp[(size_t)(level_accum + i / C) * C + (i % C)];
-            /* NOTE: lvl_pos rows are per target-position; level_accum counts in
-             * target positions — matches level_pos_embed slicing. */
-            free(hl); free(hlp);
-            h2d(xe, h, n); free(h);
-        }
-        /* h = [pemb, xe]; gen mask; run; head */
-        int S = P + Lcur;
-        Tensor *_hhT = tensor_alloc(2, (int64_t[]){(int64_t)Bm * S, C});
-        float *hh = _hhT->data;
-        for (int b = 0; b < Bm; b++) {
-            d2d(hh + (size_t)b * S * C, pemb + (size_t)b * P * C, (size_t)P * C);
-            d2d(hh + ((size_t)b * S + P) * C, xe + (size_t)b * Lcur * C, (size_t)Lcur * C);
-        }
-        float *hbase = (float *)malloc((size_t)S * S * sizeof(float));
-        for (int i = 0; i < S; i++) for (int j = 0; j < S; j++)
-            hbase[i * S + j] = (i < P && j >= P) ? -INFINITY : 0.0f;
-        int V = c->vocab_size[hi];
-        float *hlog_all = (float *)malloc((size_t)Bm * Lcur * V * sizeof(float));
-        for (int b = 0; b < Bm; b++) {
-            arena_reset(); /* per-board temps freed; hh/z_hat/pemb are tensors */
-            if (padcol) for (int i = 0; i < S; i++) for (int j = 0; j < P; j++)
-                if (padcol[b * P + j]) hbase[i * S + j] = -INFINITY;
-            float *bm = arena_alloc((size_t)S * S);
-            h2d(bm, hbase, (size_t)S * S);
-            if (padcol) for (int i = 0; i < S; i++) for (int j = 0; j < P; j++)
-                hbase[i * S + j] = (i < P && j >= P) ? -INFINITY : 0.0f;
-            float *hb = arena_alloc((size_t)S * C);
-            d2d(hb, hh + (size_t)b * S * C, (size_t)S * C);
-            run_stack(m, hb, 1, S, bm, m->gcos[hi], m->gsin[hi]);
-            float *sl = arena_alloc((size_t)Lcur * C);
-            {
-                float *t2 = (float *)malloc((size_t)S * C * sizeof(float));
-                d2h(t2, hb, (size_t)S * C);
-                float *s2 = (float *)malloc((size_t)Lcur * C * sizeof(float));
-                memcpy(s2, t2 + (size_t)P * C, (size_t)Lcur * C * sizeof(float));
-                free(t2); h2d(sl, s2, (size_t)Lcur * C); free(s2);
-            }
-            float *lg = arena_alloc((size_t)Lcur * V);
-            head_logits(m, hi, sl, lg, 1, Lcur);
-            d2h(hlog_all + (size_t)b * Lcur * V, lg, (size_t)Lcur * V);
-        }
-        free(hbase);
-        tensor_free(_hhT);
-        /* CFG blend */
-        float *hlog_use = hlog_all;
-        float *blended = NULL;
-        if (use_cfg) {
-            blended = (float *)malloc((size_t)B * Lcur * V * sizeof(float));
-            double tw = cfg_scale * ((li + 1) / (double)(nlev - 1));
-            for (int b = 0; b < B; b++) for (int t = 0; t < Lcur; t++) for (int v = 0; v < V; v++) {
-                double a = hlog_all[((size_t)b * Lcur + t) * V + v];
-                double n2 = hlog_all[((size_t)(B + b) * Lcur + t) * V + v];
-                blended[((size_t)b * Lcur + t) * V + v] = (float)((1 + tw) * a - tw * n2);
-            }
-            hlog_use = blended;
-        }
-        int Bn = use_cfg ? B : Bm;
-        int *next = (int *)malloc((size_t)Bn * Lcur * sizeof(int));
-        /* sampling state: use first Bn rows */
-        sample_level_rows(m, hlog_use, next, Bn, Lcur, V, temp, top_k, top_p,
-                          freq, mu, adj_a, adj_w, adj_d, allow, &rng,
-                          cntS, histS, histL);
-        free(hlog_all); free(blended);
-        /* store into output; keep model-batch copy for next iter */
-        for (int b = 0; b < B; b++)
-            memcpy(all + (size_t)b * total + out_off, next + (size_t)b * Lcur, Lcur * sizeof(int));
-        out_off += Lcur;
-        if (use_cfg) {
-            cur = (int *)malloc((size_t)Bm * Lcur * sizeof(int));
-            memcpy(cur, next, (size_t)B * Lcur * sizeof(int));
-            memcpy(cur + (size_t)B * Lcur, next, (size_t)B * Lcur * sizeof(int));
-        } else {
-            cur = next; next = NULL;
-        }
-        free(next);
-        level_accum += Lcur;
+        memcpy(codes, g->cur, (size_t)Bm * c->levels[li] * sizeof(int));
+    } else {
+        /* previous iteration stored into all/model buffer: track */
+        memcpy(codes, g->cur, (size_t)Bm * c->levels[li] * sizeof(int));
     }
-    for (int b = 0; b < Bm; b++) { free(cntS[b]); free(histS[b]); }
-    free(cntS); free(histS); free(histL);
-    free(cur); free(mprefix); free(padcol);
-    tensor_free(_zhat); tensor_free(_pembT);
+    free(g->cur); g->cur = NULL;
+    /* autoregressive input */
+    float *x_out = arena_alloc((size_t)Bm * Lcur * D);
+    vq_next_input(vq, codes, li, g->z_hat, x_out, Bm);
+    free(codes);
+    /* post upsample single: x_out += conv(x_out), backend BCL staging */
+    if (c->puc_enabled) {
+        char kw[128], kb[128];
+        snprintf(kw, sizeof(kw), "gen.post_upsample_convs.%d.weight", hi);
+        snprintf(kb, sizeof(kb), "gen.post_upsample_convs.%d.bias", hi);
+        float *bcl = arena_alloc((size_t)Bm * Lcur * D);
+        float *cv = arena_alloc((size_t)Bm * Lcur * D);
+        size_t nn = (size_t)Bm * Lcur * D;
+        float *hh2 = (float *)malloc(nn * sizeof(float));
+        d2h(hh2, x_out, nn);
+        float *tb = (float *)malloc(nn * sizeof(float));
+        for (int b = 0; b < Bm; b++) for (int t = 0; t < Lcur; t++) for (int d = 0; d < D; d++)
+            tb[((size_t)b * D + d) * Lcur + t] = hh2[((size_t)b * Lcur + t) * D + d];
+        free(hh2); h2d(bcl, tb, nn); free(tb);
+        conv1d_fwd(bcl, W(ws, kw)->data, W(ws, kb)->data, cv, Bm, D, D, Lcur, c->puc_kernel, 1, c->puc_kernel / 2);
+        float *hc = (float *)malloc(nn * sizeof(float));
+        float *ho = (float *)malloc(nn * sizeof(float));
+        d2h(hc, cv, nn); d2h(ho, x_out, nn);
+        for (size_t i = 0; i < nn; i++) ho[i] += hc[i];
+        free(hc); h2d(x_out, ho, nn); free(ho);
+    }
+    /* x = wte(x_out) + lvl_pos slice */
+    float *xe = arena_alloc((size_t)Bm * Lcur * C);
+    {
+        Tensor *tw = W(ws, "gen.transformer.wte.weight");
+        Tensor *tb = weights_get(ws, "gen.transformer.wte.bias");
+        linear_fwd(x_out, tw->data, tb ? tb->data : NULL, xe, (int64_t)Bm * Lcur, C, D);
+    }
+    {
+        size_t n = (size_t)Bm * Lcur * C;
+        float *h = (float *)malloc(n * sizeof(float));
+        float *hl = (float *)malloc((size_t)Lcur * C * sizeof(float));
+        d2h(h, xe, n);
+        float *hlp = (float *)malloc((size_t)m->T * C * sizeof(float));
+        d2h(hlp, m->lvl_pos, (size_t)m->T * C);
+        for (int b = 0; b < Bm; b++)
+            for (int i = 0; i < Lcur * C; i++)
+                h[(size_t)b * Lcur * C + i] += hlp[(size_t)(g->level_accum + i / C) * C + (i % C)];
+        /* NOTE: lvl_pos rows are per target-position; level_accum counts in
+         * target positions — matches level_pos_embed slicing. */
+        free(hl); free(hlp);
+        h2d(xe, h, n); free(h);
+    }
+    /* h = [pemb, xe]; gen mask; run; head */
+    int S = P + Lcur;
+    Tensor *_hhT = tensor_alloc(2, (int64_t[]){(int64_t)Bm * S, C});
+    float *hhm = _hhT->data;
+    for (int b = 0; b < Bm; b++) {
+        d2d(hhm + (size_t)b * S * C, g->pemb + (size_t)b * P * C, (size_t)P * C);
+        d2d(hhm + ((size_t)b * S + P) * C, xe + (size_t)b * Lcur * C, (size_t)Lcur * C);
+    }
+    float *hbase = (float *)malloc((size_t)S * S * sizeof(float));
+    for (int i = 0; i < S; i++) for (int j = 0; j < S; j++)
+        hbase[i * S + j] = (i < P && j >= P) ? -INFINITY : 0.0f;
+    int V = c->vocab_size[hi];
+    float *hlog_all = (float *)malloc((size_t)Bm * Lcur * V * sizeof(float));
+    for (int b = 0; b < Bm; b++) {
+        arena_reset(); /* per-board temps freed; hh/z_hat/pemb are tensors */
+        if (g->padcol) for (int i = 0; i < S; i++) for (int j = 0; j < P; j++)
+            if (g->padcol[b * P + j]) hbase[i * S + j] = -INFINITY;
+        float *bm = arena_alloc((size_t)S * S);
+        h2d(bm, hbase, (size_t)S * S);
+        if (g->padcol) for (int i = 0; i < S; i++) for (int j = 0; j < P; j++)
+            hbase[i * S + j] = (i < P && j >= P) ? -INFINITY : 0.0f;
+        float *hb = arena_alloc((size_t)S * C);
+        d2d(hb, hhm + (size_t)b * S * C, (size_t)S * C);
+        run_stack(m, hb, 1, S, bm, m->gcos[hi], m->gsin[hi]);
+        float *sl = arena_alloc((size_t)Lcur * C);
+        {
+            float *t2 = (float *)malloc((size_t)S * C * sizeof(float));
+            d2h(t2, hb, (size_t)S * C);
+            float *s2 = (float *)malloc((size_t)Lcur * C * sizeof(float));
+            memcpy(s2, t2 + (size_t)P * C, (size_t)Lcur * C * sizeof(float));
+            free(t2); h2d(sl, s2, (size_t)Lcur * C); free(s2);
+        }
+        float *lg = arena_alloc((size_t)Lcur * V);
+        head_logits(m, hi, sl, lg, 1, Lcur);
+        d2h(hlog_all + (size_t)b * Lcur * V, lg, (size_t)Lcur * V);
+    }
+    free(hbase);
+    tensor_free(_hhT);
+    /* CFG blend */
+    float *hlog_use = hlog_all;
+    float *blended = NULL;
+    if (use_cfg) {
+        blended = (float *)malloc((size_t)B * Lcur * V * sizeof(float));
+        double tw = cfg_scale * ((li + 1) / (double)(nlev - 1));
+        for (int b = 0; b < B; b++) for (int t = 0; t < Lcur; t++) for (int v = 0; v < V; v++) {
+            double a = hlog_all[((size_t)b * Lcur + t) * V + v];
+            double n2 = hlog_all[((size_t)(B + b) * Lcur + t) * V + v];
+            blended[((size_t)b * Lcur + t) * V + v] = (float)((1 + tw) * a - tw * n2);
+        }
+        hlog_use = blended;
+    }
+    int Bn = use_cfg ? B : Bm;
+    int *next = (int *)malloc((size_t)Bn * Lcur * sizeof(int));
+    /* sampling state: use first Bn rows */
+    sample_level_rows(m, hlog_use, next, Bn, Lcur, V, temp, top_k, top_p,
+                      freq, mu, adj_a, adj_w, adj_d, allow, &g->rng,
+                      g->cntS, g->histS, g->histL);
+    free(hlog_all); free(blended);
+    /* store into output; keep model-batch copy for next iter */
+    for (int b = 0; b < B; b++)
+        memcpy(g->all + (size_t)b * g->total + g->out_off, next + (size_t)b * Lcur, Lcur * sizeof(int));
+    g->out_off += Lcur;
+    if (use_cfg) {
+        g->cur = (int *)malloc((size_t)Bm * Lcur * sizeof(int));
+        memcpy(g->cur, next, (size_t)B * Lcur * sizeof(int));
+        memcpy(g->cur + (size_t)B * Lcur, next, (size_t)B * Lcur * sizeof(int));
+    } else {
+        g->cur = next; next = NULL;
+    }
+    free(next);
+    g->last_n = Lcur;
+    g->level_accum += Lcur;
+}
+
+static int *gen_teardown(NCPGen *g) {
+    int *all = g->all;
+    for (int b = 0; b < g->Bm; b++) { free(g->cntS[b]); free(g->histS[b]); }
+    free(g->cntS); free(g->histS); free(g->histL);
+    free(g->cur); free(g->mprefix); free(g->padcol);
+    tensor_free(g->_zhat); tensor_free(g->_pembT);
+    free(g);
     return all;
+}
+
+static void gen_abort_all(NCPGen *g) {
+    if (g->ml0) { free(g->ml0); g->ml0 = NULL; }
+    int *all = gen_teardown(g);
+    free(all);
+}
+
+NCPGen *ncp_gen_begin(NCPState *m, const int *l0, const int *prefix_ids, int B,
+                      float temp, int top_k, float top_p, float cfg_scale,
+                      float freq, float mu, float adj_a, int adj_w, float adj_d,
+                      const double *allow, unsigned long long seed) {
+    NCPGen *g = (NCPGen *)malloc(sizeof(*g));
+    gen_setup(g, m, l0, prefix_ids, B, temp, top_k, top_p, cfg_scale,
+              freq, mu, adj_a, adj_w, adj_d, allow, seed);
+    return g;
+}
+
+int ncp_gen_nsteps(NCPGen *g) { return g->m->cfg.n_qlevels; }
+
+int ncp_gen_step_size(NCPGen *g, int s) {
+    if (s < 0 || s >= g->m->cfg.n_qlevels) return -1;
+    return g->m->cfg.levels[s];
+}
+
+int ncp_gen_step(NCPGen *g, int *codes_out, int *n_out) {
+    if (g->phase == 2) return 1;
+    if (g->phase == 0) {
+        gen_l0(g); /* sets phase=1, last_n=l0len */
+    } else {
+        if (g->li >= g->m->cfg.n_qlevels - 1) { g->phase = 2; return 1; }
+        gen_level(g, g->li); /* sets last_n=Lcur */
+        g->li++;
+        if (g->li >= g->m->cfg.n_qlevels - 1) g->phase = 2;
+    }
+    if (codes_out) {
+        int off = g->out_off - g->last_n;
+        memcpy(codes_out, g->all + off, (size_t)g->last_n * sizeof(int));
+    }
+    if (n_out) *n_out = g->last_n;
+    return 0;
+}
+
+int *ncp_gen_finish(NCPGen *g) { return gen_teardown(g); }
+
+void ncp_gen_abort(NCPGen *g) { gen_abort_all(g); }
+
+int *ncp_generate(NCPState *m, const int *l0, const int *prefix_ids, int B,
+                  float temp, int top_k, float top_p, float cfg_scale,
+                  float freq, float mu, float adj_a, int adj_w, float adj_d,
+                  const double *allow, unsigned long long seed) {
+    /* Single code path: drive the stepper to completion. */
+    NCPGen *g = ncp_gen_begin(m, l0, prefix_ids, B, temp, top_k, top_p,
+                              cfg_scale, freq, mu, adj_a, adj_w, adj_d,
+                              allow, seed);
+    while (!ncp_gen_step(g, NULL, NULL)) { }
+    return ncp_gen_finish(g);
 }
 
 static int V0_(NCPState *m) { return m->cfg.vocab_size[0]; }

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -19,6 +20,10 @@ static void usage(const char *a) {
         "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE]\n"
         "  %s eval-sudoku --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --inputs inputs.txt --refs refs.txt [--n N]\n"
+        "  %s sudoku-stream --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             --prefix IDS [--seed n] [--step] [--out trace.json]\n"
+        "             (live level-by-level solve events as NDJSON)\n"
+        "  %s sudoku-check --board DIGITS (81 of 1-9; prints validity JSON)\n"
         "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
         "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
         "             [--top-k n] [--top-p f] [--seed n]\n"
@@ -41,7 +46,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -114,6 +119,8 @@ static void dump_sum(const char *name, const float *d, size_t n) {
 
 static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
+static int cmd_sudoku_stream(App *a, int argc, char **argv);
+static int cmd_sudoku_check(int argc, char **argv);
 static int cmd_infer(App *a, const char *ids_csv) {
     int P = a->cfg.prefix_len;
     int T = a->cfg.vq_context_length;
@@ -237,8 +244,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -255,6 +262,13 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "eval-sudoku") == 0) {
         app_load(&a, conf, weights, adir);
         return cmd_eval_sudoku(&a, argc, argv);
+    }
+    if (strcmp(argv[1], "sudoku-stream") == 0) {
+        app_load(&a, conf, weights, adir);
+        return cmd_sudoku_stream(&a, argc, argv);
+    }
+    if (strcmp(argv[1], "sudoku-check") == 0) {
+        return cmd_sudoku_check(argc, argv);
     }
     if (strcmp(argv[1], "gpt2-gen") == 0) {
         const char *prompt = opt(&argc, &argv, "--prompt");
@@ -641,5 +655,225 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
            exact, n, 100.0 * exact / n, cell / n, validn, n, 100.0 * validn / n);
     free(prefix); free(l0); free(ilines); free(rlines); free(ibuf); free(rbuf);
     free(l0p); free(allow);
+    return 0;
+}
+
+static double stream_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
+}
+
+/* full-board validity + offending units (rows/cols/boxes with a repeat).
+ * cells: 81 chars of '1'..'9'. Returns 1 when valid. */
+static int stream_bad_units(const char *cells, int *br, int *nb_r,
+                            int *bc, int *nb_c, int *bb, int *nb_b) {
+    int ok = 1;
+    *nb_r = *nb_c = *nb_b = 0;
+    for (int r = 0; r < 9; r++) {
+        int seen[10] = {0}, dup = 0;
+        for (int c = 0; c < 9; c++) {
+            int d = cells[r * 9 + c] - '0';
+            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+            seen[d] = 1;
+        }
+        if (dup) { br[(*nb_r)++] = r; ok = 0; }
+    }
+    for (int c = 0; c < 9; c++) {
+        int seen[10] = {0}, dup = 0;
+        for (int r = 0; r < 9; r++) {
+            int d = cells[r * 9 + c] - '0';
+            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+            seen[d] = 1;
+        }
+        if (dup) { bc[(*nb_c)++] = c; ok = 0; }
+    }
+    for (int br0 = 0; br0 < 3; br0++) for (int bc0 = 0; bc0 < 3; bc0++) {
+        int seen[10] = {0}, dup = 0;
+        for (int r = 0; r < 3 && !dup; r++) for (int c = 0; c < 3; c++) {
+            int d = cells[(br0 * 3 + r) * 9 + bc0 * 3 + c] - '0';
+            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+            seen[d] = 1;
+        }
+        if (dup) { bb[(*nb_b)++] = br0 * 3 + bc0; ok = 0; }
+    }
+    return ok;
+}
+
+static void stream_json_ints(FILE *f, const int *xs, int n) {
+    fputc('[', f);
+    for (int i = 0; i < n; i++) fprintf(f, "%s%d", i ? "," : "", xs[i]);
+    fputc(']', f);
+}
+
+/* sudoku-stream: live level-by-level solve as NDJSON (one object per line).
+ * B=1. Drives the NCPGen stepper so each event follows a real model step;
+ * --step waits for a stdin line after each level (EOF runs to completion).
+ * --out FILE tees the same NDJSON for replay. Codes here are model codes,
+ * not cell deductions — the UI must present them as such. */
+static int cmd_sudoku_stream(App *a, int argc, char **argv) {
+    const char *prefix_s = opt(&argc, &argv, "--prefix");
+    const char *ss = opt(&argc, &argv, "--seed");
+    const char *outp = opt(&argc, &argv, "--out");
+    int step = 0;
+    for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--step")) step = 1;
+    if (!prefix_s) { fprintf(stderr, "sudoku-stream needs --prefix IDS (91 ids)\n"); return 2; }
+    int P = a->cfg.prefix_len;
+    int *prefix = (int *)malloc((size_t)P * sizeof(int));
+    int np = parse_ids(prefix_s, prefix, P);
+    if (np != P) {
+        fprintf(stderr, "sudoku-stream: need exactly %d prefix ids, got %d\n", P, np);
+        free(prefix);
+        return 2;
+    }
+    /* structural check: 11 | 9 cells | 10 ... | 9 cells | 11 */
+    if (prefix[0] != 11 || prefix[P - 1] != 11) {
+        fprintf(stderr, "sudoku-stream: bad prefix framing (want 11 ... 11)\n");
+        free(prefix);
+        return 2;
+    }
+    char clues[82];
+    for (int r = 0; r < 9; r++) {
+        if (r < 8 && prefix[10 + r * 10] != 10) {
+            fprintf(stderr, "sudoku-stream: bad row separator at prefix[%d]\n", 10 + r * 10);
+            free(prefix);
+            return 2;
+        }
+        for (int c = 0; c < 9; c++) {
+            int id = prefix[1 + r * 10 + c];
+            if (id < 0 || id > 9) {
+                fprintf(stderr, "sudoku-stream: bad cell id %d at row %d col %d\n", id, r, c);
+                free(prefix);
+                return 2;
+            }
+            clues[r * 9 + c] = id ? (char)('0' + id) : '.';
+        }
+    }
+    clues[81] = 0;
+    int na = 0;
+    double *allow = load_allow(&a->ws, "inference.token_unigram", &na);
+    unsigned long long seed = ss ? strtoull(ss, NULL, 10) : 0;
+    NCPGen *g = ncp_gen_begin(a->ncp, NULL, prefix, 1, 0.0, 0, 1.0, 0.0,
+                              0.0, 0.0, 0.0, 0, 0.0, allow, seed);
+    int nsteps = ncp_gen_nsteps(g);
+    int maxn = 0;
+    for (int s = 0; s < nsteps; s++) {
+        int sz = ncp_gen_step_size(g, s);
+        if (sz > maxn) maxn = sz;
+    }
+#ifdef NCM_CUDA
+    const char *backend = "cuda";
+#else
+    const char *backend = "cpu";
+#endif
+    FILE *tf = NULL;
+    if (outp) {
+        tf = fopen(outp, "w");
+        if (!tf) { fprintf(stderr, "sudoku-stream: cannot open %s\n", outp); return 1; }
+    }
+    printf("{\"type\":\"header\",\"mode\":\"live\",\"model\":\"%s\",\"backend\":\"%s\","
+           "\"steps\":%d,\"sizes\":[",
+           a->cfg.task, backend, nsteps);
+    for (int s = 0; s < nsteps; s++) printf("%s%d", s ? "," : "", ncp_gen_step_size(g, s));
+    printf("],\"prefix_len\":%d}\n", P);
+    fflush(stdout);
+    if (tf) {
+        fprintf(tf, "{\"type\":\"header\",\"mode\":\"live\",\"model\":\"%s\",\"backend\":\"%s\","
+                "\"steps\":%d,\"sizes\":[",
+                a->cfg.task, backend, nsteps);
+        for (int s = 0; s < nsteps; s++) fprintf(tf, "%s%d", s ? "," : "", ncp_gen_step_size(g, s));
+        fprintf(tf, "],\"prefix_len\":%d}\n", P);
+    }
+    double t0 = stream_now_ms();
+    int *codes = (int *)malloc((size_t)(maxn > 0 ? maxn : 1) * sizeof(int));
+    int interactive = step, rc = 0;
+    char linebuf[64];
+    for (int s = 0; s < nsteps; s++) {
+        double st = stream_now_ms();
+        int n = 0;
+        if (ncp_gen_step(g, codes, &n)) {
+            fprintf(stderr, "sudoku-stream: stepper ended early at step %d\n", s);
+            rc = 1;
+            break;
+        }
+        double ms = stream_now_ms() - st;
+        printf("{\"type\":\"level\",\"step\":%d,\"size\":%d,\"ms\":%.1f,\"codes\":", s, n, ms);
+        stream_json_ints(stdout, codes, n);
+        printf("}\n");
+        fflush(stdout);
+        if (tf) {
+            fprintf(tf, "{\"type\":\"level\",\"step\":%d,\"size\":%d,\"ms\":%.1f,\"codes\":", s, n, ms);
+            stream_json_ints(tf, codes, n);
+            fprintf(tf, "}\n");
+            fflush(tf);
+        }
+        if (interactive && !fgets(linebuf, sizeof(linebuf), stdin)) interactive = 0;
+    }
+    int *all = NULL;
+    if (!rc) {
+        all = ncp_gen_finish(g);
+        g = NULL;
+    } else {
+        ncp_gen_abort(g);
+        g = NULL;
+    }
+    double elapsed = stream_now_ms() - t0;
+    if (!rc) {
+        char *txt = decode_board(a, all);
+        char board[128];
+        sudoku_cells(txt, board);
+        free(txt); free(all);
+        int valid = 0;
+        int br[9], bc[9], bb[9], nr = 0, nc = 0, nb = 0;
+        if (strlen(board) == 81) valid = stream_bad_units(board, br, &nr, bc, &nc, bb, &nb);
+        printf("{\"type\":\"done\",\"board\":\"%s\",\"clues\":\"%s\",\"elapsed_ms\":%.1f,"
+               "\"valid\":%s,\"bad_rows\":",
+               board, clues, elapsed, valid ? "true" : "false");
+        stream_json_ints(stdout, br, nr);
+        printf(",\"bad_cols\":");
+        stream_json_ints(stdout, bc, nc);
+        printf(",\"bad_boxes\":");
+        stream_json_ints(stdout, bb, nb);
+        printf("}\n");
+        fflush(stdout);
+        if (tf) {
+            fprintf(tf, "{\"type\":\"done\",\"board\":\"%s\",\"clues\":\"%s\",\"elapsed_ms\":%.1f,"
+                    "\"valid\":%s,\"bad_rows\":",
+                    board, clues, elapsed, valid ? "true" : "false");
+            stream_json_ints(tf, br, nr);
+            fprintf(tf, ",\"bad_cols\":");
+            stream_json_ints(tf, bc, nc);
+            fprintf(tf, ",\"bad_boxes\":");
+            stream_json_ints(tf, bb, nb);
+            fprintf(tf, "}\n");
+        }
+    }
+    if (tf) fclose(tf);
+    free(codes); free(prefix); free(allow);
+    return rc;
+}
+
+/* sudoku-check: validity query for an 81-char board (no model involved). */
+static int cmd_sudoku_check(int argc, char **argv) {
+    const char *b = opt(&argc, &argv, "--board");
+    if (!b || strlen(b) != 81) {
+        fprintf(stderr, "sudoku-check needs --board with 81 chars of 1-9\n");
+        return 2;
+    }
+    for (int i = 0; i < 81; i++) {
+        if (b[i] < '1' || b[i] > '9') {
+            fprintf(stderr, "sudoku-check: bad char at %d (want 1-9)\n", i);
+            return 2;
+        }
+    }
+    int br[9], bc[9], bb[9], nr, nc, nb;
+    int valid = stream_bad_units(b, br, &nr, bc, &nc, bb, &nb);
+    printf("{\"valid\":%s,\"bad_rows\":", valid ? "true" : "false");
+    stream_json_ints(stdout, br, nr);
+    printf(",\"bad_cols\":");
+    stream_json_ints(stdout, bc, nc);
+    printf(",\"bad_boxes\":");
+    stream_json_ints(stdout, bb, nb);
+    printf("}\n");
     return 0;
 }
