@@ -897,14 +897,22 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
              t->lr, t->warmup, t->total, B, noise_sd, tokid,
              data_path, o.conf_path ? o.conf_path : "");
     int rc = 0;
-    /* live native viewer (explicit --view only; read-only snapshots, so
-     * numerics and determinism are identical with or without it) */
-    int view_on = 0;
+    /* live viewer (explicit --view only; read-only snapshots, so numerics
+     * and determinism are identical with or without it). 1 = SDL window,
+     * 2 = console (synchronous ANSI redraw, works headless/piped). */
+    int view_on = 0, view_mode = 0;
     struct timespec vt0;
-    if (o.view) {
+    if (o.view == 2) {
         char vtitle[128];
         snprintf(vtitle, sizeof(vtitle), "CNCM train %s", c.task);
-        if (viewer_open(vtitle) == 0) view_on = 1;
+        con_viewer_open(vtitle);
+        view_on = 1;
+        view_mode = 2;
+        clock_gettime(CLOCK_MONOTONIC, &vt0);
+    } else if (o.view) {
+        char vtitle[128];
+        snprintf(vtitle, sizeof(vtitle), "CNCM train %s", c.task);
+        if (viewer_open(vtitle) == 0) { view_on = 1; view_mode = 1; }
         else fprintf(stderr, "[train] viewer: no display/SDL2, continuing headless\n");
         clock_gettime(CLOCK_MONOTONIC, &vt0);
     }
@@ -962,15 +970,16 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
 #else
             snprintf(vs.backend, sizeof(vs.backend), "cpu");
 #endif
-            snprintf(vs.status, sizeof(vs.status), "training B=%d", B);
-            vs.ckpt = (completed % ckpt_every == 0 || completed == target) ? 1 : 0;
-            viewer_push(&vs);
-            if (viewer_stop_requested()) {
-                printf("[train] stopped by viewer (step %ld)\n", completed);
-                fflush(stdout);
-                break;
-            }
+        snprintf(vs.status, sizeof(vs.status), "training B=%d", B);
+        vs.ckpt = (completed % ckpt_every == 0 || completed == target) ? 1 : 0;
+        if (view_mode == 2) con_viewer_push(&vs);
+        else viewer_push(&vs);
+        if (view_mode == 1 && viewer_stop_requested()) {
+            printf("[train] stopped by viewer (step %ld)\n", completed);
+            fflush(stdout);
+            break;
         }
+    }
         const char *save_path = NULL;
         char rot[256];
         if (completed % ckpt_every == 0 || completed == target) {
@@ -1005,8 +1014,8 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
         fflush(stdout);
     }
     view_cap_on = 0;
-    viewer_hold();
-    viewer_close();
+    if (view_mode == 2) con_viewer_close();
+    else { viewer_hold(); viewer_close(); }
     free(pbuf); free(cbuf);
     free(d->rows); free(d);
     return rc;

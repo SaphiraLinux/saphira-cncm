@@ -379,6 +379,11 @@ void viewer_close(void);
 int viewer_active(void);
 int viewer_font_test_bmp(const char *path); /* test/diagnostic helper */
 int viewer_test_frame_bmp(const char *path, int mode); /* full-frame render test */
+/* Console viewer (viewer.c, ANSI, synchronous, no threads). Always
+ * available: works headless, over SSH, and when piped (compact lines). */
+int con_viewer_open(const char *title);
+void con_viewer_push(const ViewSnap *s);
+void con_viewer_close(void);
 
 typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
 

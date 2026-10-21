@@ -520,3 +520,201 @@ int viewer_active(void) { return 0; }
 int viewer_font_test_bmp(const char *path) { (void)path; return 2; }
 int viewer_test_frame_bmp(const char *path, int mode) { (void)path; (void)mode; return 2; }
 #endif /* CNCM_HAVE_SDL2 */
+
+/* ---------------- console viewer (ANSI terminal, no threads) ----------------
+ * Synchronous redraw on every push: no window system, no compositor, no
+ * background thread, nothing to stall. Safe over SSH, tmux, pipes, CI.
+ * On a tty the frame redraws in place; piped output is one compact line
+ * per snapshot (still complete: board shown on solve completion). */
+#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
+#define CNCM_HAVE_UNISTD 1
+#endif
+#ifdef CNCM_HAVE_UNISTD
+#include <unistd.h>
+#include <sys/ioctl.h>
+#endif
+
+static int con_active;
+static int con_tty;
+static int con_lines;
+static int con_width = 80;
+static double con_hist[VHIST];
+static int con_hn;
+static int con_last_step = -1;
+
+/* NOTE: console output is plain text by design (no ANSI colors), so it is
+ * greppable, pipe-safe, and identical under NO_COLOR. Structure (grid
+ * lines, !bad! markers, [tui]/VALID keywords) carries the meaning. */
+
+static int con_term_width(void) {
+#ifdef CNCM_HAVE_UNISTD
+    struct winsize w;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 20)
+        return w.ws_col;
+#endif
+    return 80;
+}
+
+int con_viewer_open(const char *title) {
+    if (con_active) return 0;
+    con_tty = 0;
+#ifdef CNCM_HAVE_UNISTD
+    con_tty = isatty(STDOUT_FILENO);
+#endif
+    if (con_tty) con_width = con_term_width();
+    con_active = 1;
+    con_lines = 0;
+    con_hn = 0;
+    con_last_step = -1;
+    printf("CNCM console view: %s\n", title ? title : "cncm");
+    fflush(stdout);
+    con_lines = 1;
+    return 0;
+}
+
+/* one board line into buf (<= 64 chars): cells with | separators */
+static void con_board_row(const ViewSnap *s, int r, char *out) {
+    int p = 0;
+    for (int c = 0; c < 9; c++) {
+        char ch = '.';
+        int is_clue = 0;
+        if (s->clues[0] && s->clues[r * 9 + c] != '.' && s->clues[r * 9 + c] != 0) {
+            ch = s->clues[r * 9 + c];
+            is_clue = 1;
+        } else if (s->board[0] && s->board[r * 9 + c] >= '1' && s->board[r * 9 + c] <= '9') {
+            ch = s->board[r * 9 + c];
+        }
+        int bad = 0;
+        for (int k = 0; k < s->nr; k++) if (s->bad_r[k] == r) bad = 1;
+        for (int k = 0; k < s->nc; k++) if (s->bad_c[k] == c) bad = 1;
+        for (int k = 0; k < s->nb; k++)
+            if (s->bad_b[k] == (r / 3) * 3 + c / 3) bad = 1;
+        if (bad) out[p++] = '!';
+        out[p++] = is_clue ? ch : (ch == '.' ? '.' : ch);
+        if (bad) out[p++] = '!';
+        if (c == 2 || c == 5) { out[p++] = ' '; out[p++] = '|'; out[p++] = ' '; }
+        else if (c < 8) out[p++] = ' ';
+    }
+    out[p] = 0;
+}
+
+/* ascii sparkline of recent values into buf (width w) */
+static void con_spark(const double *v, int n, int w, char *out) {
+    static const char *levels = " .:-=+*#%@";
+    if (n <= 0) { out[0] = 0; return; }
+    double mn = v[0], mx = v[0];
+    for (int i = 1; i < n; i++) {
+        if (v[i] < mn) mn = v[i];
+        if (v[i] > mx) mx = v[i];
+    }
+    if (mx - mn < 1e-9) { mn -= 0.5; mx += 0.5; }
+    int m = n < w ? n : w;
+    int start = n - m;
+    for (int i = 0; i < m; i++) {
+        double f = (v[start + i] - mn) / (mx - mn);
+        int li = (int)(f * 9.0 + 0.5);
+        if (li < 0) li = 0;
+        if (li > 9) li = 9;
+        out[i] = levels[li];
+    }
+    out[m] = 0;
+}
+
+static void con_emit_line(const char *s) {
+    int n = (int)strlen(s);
+    if (n > con_width) n = con_width;
+    fwrite(s, 1, (size_t)n, stdout);
+    fputc('\n', stdout);
+}
+
+void con_viewer_push(const ViewSnap *s) {
+    char line[256], spark[128], brow[80];
+    if (!con_active || !s) return;
+    if (s->mode == 0 && s->step != con_last_step) {
+        con_last_step = s->step;
+        if (con_hn < VHIST) con_hist[con_hn++] = s->loss;
+        else {
+            memmove(con_hist, con_hist + 1, (VHIST - 1) * sizeof(double));
+            con_hist[VHIST - 1] = s->loss;
+        }
+    }
+    if (!con_tty) {
+        /* piped: one compact, greppable line per snapshot */
+        if (s->mode == 0)
+            printf("[tui] train step %d/%d loss=%.4f acc=%.3f lr=%.2g t=%.1fs%s\n",
+                   s->step, s->total, s->loss, s->acc, s->lr, s->elapsed,
+                   s->ckpt ? " ckpt" : "");
+        else if (s->board[0])
+            printf("[tui] solve done valid=%d elapsed=%.1fs board=%s\n",
+                   s->valid, s->elapsed, s->board);
+        else
+            printf("[tui] solve level %d/%d\n", s->step, s->total);
+        fflush(stdout);
+        return;
+    }
+    /* tty: move up over the last frame, redraw in place */
+    if (con_lines > 0) printf("\x1b[%dA", con_lines);
+    int n = 0;
+    snprintf(line, sizeof(line), "CNCM %s [%s]  step %d/%d  t=%.1fs",
+             s->mode == 0 ? "train" : "solve", s->backend[0] ? s->backend : "?",
+             s->step, s->total, s->elapsed);
+    con_emit_line(line);
+    n = 1;
+    for (int r = 0; r < 9; r++) {
+        con_board_row(s, r, brow);
+        if (r == 0) {
+            char tmp[128];
+            if (s->mode == 0)
+                snprintf(tmp, sizeof(tmp), "loss %.4f  acc %.3f", s->loss, s->acc);
+            else
+                snprintf(tmp, sizeof(tmp), "level %d/%d  valid %s", s->step, s->total,
+                         s->board[0] ? (s->valid ? "YES" : "NO") : "-");
+            snprintf(line, sizeof(line), "%-21s %s", brow, tmp);
+        } else if (r == 3) {
+            con_spark(con_hist, con_hn, 28, spark);
+            snprintf(line, sizeof(line), "%-21s loss %s", brow, con_hn > 1 ? spark : "-");
+        } else if (r == 6) {
+            char bars[64];
+            int bi = 0;
+            if (s->mode == 0) {
+                for (int k = 0; k < s->nlv && k < 12 && bi < (int)sizeof(bars) - 1; k++) {
+                    int fl = (int)(s->lvl_acc[k] * 9.0 + 0.5);
+                    if (fl < 0) fl = 0;
+                    if (fl > 9) fl = 9;
+                    bars[bi++] = " .:-=+*#%@"[fl];
+                }
+            } else {
+                for (int k = 0; k < s->nlv && bi < (int)sizeof(bars) - 1; k++)
+                    bars[bi++] = (k < s->lvl_done_count) ? '#' : '.';
+            }
+            bars[bi] = 0;
+            if (s->mode == 0)
+                snprintf(line, sizeof(line), "%-21s acc [%s]%s", brow, bars,
+                         s->ckpt ? " CKPT" : "");
+            else
+                snprintf(line, sizeof(line), "%-21s lv [%s]", brow, bars);
+        } else {
+            snprintf(line, sizeof(line), "%s", brow);
+        }
+        con_emit_line(line);
+        n++;
+        if (r == 2 || r == 5) {
+            con_emit_line("------+-------+-------");
+            n++;
+        }
+    }
+    snprintf(line, sizeof(line), "%s", s->status);
+    con_emit_line(line);
+    n++;
+    printf("\x1b[J");
+    fflush(stdout);
+    con_lines = n;
+}
+
+void con_viewer_close(void) {
+    if (!con_active) return;
+    con_active = 0;
+    if (con_tty) printf("\n[viewer done]\n");
+    fflush(stdout);
+    con_lines = 0;
+}

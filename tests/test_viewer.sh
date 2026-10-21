@@ -55,7 +55,9 @@ done < "$FIX"
 [ "$GOLD_OK" = 1 ] || { echo "--- stream stderr:"; tail -3 "$WORK/stream.err"; }
 
 # ---------- 2. streamed board == gen board (genuineness) ----------
+# fixture line 2 <-> refs.txt line 2 (same puzzle)
 seed=7; prefix="$(sed -n '2p' "$FIX" | awk '{print $2}')"
+refboard="$(sed -n '2p' "$FIX" | awk '{print $3}')"
 sboard="$("$BIN" sudoku-stream --conf "$CONF" --weights "$W0" --asset-dir "$ADIR" \
   --prefix "$prefix" --seed "$seed" 2>/dev/null | tail -1 | \
   python3 -c "import json,sys; print(json.load(sys.stdin)['board'])")"
@@ -144,12 +146,84 @@ on_loss="$(grep -o 'loss [0-9.]*' "$WORK/on.log" | tr '\n' ' ')"
   || fail "loss drift: off='$off_loss' on='$on_loss'"
 if cmp -s "$WORK/off.nckpt" "$WORK/on.nckpt"; then pass "viewer on/off ckpt identical"; else
   fail "ckpt drift with viewer"; fi
+"$BIN" train --conf "$CONF" --weights "$W0" --data "$DATA" \
+  --steps 2 --ckpt-every 2 --ckpt-out "$WORK/tv.nckpt" --view=text >"$WORK/tv.log" 2>&1
+[ $? -eq 0 ] && pass "train --view=text completes" || { fail "train --view=text exit"; tail -3 "$WORK/tv.log"; }
+tv_loss="$(grep -o 'loss [0-9.]*' "$WORK/tv.log" | tr '\n' ' ')"
+[ "$tv_loss" = "$off_loss" ] && [ -n "$tv_loss" ] \
+  && pass "console viewer loss identical ($tv_loss)" \
+  || fail "console loss drift: off='$off_loss' text='$tv_loss'"
+grep -q '^\[tui\] train' "$WORK/tv.log" \
+  && pass "console train emits live lines" || fail "no console train output"
+rm -f "$WORK/off.nckpt" "$WORK/on.nckpt" "$WORK/tv.nckpt"
 
 # ---------- 8. gen --view completes with the same board ----------
 vboard="$("$BIN" gen --conf "$CONF" --weights "$W0" --asset-dir "$ADIR" \
   --prefix "$prefix" --seed "$seed" --view 2>/dev/null | tail -1 | tr -d '|')"
 [ "$vboard" = "$gboard" ] && pass "gen --view same board" \
   || fail "gen --view: ${vboard:0:18} vs ${gboard:0:18}"
+
+# ---------- 9. console viewer (--view=text): live progress, no replay ----
+cvtrace="$("$BIN" gen --conf "$CONF" --weights "$W0" --asset-dir "$ADIR" \
+  --prefix "$prefix" --seed "$seed" --view=text 2>/dev/null | tee "$WORK/console.log" | grep -c '^\[tui\]')"
+[ "$cvtrace" -ge 14 ] && pass "console viewer emits live stream ($cvtrace tui lines)" \
+  || { fail "console stream too short ($cvtrace)"; tail -3 "$WORK/console.log"; }
+grep -q '^\[tui\] solve level 12/12' "$WORK/console.log" \
+  && pass "console shows all 12 levels" || fail "console missing levels"
+grep -q '^\[tui\] solve done valid=1 .* board='"$gboard" "$WORK/console.log" \
+  && pass "console done+valid+board matches gen" \
+  || fail "console done line wrong"
+# ---------- 10. unsolvable input: explicit failure, nonzero exit ----------
+# duplicate the first given digit into another empty cell of row 0, so no
+# valid completion exists; the model must NOT be reported as successful
+badprefix="$(python3 -c "
+import sys
+p = sys.argv[1].split(',')
+cells = [i for i in range(1, 1 + 9) if p[i] != '0']
+assert len(cells) >= 2, p[1:10]
+p[cells[1]] = p[cells[0]]
+print(','.join(p))" "$prefix")"
+"$BIN" gen --conf "$CONF" --weights "$W0" --asset-dir "$ADIR" \
+  --prefix "$badprefix" --seed "$seed" --view=text >"$WORK/bad.log" 2>"$WORK/bad.err"
+[ $? -ne 0 ] && pass "contradictory puzzle exits nonzero" \
+  || fail "contradictory puzzle exited 0"
+# the core safety property: a contradictory puzzle must NEVER be reported
+# as valid, however the failure surfaces (clean invalid board with flagged
+# cells, or, rarely on device, an undecodable board)
+if grep -q 'valid=1' "$WORK/bad.log"; then
+  fail "false valid=1"
+elif grep -q 'valid=0' "$WORK/bad.log"; then
+  pass "contradictory puzzle reported invalid"
+elif grep -q 'no complete board' "$WORK/bad.err"; then
+  pass "contradictory puzzle reported undecodable"
+else
+  fail "no invalid report (silent failure)"
+fi
+# either explicit failure message is an honest failure report
+if grep -qE 'failed validation|no complete board' "$WORK/bad.err"; then
+  pass "contradictory puzzle explicit failure"
+else
+  fail "no explicit failure"
+fi
+# the final board must equal the verified reference solution
+# (independent check: refs.txt decoded directly, not via the model)
+ref="$(python3 -c "
+import sys
+ids = [int(x) for x in open(sys.argv[1]).readlines()[1].split(',')]
+print(''.join(str(d) for d in ids if d != 10))" "$REPO/weights/sudoku-easy/refs.txt")"
+[ "$gboard" = "$ref" ] && [ "$refboard" = "$ref" ] && pass "solution matches reference" \
+  || fail "solution differs from reference (gen=$gboard ref=$ref)"
+# every non-zero clue of the input must survive in the solution
+python3 - "$prefix" "$gboard" <<'EOF' | grep -q CLUES-OK \
+  && pass "clues preserved" || fail "clue violated"
+import sys
+pre = [int(x) for x in sys.argv[1].split(',')]
+cells = []
+for r in range(9):
+    cells.extend(pre[1 + r * 10:1 + r * 10 + 9])
+sol = sys.argv[2]
+print("CLUES-OK" if all(c == 0 or str(c) == s for c, s in zip(cells, sol)) else "CLUES-BAD")
+EOF
 
 if [ "$NFAIL" = 0 ]; then echo "ALL VIEWER TESTS PASSED (work=$WORK)"; else
   echo "VIEWER-FAIL ($NFAIL)"; fi

@@ -17,7 +17,7 @@ static void usage(const char *a) {
         "  %s infer   --conf M.conf --weights M.ncm --asset-dir D --ids 1,2,3..\n"
         "  %s gen     --conf M.conf --weights M.ncm --asset-dir D [--prefix IDS|TEXT]\n"
         "             [--temp f] [--top-k n] [--top-p f] [--cfg f] [--freq f] [--mu f]\n"
-        "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE] [--view]\n"
+        "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE] [--view[=text]]\n"
         "  %s eval-sudoku --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --inputs inputs.txt --refs refs.txt [--n N]\n"
         "  %s sudoku-stream --conf M.conf --weights M.ncm --asset-dir D\n"
@@ -42,7 +42,7 @@ static void usage(const char *a) {
         "             --prompt TEXT [--tokens N] (taped vs reference parity)\n"
         "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
-        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S] [--view]\n"
+        "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S] [--view[=text]]\n"
         "  %s train-qwen --conf Q.conf --weights Q.ncm --data rows.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
         "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
@@ -59,6 +59,37 @@ static const char *opt(int *argc, char ***argv, const char *flag) {
     for (int i = 1; i < *argc - 1; i++)
         if (strcmp((*argv)[i], flag) == 0) v = (*argv)[i + 1];
     return v;
+}
+/* viewer mode: 0 = off, 1 = SDL window (--view), 2 = console (--view=text).
+ * Unknown --view= values fall back to the SDL window. */
+static int g_view_mode; /* active backend for vpush/vstop/vholdclose below */
+static void vpush(const ViewSnap *s) {
+    if (g_view_mode == 2) con_viewer_push(s);
+    else viewer_push(s);
+}
+static int vstop(void) {
+    return g_view_mode == 1 ? viewer_stop_requested() : 0;
+}
+static void vholdclose(void) {
+    if (g_view_mode == 2) con_viewer_close();
+    else { viewer_hold(); viewer_close(); }
+}
+static void vabortclose(void) {
+    if (g_view_mode == 2) con_viewer_close();
+    else viewer_close();
+}
+static int view_mode(int argc, char **argv) {
+    int m = 0;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--view")) m = 1;
+        else if (!strncmp(argv[i], "--view=", 7)) {
+            const char *v = argv[i] + 7;
+            if (!strcmp(v, "text") || !strcmp(v, "console") ||
+                !strcmp(v, "con") || !strcmp(v, "tty")) m = 2;
+            else m = 1;
+        }
+    }
+    return m;
 }
 
 typedef struct {
@@ -129,6 +160,10 @@ static double stream_now_ms(void);
 static void sudoku_cells(const char *s, char *out);
 static int stream_bad_units(const char *cells, int *br, int *nb_r,
                             int *bc, int *nb_c, int *bb, int *nb_b);
+static int stream_check_clues(const char *cells, const char *clues,
+                              int *br, int *nb_r,
+                              int *bc, int *nb_c,
+                              int *bb, int *nb_b);
 static int cmd_infer(App *a, const char *ids_csv) {
     int P = a->cfg.prefix_len;
     int T = a->cfg.vq_context_length;
@@ -373,9 +408,8 @@ int main(int argc, char **argv) {
         const char *ckptevery = opt(&argc, &argv, "--ckpt-every");
         const char *total = opt(&argc, &argv, "--total");
         const char *tokid = opt(&argc, &argv, "--tokenizer-id");
-        int viewf = 0;
-        for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--view")) viewf = 1;
-        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S] [--view]\n"); return 2; }
+        int viewm = view_mode(argc, argv);
+        if (!data) { fprintf(stderr, "train needs --data <file.nctrain> [--steps N] [--lr f] [--resume ckpt.nckpt] [--ckpt-out f] [--ckpt-every N] [--total T] [--tokenizer-id S] [--view[=text]]\n"); return 2; }
         if (!conf || !weights) usage(argv[1]);
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
@@ -388,7 +422,7 @@ int main(int argc, char **argv) {
         to.sched_total = total ? atof(total) : 0.0;
         to.conf_path = conf;
         to.tokenizer_id = tokid;
-        to.view = viewf;
+        to.view = viewm;
         return train_run_ex(&cfg, weights, data, steps ? atoi(steps) : 200,
                             lr ? atof(lr) : 0.0, &to);
     }
@@ -580,10 +614,12 @@ static int cmd_gen(App *a, int argc, char **argv) {
     }
     int na = 0;
     double *allow = load_allow(&a->ws, "inference.token_unigram", &na);
-    int viewf = 0;
-    for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--view")) viewf = 1;
+    int viewm = view_mode(argc, argv);
+    g_view_mode = 0;
     int *codes = NULL;
-    if (viewf && viewer_open("CNCM solve") == 0) {
+    if (viewm == 2) { con_viewer_open("CNCM solve"); g_view_mode = 2; }
+    else if (viewm == 1 && viewer_open("CNCM solve") == 0) { g_view_mode = 1; }
+    if (g_view_mode) {
         /* live solve: drive the stepper so each pushed level follows a
          * real model forward; board 0 shown (B>1 displays board 0). */
         ViewSnap vs0;
@@ -597,7 +633,7 @@ static int cmd_gen(App *a, int argc, char **argv) {
         snprintf(vs0.backend, sizeof(vs0.backend), "cpu");
 #endif
         snprintf(vs0.status, sizeof(vs0.status), "solving B=%d", B);
-        viewer_push(&vs0);
+        vpush(&vs0);
         NCPGen *gg = ncp_gen_begin(a->ncp, have_l0 ? l0 : NULL, prefix, B,
                                    g.temp, g.top_k, g.top_p, g.cfg, g.freq,
                                    g.mu, g.adj_a, g.adj_w, g.adj_d,
@@ -613,11 +649,11 @@ static int cmd_gen(App *a, int argc, char **argv) {
         }
         int *one = (int *)malloc((size_t)(mx > 0 ? mx : 1) * sizeof(int));
         double t0s = stream_now_ms();
-        int aborted = 0;
+        int aborted = 0; /* 1 = user stopped (SDL close), 2 = stepper failure */
         for (int s = 0; s < ns; s++) {
             double st = stream_now_ms();
             int n = 0;
-            if (ncp_gen_step(gg, one, &n)) { aborted = 1; break; }
+            if (ncp_gen_step(gg, one, &n)) { aborted = 2; break; }
             double ms = stream_now_ms() - st;
             ViewSnap vs;
             memset(&vs, 0, sizeof(vs));
@@ -637,13 +673,18 @@ static int cmd_gen(App *a, int argc, char **argv) {
 #endif
             vs.elapsed = (stream_now_ms() - t0s) / 1000.0;
             snprintf(vs.status, sizeof(vs.status), "level %d/%d", s + 1, ns);
-            viewer_push(&vs);
-            if (viewer_stop_requested()) { aborted = 1; break; }
+            vpush(&vs);
+            if (vstop()) { aborted = 1; break; }
         }
         free(one);
         if (aborted) {
             ncp_gen_abort(gg);
-            viewer_close();
+            vabortclose();
+            if (aborted == 2) {
+                fprintf(stderr, "gen: stepper failed before completion\n");
+                free(allow); free(l0); free(prefix);
+                return 2;
+            }
             printf("gen: stopped\n");
             free(allow); free(l0); free(prefix);
             return 0;
@@ -666,6 +707,13 @@ static int cmd_gen(App *a, int argc, char **argv) {
                 memcpy(vd.board, cells, 82);
                 vd.valid = stream_bad_units(cells, vd.bad_r, &vd.nr,
                                             vd.bad_c, &vd.nc, vd.bad_b, &vd.nb);
+                /* a board that drops given digits is not a solution to
+                 * THIS puzzle, even if internally consistent */
+                if (vd.valid)
+                    vd.valid = stream_check_clues(cells, vd.clues,
+                                                  vd.bad_r, &vd.nr,
+                                                  vd.bad_c, &vd.nc,
+                                                  vd.bad_b, &vd.nb);
             }
             snprintf(vd.model, sizeof(vd.model), "%s", a->cfg.task);
 #ifdef NCM_CUDA
@@ -675,12 +723,11 @@ static int cmd_gen(App *a, int argc, char **argv) {
 #endif
             vd.elapsed = (stream_now_ms() - t0s) / 1000.0;
             snprintf(vd.status, sizeof(vd.status), "done valid=%d", vd.valid);
-            viewer_push(&vd);
-            viewer_hold();
-            viewer_close();
+            vpush(&vd);
+            vholdclose();
         }
     } else {
-        if (viewf) fprintf(stderr, "gen: viewer unavailable, continuing headless\n");
+        if (viewm) fprintf(stderr, "gen: viewer unavailable, continuing headless\n");
         codes = ncp_generate(a->ncp, have_l0 ? l0 : NULL, prefix, B, g.temp, g.top_k, g.top_p,
                              g.cfg, g.freq, g.mu, g.adj_a, g.adj_w, g.adj_d,
                              allow, g.seed);
@@ -688,13 +735,36 @@ static int cmd_gen(App *a, int argc, char **argv) {
     free(allow);
     int total = 0;
     for (int i = 0; i < a->cfg.n_qlevels; i++) total += a->cfg.levels[i];
+    int vrc = 0;
     for (int b = 0; b < B; b++) {
         char *txt = decode_board(a, codes + (size_t)b * total);
         printf("%s\n", txt);
         free(txt);
     }
+    if (g_view_mode && B > 0) {
+        /* the viewer already validated board 0; a failed board is a real
+         * failure, reported loudly (plain gen keeps historical exit 0) */
+        char cells0[128];
+        char *txt0 = decode_board(a, codes);
+        sudoku_cells(txt0, cells0);
+        free(txt0);
+        if (strlen(cells0) == 81) {
+            int br[9], bc[9], bb[9], nr = 0, nc = 0, nb = 0;
+            char clues0[82];
+            int ok = stream_bad_units(cells0, br, &nr, bc, &nc, bb, &nb);
+            if (ok && prefix_clues(prefix, P, clues0))
+                ok = stream_check_clues(cells0, clues0, br, &nr, bc, &nc, bb, &nb);
+            if (!ok) {
+                fprintf(stderr, "gen: solved board failed validation\n");
+                vrc = 2;
+            }
+        } else {
+            fprintf(stderr, "gen: no complete board produced\n");
+            vrc = 2;
+        }
+    }
     free(codes); free(l0); free(prefix);
-    return 0;
+    return vrc;
 }
 
 static void sudoku_cells(const char *s, char *out) {
@@ -805,6 +875,31 @@ static double stream_now_ms(void) {
 
 /* full-board validity + offending units (rows/cols/boxes with a repeat).
  * cells: 81 chars of '1'..'9'. Returns 1 when valid. */
+/* clue preservation: every given digit must survive in the board.
+ * Conflicting cells get their row/col/box flagged (deduped) so the UI
+ * highlights them; returns 0 on any clash. */
+static int stream_check_clues(const char *cells, const char *clues,
+                              int *br, int *nb_r,
+                              int *bc, int *nb_c,
+                              int *bb, int *nb_b) {
+    int ok = 1, f, k;
+    if (!clues || !clues[0]) return 1;
+    for (int i = 0; i < 81; i++) {
+        int r, c, b;
+        if (clues[i] == '.' || clues[i] == 0) continue;
+        if (cells[i] == clues[i]) continue;
+        ok = 0;
+        r = i / 9; c = i % 9; b = (r / 3) * 3 + c / 3;
+        f = 0; for (k = 0; k < *nb_r; k++) if (br[k] == r) f = 1;
+        if (!f && *nb_r < 9) br[(*nb_r)++] = r;
+        f = 0; for (k = 0; k < *nb_c; k++) if (bc[k] == c) f = 1;
+        if (!f && *nb_c < 9) bc[(*nb_c)++] = c;
+        f = 0; for (k = 0; k < *nb_b; k++) if (bb[k] == b) f = 1;
+        if (!f && *nb_b < 9) bb[(*nb_b)++] = b;
+    }
+    return ok;
+}
+
 static int stream_bad_units(const char *cells, int *br, int *nb_r,
                             int *bc, int *nb_c, int *bb, int *nb_b) {
     int ok = 1;
@@ -962,7 +1057,11 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
         free(txt); free(all);
         int valid = 0;
         int br[9], bc[9], bb[9], nr = 0, nc = 0, nb = 0;
-        if (strlen(board) == 81) valid = stream_bad_units(board, br, &nr, bc, &nc, bb, &nb);
+        if (strlen(board) == 81) {
+            valid = stream_bad_units(board, br, &nr, bc, &nc, bb, &nb);
+            if (valid)
+                valid = stream_check_clues(board, clues, br, &nr, bc, &nc, bb, &nb);
+        }
         printf("{\"type\":\"done\",\"board\":\"%s\",\"clues\":\"%s\",\"elapsed_ms\":%.1f,"
                "\"valid\":%s,\"bad_rows\":",
                board, clues, elapsed, valid ? "true" : "false");

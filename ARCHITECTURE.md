@@ -188,16 +188,23 @@ models are the stated ceiling.
   same-board, full-frame render content check (not black/blank).
   Skips cleanly without weights.
 
-## Native live viewer (SDL2, `src/viewer.c`)
+## Native live viewer (SDL2 window or console, `src/viewer.c`)
 
 `cncm train --view` / `cncm gen --view` open a native window on the live
-process: training shows the batch-0 input puzzle, scrolling loss curve,
-per-level loss + exact-code agreement, step/target, lr, accuracy,
-elapsed and checkpoint flags as each step completes; solving shows the
-puzzle, per-level progress (each event follows a real model forward via
-the `NCPGen` stepper) and the final board with validity flags when
-available. Levels are presented as code counts per refinement step,
-never as logical deductions; no simulated results, no replay mode.
+process; `--view=text` renders the same live state to the terminal instead
+(no window system, no threads — synchronous redraw per snapshot, works
+over SSH/pipes/CI). In both modes training shows the batch-0 input
+puzzle, scrolling loss curve, per-level loss + exact-code agreement,
+step/target, lr, accuracy, elapsed and checkpoint flags as each step
+completes; solving shows the puzzle, per-level progress (each event
+follows a real model forward via the `NCPGen` stepper) and the final
+board with validity flags when available. Levels are presented as code
+counts per refinement step, never as logical deductions; no simulated
+results, no replay mode. The console viewer marks invalid cells with
+`!` and reports `valid=YES/NO`; a failed board or a stalled stream is
+an explicit non-zero exit, never a silent empty grid. Validation covers
+rows, columns, boxes *and* preservation of the given digits: a board
+that drops a clue fails even if internally consistent.
 
 Separation: a render thread owns the window; computation pushes small
 plain-data snapshots through a trylock mutex and never waits. Training
