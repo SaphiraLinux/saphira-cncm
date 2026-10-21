@@ -22,11 +22,11 @@ typedef enum {
     TOP_SOFTMAX, TOP_ROPE, TOP_SDPA,
     TOP_CONV, TOP_CONVT, TOP_IAREA, TOP_ILIN,
     TOP_ADD, TOP_SCALE, TOP_CONCAT, TOP_GATHER, TOP_MUL, TOP_RELU2, TOP_JOIN, TOP_MSE,
-    TOP_SPLIT, TOP_MERGE,
+    TOP_SPLIT, TOP_MERGE, TOP_HEADSPLIT,
     TOP_CE, TOP_TIED,
 } TopKind;
 
-typedef struct { float *P; float scale; int H; } SdpaAux;
+typedef struct { float *P; float scale; int H; int Hkv; } SdpaAux;
 typedef struct { float *probs; int *tgt; float *w; double cnt; } CeAux;
 typedef struct { float *hE; double *Esq; double dscale, invT; } TiedAux;
 
@@ -224,40 +224,49 @@ void t_softmax(Tape *t, const float *x, float *y, int64_t rows, int C) {
     r->a = (float *)x; r->y = y; r->n = rows; r->p1 = C;
 }
 
-/* out-of-place rope into yq/yk (caller-allocated). cos/sin persistent. */
+/* out-of-place rope into yq/yk (caller-allocated). cos/sin persistent.
+ * GQA: q carries H heads, k carries Hkv heads (Hkv==H is MHA). */
 void t_rope(Tape *t, const float *xq, const float *xk, float *yq, float *yk,
-            const float *cos, const float *sin, int B, int H, int T, int hd) {
-    size_t n = (size_t)B * H * T * hd;
-    mem_d2d(yq, xq, n * sizeof(float));
-    mem_d2d(yk, xk, n * sizeof(float));
-    rope_apply(yq, yk, cos, sin, B, H, T, hd);
+            const float *cos, const float *sin, int B, int H, int Hkv, int T, int hd) {
+    if (Hkv < 1) { fprintf(stderr, "t_rope: Hkv=%d need >=1\n", Hkv); exit(1); }
+    size_t nq = (size_t)B * H * T * hd, nk = (size_t)B * Hkv * T * hd;
+    mem_d2d(yq, xq, nq * sizeof(float));
+    mem_d2d(yk, xk, nk * sizeof(float));
+    rope_apply_gqa(yq, yk, cos, sin, B, H, Hkv, T, hd);
     TopRec *r = emit(t, TOP_ROPE);
     r->a = (float *)xq; r->b = (float *)xk; r->c = yq; r->y = yk;
     const float **cs = (const float **)malloc(2 * sizeof(void *));
     cs[0] = cos; cs[1] = sin;
     r->sv = cs;
-    r->n = B; r->p1 = H; r->p2 = T; r->p3 = hd;
+    r->n = B; r->p1 = H; r->p2 = T; r->p3 = hd; r->p4 = Hkv;
 }
 
-/* SDPA with additive mask; saves probs P for backward. */
+/* SDPA with additive mask; saves probs P for backward.
+ * GQA: q carries H heads, k/v carry Hkv heads (Hkv==H is MHA). */
 void t_sdpa(Tape *t, const float *q, const float *k, const float *v,
-            const float *mask, float *o, int B, int H, int Tq, int Tkv, int hd) {
+            const float *mask, float *o, int B, int H, int Hkv, int Tq, int Tkv, int hd) {
+    if (Hkv < 1 || H % Hkv != 0) {
+        fprintf(stderr, "t_sdpa: H=%d Hkv=%d need Hkv>=1 dividing H\n", H, Hkv);
+        exit(1);
+    }
     int64_t rows = (int64_t)B * H * Tq;
     float *P = arena_alloc((size_t)rows * Tkv);
-    /* forward via existing kernel into temp, then probs recompute on host?
-     * Simplest correct: run sdpa_fwd (backend), then recompute P on host
-     * from staged q,k,mask for the backward. Costs one extra host pass. */
-    sdpa_fwd(q, k, v, mask, o, B, H, Tq, Tkv, hd);
+    /* forward via existing kernel, then probs recompute on host from
+     * staged q,k,mask for the backward. Costs one extra host pass. */
+    sdpa_fwd_gqa(q, k, v, mask, o, B, H, Hkv, Tq, Tkv, hd);
     float scale = 1.0f / sqrtf((float)hd);
-    float *hq = stage_h(q, (size_t)rows * Tq * 0 + (size_t)B * H * Tq * hd);
-    float *hk = stage_h(k, (size_t)B * H * Tkv * hd);
+    int rep = H / Hkv;
+    float *hq = stage_h(q, (size_t)B * H * Tq * hd);
+    float *hk = stage_h(k, (size_t)B * Hkv * Tkv * hd);
     float *hm = mask ? stage_h(mask, (size_t)Tq * Tkv) : NULL;
     float *hP = (float *)malloc((size_t)rows * Tkv * sizeof(float));
     for (int64_t r = 0; r < rows; r++) {
         int bh = (int)(r / Tq), tq = (int)(r % Tq);
+        int h = bh % H, b = bh / H, kvh = h / rep;
         double mx = -1e300;
         for (int tk = 0; tk < Tkv; tk++) {
-            const float *qr = hq + (r * hd), *kr = hk + ((int64_t)bh * Tkv + tk) * hd;
+            const float *qr = hq + (r * hd);
+            const float *kr = hk + (((int64_t)b * Hkv + kvh) * Tkv + tk) * hd;
             double s = 0;
             for (int d = 0; d < hd; d++) s += (double)qr[d] * kr[d];
             s *= scale;
@@ -274,11 +283,11 @@ void t_sdpa(Tape *t, const float *q, const float *k, const float *v,
     free(hP);
     TopRec *r = emit(t, TOP_SDPA);
     r->a = (float *)q; r->b = (float *)k; r->c = (float *)v; r->y = o;
-    r->sv = NULL; /* P lives in arena (P ptr stashed below in s? need it!) */
+    r->sv = NULL; /* P lives in arena (stashed in sv below) */
     r->n = rows; r->p1 = hd; r->p2 = Tq; r->p3 = Tkv;
     /* stash P pointer + scale in sv */
     SdpaAux *st = (SdpaAux *)malloc(sizeof(SdpaAux));
-    st->P = P; st->scale = scale; st->H = H;
+    st->P = P; st->scale = scale; st->H = H; st->Hkv = Hkv;
     r->sv = st;
 }
 
@@ -358,6 +367,15 @@ void t_headmerge(Tape *t, const float *ctx, float *out, int B, int T, int C, int
     head_merge_fwd(ctx, out, B, T, C, H, hd);
     TopRec *r = emit(t, TOP_MERGE);
     r->a = (float *)ctx; r->y = out;
+    r->n = B; r->p1 = T; r->p2 = C; r->p3 = H; r->p4 = hd;
+}
+
+/* heads transpose [B][T][C=H*hd] -> [B][H][T][hd] (adjoint: inverse permute). */
+void t_headsplit(Tape *t, const float *in, float *out,
+                 int B, int T, int C, int H, int hd) {
+    heads_transpose_fwd_b(in, out, B, T, H, hd);
+    TopRec *r = emit(t, TOP_HEADSPLIT);
+    r->a = (float *)in; r->y = out;
     r->n = B; r->p1 = T; r->p2 = C; r->p3 = H; r->p4 = hd;
 }
 
@@ -807,17 +825,21 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
         }
         case TOP_ROPE: {
             int B = (int)r->n, H = r->p1, T = r->p2, hd = r->p3;
+            int Hkv = r->p4 > 0 ? r->p4 : H;
             const float **cs = (const float **)r->sv;
             float *hco = stage_h(cs[0], (size_t)T * hd);
             float *hsi = stage_h(cs[1], (size_t)T * hd);
-            int64_t n = (int64_t)B * H * T * hd;
+            /* GQA: q rows use H heads, k rows use Hkv heads. With
+             * Hkv==H both counts equal n and this is the old MHA code. */
+            int64_t nq = (int64_t)B * H * T * hd;
+            int64_t nk = (int64_t)B * Hkv * T * hd;
             float *gdq = gmap_find(gm, r->c); /* grad of yq */
             float *gdk = gmap_find(gm, r->y); /* grad of yk */
             if (gdq) {
-                float *dxq = gmap_get(gm, r->a, n);
+                float *dxq = gmap_get(gm, r->a, nq);
                 int h = hd / 2;
-#pragma omp parallel for schedule(static) if(n > hd * 4)
-                for (int64_t rr = 0; rr < n / hd; rr++) {
+#pragma omp parallel for schedule(static) if(nq > hd * 4)
+                for (int64_t rr = 0; rr < nq / hd; rr++) {
                     int t = (int)(rr % T);
                     for (int d = 0; d < h; d++) {
                         double g0 = gdq[rr * hd + d], g1 = gdq[rr * hd + h + d];
@@ -830,10 +852,10 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
                 }
             }
             if (gdk) {
-                float *dxk = gmap_get(gm, r->b, n);
+                float *dxk = gmap_get(gm, r->b, nk);
                 int h = hd / 2;
-#pragma omp parallel for schedule(static) if(n > hd * 4)
-                for (int64_t rr = 0; rr < n / hd; rr++) {
+#pragma omp parallel for schedule(static) if(nk > hd * 4)
+                for (int64_t rr = 0; rr < nk / hd; rr++) {
                     int t = (int)(rr % T);
                     for (int d = 0; d < h; d++) {
                         double g0 = gdk[rr * hd + d], g1 = gdk[rr * hd + h + d];
@@ -852,6 +874,65 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
             int64_t rows = r->n;
             int hd = r->p1, Tq = r->p2, Tkv = r->p3;
             int H = st->H, B = (int)(rows / (Tq * H));
+            int Hkv = st->Hkv > 0 ? st->Hkv : H;
+            if (Hkv != H) {
+                /* ---- GQA path: k/v carry Hkv heads, query head h reads
+                 * kv head h/rep. dk/dv fan in over the rep query heads. */
+                int rep = H / Hkv;
+                float *hP = stage_h(st->P, (size_t)rows * Tkv);
+                float *hq = stage_h(r->a, (size_t)B * H * Tq * hd);
+                float *hk = stage_h(r->b, (size_t)B * Hkv * Tkv * hd);
+                float *hv = stage_h(r->c, (size_t)B * Hkv * Tkv * hd);
+                float *hdy = stage_h(dy, (size_t)B * H * Tq * hd);
+                float *dq = gmap_get(gm, r->a, (size_t)B * H * Tq * hd);
+                float *dk = gmap_get(gm, r->b, (size_t)B * Hkv * Tkv * hd);
+                float *dv = gmap_get(gm, r->c, (size_t)B * Hkv * Tkv * hd);
+                /* pass 1 (independent query rows): softmax-Jacobian + dq */
+                double *ds = (double *)malloc((size_t)rows * (size_t)(Tkv > 0 ? Tkv : 1) * sizeof(double));
+#pragma omp parallel for schedule(static) if(rows > 4)
+                for (int64_t rr = 0; rr < rows; rr++) {
+                    int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H), tq = (int)(rr % Tq);
+                    int kvh = h / rep;
+                    double tot = 0;
+                    for (int tk = 0; tk < Tkv; tk++) {
+                        const float *vr = hv + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+                        double s = 0;
+                        for (int d = 0; d < hd; d++) s += (double)hdy[(rr * hd) + d] * vr[d];
+                        s *= hP[rr * Tkv + tk];
+                        ds[rr * Tkv + tk] = s;
+                        tot += s;
+                    }
+                    for (int tk = 0; tk < Tkv; tk++) ds[rr * Tkv + tk] -= hP[rr * Tkv + tk] * tot;
+                    for (int tk = 0; tk < Tkv; tk++) {
+                        const float *kr = hk + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+                        for (int d = 0; d < hd; d++)
+                            dq[((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd + d] +=
+                                (float)(ds[rr * Tkv + tk] * st->scale * kr[d]);
+                    }
+                }
+                /* pass 2 (independent (b,kvh,tk)): dk/dv accumulate over the
+                 * h-group (ascending) x tq (ascending) — the same serial
+                 * order as k_sdpa_dkdv_gqa, hence bit-identical */
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)B * Hkv * Tkv > 8)
+                for (int b = 0; b < B; b++) for (int kvh = 0; kvh < Hkv; kvh++) for (int tk = 0; tk < Tkv; tk++) {
+                    for (int d = 0; d < hd; d++) {
+                        float sk = 0, sv = 0;
+                        for (int h = kvh * rep; h < (kvh + 1) * rep && h < H; h++)
+                            for (int tq = 0; tq < Tq; tq++) {
+                                int64_t rr = ((int64_t)b * H + h) * Tq + tq;
+                                const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
+                                sk += (float)(ds[rr * Tkv + tk] * st->scale * qr[d]);
+                                sv += (float)(hP[rr * Tkv + tk] * hdy[rr * hd + d]);
+                            }
+                        dk[((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd + d] += sk;
+                        dv[((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd + d] += sv;
+                    }
+                }
+                free(ds);
+                free(hP); free(hq); free(hk); free(hv); free(hdy);
+                break;
+            }
+            /* ---- MHA path (unchanged) ---- */
             float *hP = stage_h(st->P, (size_t)rows * Tkv);
             float *hq = stage_h(r->a, (size_t)B * H * Tq * hd);
             float *hk = stage_h(r->b, (size_t)B * H * Tkv * hd);
@@ -1188,6 +1269,18 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
 #pragma omp parallel for collapse(4) schedule(static) if((int64_t)B * T * C > 512)
             for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++)
                 dx[((size_t)b * H + h) * T * hd + (size_t)t * hd + d] += hdy[((size_t)b * T + t) * C + h * hd + d];
+            free(hdy);
+            break;
+        }
+        case TOP_HEADSPLIT: {
+            /* inverse permutation of heads_transpose_fwd_b; bijective, so
+             * slot order is irrelevant (each dx slot written exactly once) */
+            int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
+            float *hdy = stage_h(dy, (size_t)B * H * T * hd);
+            float *dx = gmap_get(gm, r->a, (size_t)B * T * C);
+#pragma omp parallel for collapse(4) schedule(static) if((int64_t)B * T * C > 512)
+            for (int b = 0; b < B; b++) for (int t = 0; t < T; t++) for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++)
+                dx[((size_t)b * T + t) * C + h * hd + d] += hdy[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
             free(hdy);
             break;
         }
@@ -1569,6 +1662,64 @@ __global__ static void k_sdpa_dkdv(float *dk, float *dv, const double *ds, const
     dk[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sk;
     dv[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sv;
 }
+/* GQA SDPA backward: query rows are still (b,h,tq) over Hq=H heads, but k/v
+ * rows are (b,kvh,tk) over Hkv heads with kvh = h/rep. Pass 1 (ds, dq) is
+ * per query row like MHA with the k/v lookup remapped; pass 2 (dk/dv) fans
+ * in over the h-group (ascending) x tq (ascending) — the same serial order
+ * as the host GQA path, hence bit-identical. */
+__global__ static void k_sdpa_ds_gqa(double *ds, const float *P, const float *hv,
+                                     const float *dy, int64_t rows, int Tkv, int hd,
+                                     int H, int Hkv, int Tq) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H);
+    int rep = H / Hkv, kvh = h / rep;
+    double tot = 0;
+    for (int tk = 0; tk < Tkv; tk++) {
+        const float *vr = hv + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+        double s = 0;
+        for (int d = 0; d < hd; d++) s += (double)dy[rr * hd + d] * vr[d];
+        s *= P[rr * Tkv + tk];
+        ds[rr * Tkv + tk] = s;
+        tot += s;
+    }
+    for (int tk = 0; tk < Tkv; tk++) ds[rr * Tkv + tk] -= P[rr * Tkv + tk] * tot;
+}
+__global__ static void k_sdpa_dq_gqa(float *dq, const double *ds, const float *hk,
+                                     int64_t rows, int Tkv, int hd, int H, int Hkv,
+                                     int Tq, double scale) {
+    int64_t rd = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rd >= rows * hd) return;
+    int64_t rr = rd / hd;
+    int d = (int)(rd % hd);
+    int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H), tq = (int)(rr % Tq);
+    int rep = H / Hkv, kvh = h / rep;
+    for (int tk = 0; tk < Tkv; tk++) {
+        const float *kr = hk + ((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd;
+        dq[((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd + d] +=
+            (float)(ds[rr * Tkv + tk] * scale * kr[d]);
+    }
+}
+__global__ static void k_sdpa_dkdv_gqa(float *dk, float *dv, const double *ds, const float *P,
+                                       const float *hq, const float *hdy,
+                                       int B, int H, int Hkv, int Tq, int Tkv, int hd,
+                                       double scale) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * Hkv * Tkv * hd) return;
+    int d = (int)(x % hd), tk = (int)((x / hd) % Tkv);
+    int kvh = (int)((x / hd / Tkv) % Hkv), b = (int)(x / hd / Tkv / Hkv);
+    int rep = H / Hkv;
+    float sk = 0, sv = 0;
+    for (int h = kvh * rep; h < (kvh + 1) * rep && h < H; h++)
+        for (int tq = 0; tq < Tq; tq++) {
+            int64_t rr = ((int64_t)b * H + h) * Tq + tq;
+            const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
+            sk += (float)(ds[rr * Tkv + tk] * scale * qr[d]);
+            sv += (float)(P[rr * Tkv + tk] * hdy[rr * hd + d]);
+        }
+    dk[((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd + d] += sk;
+    dv[((int64_t)b * Hkv + kvh) * Tkv * hd + (int64_t)tk * hd + d] += sv;
+}
 /* CE backward: per (row,v), exact float math */
 __global__ static void k_ce_bwd(float *dl, const float *probs, const int *tgt,
                                 const float *w, int64_t rows, int V, double inv) {
@@ -1639,6 +1790,17 @@ __global__ static void k_merge_bwd(float *dx, const float *dy, int B, int T, int
     int d = (int)(x % hd), t = (int)((x / hd) % T);
     int h = (int)((x / hd / T) % H), b = (int)(x / hd / T / H);
     dx[x] += dy[((size_t)b * T + t) * H * hd + (h * hd + d)];
+}
+/* headsplit: inverse permutation into [b][t][c]-flat dx. Bijective (one
+ * thread per out element), so plain adds need no atomics and any thread
+ * order gives the same result. */
+__global__ static void k_headsplit_bwd(float *dx, const float *dy, int B, int T, int H, int hd) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * H * T * hd) return;
+    int d = (int)(x % hd), t = (int)((x / hd) % T);
+    int h = (int)((x / hd / T) % H), b = (int)(x / hd / T / H);
+    int C = H * hd;
+    dx[((size_t)b * T + t) * C + h * hd + d] += dy[x];
 }
 
 /* Scatter-adds stay host-staged (deterministic serial order). dy is on
@@ -1832,17 +1994,19 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
         }
         case TOP_ROPE: {
             int B = (int)r->n, H = r->p1, T = r->p2, hd = r->p3;
+            int Hkv = r->p4 > 0 ? r->p4 : H;
             const float **cs = (const float **)r->sv;
-            int64_t n = (int64_t)B * H * T * hd;
+            int64_t nq = (int64_t)B * H * T * hd;
+            int64_t nk = (int64_t)B * Hkv * T * hd;
             float *gdq = dmap_find(gm, r->c);
             float *gdk = dmap_find(gm, r->y);
             if (gdq) {
-                float *dxq = dmap_get(gm, r->a, n);
-                k_rope_bwd<<<dbwd_blocks(n / hd), 256>>>(dxq, gdq, cs[0], cs[1], n / hd, T, hd);
+                float *dxq = dmap_get(gm, r->a, nq);
+                k_rope_bwd<<<dbwd_blocks(nq / hd), 256>>>(dxq, gdq, cs[0], cs[1], nq / hd, T, hd);
             }
             if (gdk) {
-                float *dxk = dmap_get(gm, r->b, n);
-                k_rope_bwd<<<dbwd_blocks(n / hd), 256>>>(dxk, gdk, cs[0], cs[1], n / hd, T, hd);
+                float *dxk = dmap_get(gm, r->b, nk);
+                k_rope_bwd<<<dbwd_blocks(nk / hd), 256>>>(dxk, gdk, cs[0], cs[1], nk / hd, T, hd);
             }
             break;
         }
@@ -1851,7 +2015,22 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
             int64_t rows = r->n;
             int hd = r->p1, Tq = r->p2, Tkv = r->p3;
             int H = st->H, B = (int)(rows / (Tq * H));
+            int Hkv = st->Hkv > 0 ? st->Hkv : H;
             double *ds = (double *)arena_alloc((size_t)rows * Tkv * 2);
+            if (Hkv != H) {
+                /* GQA path (k/v carry Hkv heads) */
+                k_sdpa_ds_gqa<<<dbwd_blocks(rows), 256>>>(
+                    ds, st->P, r->c, dy, rows, Tkv, hd, H, Hkv, Tq);
+                float *dq = dmap_get(gm, r->a, (size_t)B * H * Tq * hd);
+                k_sdpa_dq_gqa<<<dbwd_blocks(rows * hd), 256>>>(
+                    dq, ds, r->b, rows, Tkv, hd, H, Hkv, Tq, st->scale);
+                float *dk = dmap_get(gm, r->b, (size_t)B * Hkv * Tkv * hd);
+                float *dv = dmap_get(gm, r->c, (size_t)B * Hkv * Tkv * hd);
+                k_sdpa_dkdv_gqa<<<dbwd_blocks((int64_t)B * Hkv * Tkv * hd), 256>>>(
+                    dk, dv, ds, st->P, r->a, dy, B, H, Hkv, Tq, Tkv, hd, st->scale);
+                break;
+            }
+            /* MHA path (unchanged) */
             k_sdpa_ds<<<dbwd_blocks(rows), 256>>>(ds, st->P, r->c, dy, rows, Tkv, hd, H, Tq);
             float *dq = dmap_get(gm, r->a, (size_t)B * H * Tq * hd);
             k_sdpa_dq<<<dbwd_blocks(rows * hd), 256>>>(dq, ds, r->b, rows, Tkv, hd, H, Tq, st->scale);
@@ -1923,6 +2102,13 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
             int B = (int)r->n, T = r->p1, H = r->p3, hd = r->p4;
             float *dx = dmap_get(gm, r->a, (size_t)B * H * T * hd);
             k_merge_bwd<<<dbwd_blocks((int64_t)B * T * H * hd), 256>>>(dx, dy, B, T, H, hd);
+            break;
+        }
+        case TOP_HEADSPLIT: {
+            int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
+            float *dx = dmap_get(gm, r->a, (size_t)B * T * C);
+            k_headsplit_bwd<<<dbwd_blocks((int64_t)B * H * T * hd), 256>>>(
+                dx, dy, B, T, H, hd);
             break;
         }
         case TOP_MUL: {

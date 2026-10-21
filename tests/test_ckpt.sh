@@ -146,6 +146,22 @@ elif [ $ORC -eq 0 ]; then
 else
   fail "bwdops"; tail -3 "$WORK/fmt/bwdops.log"
 fi
+# taped Qwen forward parity (needs Qwen weights; skips cleanly without them)
+QCONF="$REPO/weights/qwen2-05/model.conf"
+QW0="$REPO/weights/qwen2-05/model.ncm"
+QADIR="$REPO/weights/qwen2-05"
+if [ ! -f "$QW0" ]; then
+  echo "SKIP qwen-taped (Qwen weights not present; git-ignored)"
+else
+  "$BIN" qwen-taped --conf "$QCONF" --weights "$QW0" --asset-dir "$QADIR" \
+    --prompt "The capital of France is Paris." >"$WORK/fmt/qwentaped.log" 2>&1
+  QRC=$?
+  if [ $QRC -eq 0 ]; then
+    pass "qwen-taped (taped vs reference forward)"
+  else
+    fail "qwen-taped"; tail -3 "$WORK/fmt/qwentaped.log"
+  fi
+fi
 
 # ---------- Phase 2: exact resume ----------
 # A: continuous NSTEPS. B: NSTEPS/2, fresh process resumes the rest.

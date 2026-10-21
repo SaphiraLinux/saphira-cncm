@@ -85,15 +85,24 @@ summation order exactly; scatter-adds (EMBED/GATHER) stay host-staged to
 preserve run-to-run determinism. VQ-only conv-family tapes fall back to
 the host backward wholesale (no mixed mode). Verified: `cncm bwd-parity`
 (host vs device grads on the sudoku workload, maxabs 8.6e-7),
-`cncm bwdops` (all 22 non-conv ops on synthetic tensors, maxabs 1.5e-8),
+`cncm bwdops` (all 25 non-conv ops on synthetic tensors, maxabs 1.5e-8),
 device `gradcheck` passes, and resumed training with device backward is
 byte-identical run-to-run. Sudoku step: ~5s (device) vs ~39s (host
 backward), same losses. `NCM_BWD=cpu` restores the legacy path.
 
-Known gap (Qwen prerequisite, not a regression): the tape's GQA path
-(SPLIT/ROPE with K<H) is MHA-only on host and device alike — GQA needs
-a forward+backward tape extension with its own verification, tracked
-for the taped-Qwen milestone.
+Taped GQA (`src/train_tape.c`, `src/train_qwen.c`): `t_rope`/`t_sdpa`
+take an explicit `Hkv` (k/v heads); GQA backward fans dk/dv in over the
+rep query heads on host and device with the same serial order
+(bit-identical); new `t_headsplit` records the [B][T][C]->[B][H][T][hd]
+transpose for Qwen's separate q/k/v linears. The fused-qkv NCP path
+keeps its replication contract (`t_qkvsplit` emits H-head k/v).
+Verified: `tests/gcheck.c` numeric checks for headsplit/rope_gqa/sdpa_gqa,
+`cncm bwdops` gains headsplit + rope_gqa + sdpa_gqa (host-vs-device,
+PASS), and `cncm qwen-taped` proves the full recorded Qwen forward
+bit-matches `qwen.c` (maxabs 0.0, T=5 and T=20, CPU and CUDA).
+`t_embed` takes a HOST idx (it stages internally) — the one host/device
+contract in the tape; passing a staged buffer crashes (caught by review,
+not by the compiler).
 
 Memory: the tape holds all intermediates, plus per-layer CUDA SDPA
 scratch (`dscores`). Default arena is 2 GiB (`NCM_ARENA_MB` overrides);
@@ -145,9 +154,11 @@ SDPA probs 14×512²×4 B/layer resident in the tape). Total ≈ **10 GiB**,
 fitting a 12 GiB card at B=1/T≤512 with gradient accumulation for
 larger effective batches.
 
-Not yet built (explicit follow-ups, in order): a taped Qwen forward
-(the tape has no GQA-SDPA; verify each op), gradcheck-vs-numeric on a
-small config, then memory-conscious execution: micro-batch accumulation
+Built since: the taped Qwen forward exists (`src/train_qwen.c`,
+`qwen-taped` parity maxabs 0.0) with GQA-verified ops (gcheck numeric +
+bwdops host-vs-device). Not yet built (explicit follow-ups, in order):
+gradcheck-vs-numeric on a small config, then memory-conscious execution:
+micro-batch accumulation
 (no new machinery), frozen-backbone / PMap-subset updates (the tape
 already supports partial params), and only then fp16 masters +
 activation checkpointing if needed. 1.5B stays a later step; 2B-class

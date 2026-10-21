@@ -260,9 +260,9 @@ static float *train_block(Tape *tp, WeightStore *ws, NCMConfig *c,
     float *qr = arena_alloc((size_t)B * H * S * hd);
     float *kr = arena_alloc((size_t)B * H * S * hd);
     if (!c->use_rope) { fprintf(stderr, "train: non-RoPE configs unsupported\n"); exit(1); }
-    t_rope(tp, qqn, kkn, qr, kr, cos, sin, B, H, S, hd);
+    t_rope(tp, qqn, kkn, qr, kr, cos, sin, B, H, H, S, hd);
     float *ctx = arena_alloc((size_t)B * H * S * hd);
-    t_sdpa(tp, qr, kr, vv, mask, ctx, B, H, S, S, hd);
+    t_sdpa(tp, qr, kr, vv, mask, ctx, B, H, H, S, S, hd);
     float *mo = arena_alloc((size_t)B * S * C);
     t_headmerge(tp, ctx, mo, B, S, C, H, hd);
     snprintf(kk, sizeof(kk), "%sattn.c_proj.weight", pre);
@@ -1148,7 +1148,7 @@ static void bwo_rope(Tape *tp, PMap *pm) {
     Tensor *yq = tensor_alloc(1, s), *yk = tensor_alloc(1, s);
     Tensor *co = bwo_tensor(1, st, -1, 1), *si = bwo_tensor(1, st, -1, 1);
     bwo_reg(pm, xq); bwo_reg(pm, xk);
-    t_rope(tp, xq->data, xk->data, yq->data, yk->data, co->data, si->data, B, H, T, hd);
+    t_rope(tp, xq->data, xk->data, yq->data, yk->data, co->data, si->data, B, H, H, T, hd);
     bwo_mse_seed(tp, yq->data, n);
     bwo_mse_seed(tp, yk->data, n);
 }
@@ -1158,7 +1158,7 @@ static void bwo_sdpa(Tape *tp, PMap *pm) {
     Tensor *q = bwo_tensor(1, sq, -1, 1), *k = bwo_tensor(1, sk, -1, 1);
     Tensor *v = bwo_tensor(1, sk, -1, 1), *o = tensor_alloc(1, sq);
     bwo_reg(pm, q); bwo_reg(pm, k); bwo_reg(pm, v);
-    t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, Tq, Tkv, hd);
+    t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, H, Tq, Tkv, hd);
     bwo_mse_seed(tp, o->data, (int64_t)B * H * Tq * hd);
 }
 static void bwo_add(Tape *tp, PMap *pm) {
@@ -1203,9 +1203,9 @@ static void bwo_join(Tape *tp, PMap *pm) {
     bwo_mse_seed(tp, y->data, (int64_t)B * (P + T) * C);
 }
 static void bwo_split(Tape *tp, PMap *pm) {
-    /* MHA only (K==H). GQA (K<H) is NOT supported by the tape (host or
-     * device): SPLIT/ROPE assume H heads throughout. Qwen needs a proper
-     * GQA tape path (separate milestone, forward + backward together). */
+    /* Fused-qkv split keeps the replication contract: k/v come out at H
+     * heads (rep>1 replicates). Un-replicated GQA k/v flow through
+     * headsplit+rope(H,Hkv)+sdpa(H,Hkv); see bwo_rope_gqa/bwo_sdpa_gqa. */
     int B = 2, T = 8, C = 64, H = 4, hd = 16, K = 4, rep = 1;
     int64_t row = (int64_t)C + 2 * K * hd;
     int64_t si[1] = {(int64_t)B * T * row};
@@ -1225,6 +1225,36 @@ static void bwo_merge(Tape *tp, PMap *pm) {
     bwo_reg(pm, ctx);
     t_headmerge(tp, ctx->data, out->data, B, T, C, H, hd);
     bwo_mse_seed(tp, out->data, (int64_t)B * T * C);
+}
+static void bwo_headsplit(Tape *tp, PMap *pm) {
+    int B = 2, T = 8, C = 64, H = 4, hd = 16;
+    int64_t si[1] = {(int64_t)B * T * C}, so[1] = {(int64_t)B * H * T * hd};
+    Tensor *in = bwo_tensor(1, si, -1, 1), *out = tensor_alloc(1, so);
+    bwo_reg(pm, in);
+    t_headsplit(tp, in->data, out->data, B, T, C, H, hd);
+    bwo_mse_seed(tp, out->data, (int64_t)B * H * T * hd);
+}
+static void bwo_rope_gqa(Tape *tp, PMap *pm) {
+    int B = 2, H = 4, K = 2, T = 8, hd = 8;
+    int64_t sq[1] = {(int64_t)B * H * T * hd}, sk[1] = {(int64_t)B * K * T * hd};
+    int64_t st[1] = {(int64_t)T * hd};
+    Tensor *xq = bwo_tensor(1, sq, -1, 1), *xk = bwo_tensor(1, sk, -1, 1);
+    Tensor *yq = tensor_alloc(1, sq), *yk = tensor_alloc(1, sk);
+    Tensor *co = bwo_tensor(1, st, -1, 1), *si = bwo_tensor(1, st, -1, 1);
+    bwo_reg(pm, xq); bwo_reg(pm, xk);
+    t_rope(tp, xq->data, xk->data, yq->data, yk->data, co->data, si->data,
+           B, H, K, T, hd);
+    bwo_mse_seed(tp, yq->data, (int64_t)B * H * T * hd);
+    bwo_mse_seed(tp, yk->data, (int64_t)B * K * T * hd);
+}
+static void bwo_sdpa_gqa(Tape *tp, PMap *pm) {
+    int B = 2, H = 4, K = 2, Tq = 8, Tkv = 8, hd = 8;
+    int64_t sq[1] = {(int64_t)B * H * Tq * hd}, sk[1] = {(int64_t)B * K * Tkv * hd};
+    Tensor *q = bwo_tensor(1, sq, -1, 1), *k = bwo_tensor(1, sk, -1, 1);
+    Tensor *v = bwo_tensor(1, sk, -1, 1), *o = tensor_alloc(1, sq);
+    bwo_reg(pm, q); bwo_reg(pm, k); bwo_reg(pm, v);
+    t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, K, Tq, Tkv, hd);
+    bwo_mse_seed(tp, o->data, (int64_t)B * H * Tq * hd);
 }
 static void bwo_gather(Tape *tp, PMap *pm) {
     int nrows = 16, C = 16, V = 32;
@@ -1286,7 +1316,9 @@ int bwdops_run(double tol) {
         {bwo_relu2, "relu2"}, {bwo_softmax, "softmax"}, {bwo_rope, "rope"},
         {bwo_sdpa, "sdpa"}, {bwo_add, "add"}, {bwo_scale, "scale"},
         {bwo_concat, "concat"}, {bwo_join, "join"}, {bwo_split, "split"},
-        {bwo_merge, "merge"}, {bwo_mul, "mul"}, {bwo_gather, "gather"},
+        {bwo_merge, "merge"}, {bwo_headsplit, "headsplit"},
+        {bwo_rope_gqa, "rope_gqa"}, {bwo_sdpa_gqa, "sdpa_gqa"},
+        {bwo_mul, "mul"}, {bwo_gather, "gather"},
         {bwo_embed, "embed"}, {bwo_ce, "ce"}, {bwo_tied, "tied"},
         {bwo_mse, "mse"},
     };

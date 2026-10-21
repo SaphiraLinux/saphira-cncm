@@ -56,7 +56,7 @@ static float *train_vae_block(Tape *tp, WeightStore *ws, const char *pre, float 
         mem_h2d(mask, hmask, (size_t)T * T * sizeof(float));
     }
     float *ctx = arena_alloc((size_t)B * n_head * T * hd);
-    t_sdpa(tp, qq, kkk, vv, mask, ctx, B, n_head, T, T, hd);
+    t_sdpa(tp, qq, kkk, vv, mask, ctx, B, n_head, n_head, T, T, hd);
     free(hmask);
     float *mo = arena_alloc((size_t)B * T * C);
     t_headmerge(tp, ctx, mo, B, T, C, n_head, hd);

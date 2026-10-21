@@ -255,6 +255,248 @@ int main(void) {
         tape_free(tp);
     }
 
+    /* ---- headsplit (B-aware heads transpose + inverse-permute bwd) ---- */
+    {
+        int B = 2, T = 4, H = 2, hd = 4, C = H * hd;
+        int nin = B * T * C, nout = B * H * T * hd;
+        float *hx = malloc(nin * 4);
+        for (int i = 0; i < nin; i++) hx[i] = (float)frand();
+        float *in = arena_alloc(nin), *out = arena_alloc(nout);
+        mem_h2d(in, hx, nin * 4);
+        Tape *tp = tape_new();
+        t_headsplit(tp, in, out, B, T, C, H, hd);
+        float *h0 = malloc(nout * 4);
+        float *tc = arena_alloc(nout);
+        for (int i = 0; i < nout; i++) h0[i] = 1.0f;
+        mem_h2d(tc, h0, nout * 4);
+        free(h0);
+        float *ll = arena_alloc(1);
+        t_mse(tp, out, tc, ll, nout, 1.0);
+        float *gin = calloc(nin, 4);
+        PMap pm;
+        float *pp[1] = {in};
+        float *pg[1] = {gin};
+        int64_t sz[1] = {nin};
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = 1;
+        tape_backward(tp, &pm, 0);
+        int idxs[3] = {0, nin / 2 + 3, nin - 1};
+        for (int ti = 0; ti < 3; ti++) {
+            int idx = idxs[ti];
+            double v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nin * 4);
+                memcpy(tx, hx, nin * 4);
+                tx[idx] += (float)(sgn * eps);
+                double s = 0;
+                for (int b = 0; b < B; b++) for (int t = 0; t < T; t++)
+                    for (int h = 0; h < H; h++) for (int d = 0; d < hd; d++) {
+                        double o = tx[((b * T + t) * C) + h * hd + d];
+                        s += (o - 1.0) * (o - 1.0);
+                    }
+                v[sgn > 0 ? 1 : 0] = s / nout;
+                free(tx);
+            }
+            char nm[64];
+            snprintf(nm, sizeof(nm), "headsplit din[%d]", idx);
+            check(nm, gin[idx], (v[1] - v[0]) / (2 * eps));
+        }
+        free(hx); free(gin);
+        tape_free(tp);
+    }
+
+    /* ---- rope GQA (H=4 query heads, K=2 key heads) ---- */
+    {
+        int B = 1, H = 4, K = 2, T = 4, hd = 8, h = hd / 2;
+        int nq = B * H * T * hd, nk = B * K * T * hd, nt = T * hd;
+        float *hxq = malloc(nq * 4), *hxk = malloc(nk * 4);
+        float *hco = malloc(nt * 4), *hsi = malloc(nt * 4);
+        for (int i = 0; i < nq; i++) hxq[i] = (float)frand();
+        for (int i = 0; i < nk; i++) hxk[i] = (float)frand();
+        for (int i = 0; i < nt; i++) { hco[i] = (float)frand(); hsi[i] = (float)frand(); }
+        float *xq = arena_alloc(nq), *xk = arena_alloc(nk);
+        float *co = arena_alloc(nt), *si = arena_alloc(nt);
+        float *yq = arena_alloc(nq), *yk = arena_alloc(nk);
+        mem_h2d(xq, hxq, nq * 4); mem_h2d(xk, hxk, nk * 4);
+        mem_h2d(co, hco, nt * 4); mem_h2d(si, hsi, nt * 4);
+        Tape *tp = tape_new();
+        t_rope(tp, xq, xk, yq, yk, co, si, B, H, K, T, hd);
+        float *h0 = malloc((nq > nk ? nq : nk) * 4);
+        float *tq = arena_alloc(nq), *tk = arena_alloc(nk);
+        for (int i = 0; i < nq; i++) h0[i] = 1.0f;
+        mem_h2d(tq, h0, nq * 4);
+        for (int i = 0; i < nk; i++) h0[i] = 2.0f;
+        mem_h2d(tk, h0, nk * 4);
+        free(h0);
+        float *lq = arena_alloc(1), *lk = arena_alloc(1);
+        t_mse(tp, yq, tq, lq, nq, 1.0);
+        t_mse(tp, yk, tk, lk, nk, 1.0);
+        float *gxq = calloc(nq, 4), *gxk = calloc(nk, 4);
+        PMap pm;
+        float *pp[2] = {xq, xk};
+        float *pg[2] = {gxq, gxk};
+        int64_t sz[2] = {nq, nk};
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = 2;
+        tape_backward(tp, &pm, 0);
+        {
+            int idx = 3;
+            double v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nq * 4);
+                memcpy(tx, hxq, nq * 4);
+                tx[idx] += (float)(sgn * eps);
+                double s = 0;
+                for (int rr = 0; rr < B * H * T; rr++) {
+                    int t = rr % T;
+                    for (int d = 0; d < h; d++) {
+                        double a = tx[rr * hd + d], b = tx[rr * hd + h + d];
+                        double y0 = a * hco[t * hd + d] - b * hsi[t * hd + d];
+                        double y1 = b * hco[t * hd + h + d] + a * hsi[t * hd + h + d];
+                        s += (y0 - 1.0) * (y0 - 1.0) + (y1 - 1.0) * (y1 - 1.0);
+                    }
+                }
+                for (int rr = 0; rr < B * K * T; rr++) {
+                    int t = rr % T;
+                    for (int d = 0; d < h; d++) {
+                        double a = hxk[rr * hd + d], b = hxk[rr * hd + h + d];
+                        double y0 = a * hco[t * hd + d] - b * hsi[t * hd + d];
+                        double y1 = b * hco[t * hd + h + d] + a * hsi[t * hd + h + d];
+                        s += (y0 - 2.0) * (y0 - 2.0) + (y1 - 2.0) * (y1 - 2.0);
+                    }
+                }
+                v[sgn > 0 ? 1 : 0] = s / nq;
+                free(tx);
+            }
+            /* lq = sum/nq over yq only; the yk part is constant in xq
+             * and drops out of the finite difference. */
+            check("rope_gqa dxq[3]", gxq[idx], (v[1] - v[0]) / (2 * eps));
+        }
+        {
+            int idx = 5;
+            double v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nk * 4);
+                memcpy(tx, hxk, nk * 4);
+                tx[idx] += (float)(sgn * eps);
+                double s = 0;
+                for (int rr = 0; rr < B * K * T; rr++) {
+                    int t = rr % T;
+                    for (int d = 0; d < h; d++) {
+                        double a = tx[rr * hd + d], b = tx[rr * hd + h + d];
+                        double y0 = a * hco[t * hd + d] - b * hsi[t * hd + d];
+                        double y1 = b * hco[t * hd + h + d] + a * hsi[t * hd + h + d];
+                        s += (y0 - 2.0) * (y0 - 2.0) + (y1 - 2.0) * (y1 - 2.0);
+                    }
+                }
+                v[sgn > 0 ? 1 : 0] = s / nk;
+                free(tx);
+            }
+            check("rope_gqa dxk[5]", gxk[idx], (v[1] - v[0]) / (2 * eps));
+        }
+        free(hxq); free(hxk); free(hco); free(hsi);
+        free(gxq); free(gxk);
+        tape_free(tp);
+    }
+
+    /* ---- sdpa GQA (H=4 query heads, K=2 kv heads, no mask) ---- */
+    {
+        int B = 1, H = 4, K = 2, Tq = 4, Tkv = 4, hd = 8;
+        int rep = H / K;
+        int nq = B * H * Tq * hd, nkv = B * K * Tkv * hd;
+        float scale = 1.0f / sqrtf((float)hd);
+        float *hq0 = malloc(nq * 4), *hk0 = malloc(nkv * 4), *hv0 = malloc(nkv * 4);
+        for (int i = 0; i < nq; i++) hq0[i] = (float)frand();
+        for (int i = 0; i < nkv; i++) { hk0[i] = (float)frand(); hv0[i] = (float)frand(); }
+        float *q = arena_alloc(nq), *k = arena_alloc(nkv), *v = arena_alloc(nkv);
+        float *o = arena_alloc(nq);
+        mem_h2d(q, hq0, nq * 4); mem_h2d(k, hk0, nkv * 4); mem_h2d(v, hv0, nkv * 4);
+        Tape *tp = tape_new();
+        t_sdpa(tp, q, k, v, NULL, o, B, H, K, Tq, Tkv, hd);
+        float *h1 = malloc(nq * 4);
+        float *tc = arena_alloc(nq);
+        for (int i = 0; i < nq; i++) h1[i] = 1.0f;
+        mem_h2d(tc, h1, nq * 4);
+        free(h1);
+        float *ll = arena_alloc(1);
+        t_mse(tp, o, tc, ll, nq, 1.0);
+        float *gq = calloc(nq, 4), *gk = calloc(nkv, 4), *gv = calloc(nkv, 4);
+        PMap pm;
+        float *pp[3] = {q, k, v};
+        float *pg[3] = {gq, gk, gv};
+        int64_t sz[3] = {nq, nkv, nkv};
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = 3;
+        tape_backward(tp, &pm, 0);
+        /* numeric: GQA sdpa forward + MSE vs 1.0, finite differences */
+        double sdpa_loss(const float *qq, const float *kk, const float *vv) {
+            double s = 0;
+            for (int b = 0; b < B; b++) for (int h = 0; h < H; h++) {
+                int kvh = h / rep;
+                for (int tq = 0; tq < Tq; tq++) {
+                    double mx = -1e300;
+                    static double sc[16];
+                    for (int tk = 0; tk < Tkv; tk++) {
+                        const float *qr = qq + ((b * H + h) * Tq + tq) * hd;
+                        const float *kr = kk + ((b * K + kvh) * Tkv + tk) * hd;
+                        double d = 0;
+                        for (int d2 = 0; d2 < hd; d2++) d += (double)qr[d2] * kr[d2];
+                        d *= scale;
+                        sc[tk] = d;
+                        if (d > mx) mx = d;
+                    }
+                    double den = 0;
+                    for (int tk = 0; tk < Tkv; tk++) { sc[tk] = exp(sc[tk] - mx); den += sc[tk]; }
+                    for (int d = 0; d < hd; d++) {
+                        double ov = 0;
+                        for (int tk = 0; tk < Tkv; tk++) {
+                            const float *vr = vv + ((b * K + kvh) * Tkv + tk) * hd;
+                            ov += (sc[tk] / den) * vr[d];
+                        }
+                        s += (ov - 1.0) * (ov - 1.0);
+                    }
+                }
+            }
+            return s / nq;
+        }
+        {
+            int idx = 7;
+            double ana = gq[idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nq * 4);
+                memcpy(tx, hq0, nq * 4);
+                tx[idx] += (float)(sgn * eps);
+                v[sgn > 0 ? 1 : 0] = sdpa_loss(tx, hk0, hv0);
+                free(tx);
+            }
+            check("sdpa_gqa dq[7]", ana, (v[1] - v[0]) / (2 * eps));
+        }
+        {
+            int idx = 3;
+            double ana = gk[idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nkv * 4);
+                memcpy(tx, hk0, nkv * 4);
+                tx[idx] += (float)(sgn * eps);
+                v[sgn > 0 ? 1 : 0] = sdpa_loss(hq0, tx, hv0);
+                free(tx);
+            }
+            check("sdpa_gqa dk[3]", ana, (v[1] - v[0]) / (2 * eps));
+        }
+        {
+            int idx = 11;
+            double ana = gv[idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                float *tx = malloc(nkv * 4);
+                memcpy(tx, hv0, nkv * 4);
+                tx[idx] += (float)(sgn * eps);
+                v[sgn > 0 ? 1 : 0] = sdpa_loss(hq0, hk0, tx);
+                free(tx);
+            }
+            check("sdpa_gqa dv[11]", ana, (v[1] - v[0]) / (2 * eps));
+        }
+        free(hq0); free(hk0); free(hv0);
+        free(gq); free(gk); free(gv);
+        tape_free(tp);
+    }
+
     printf(fails ? "GCHECK-FAIL (%d)\n" : "GCHECK-PASS\n", fails);
     return fails != 0;
 }

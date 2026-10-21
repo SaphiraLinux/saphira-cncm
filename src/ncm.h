@@ -158,6 +158,8 @@ void rope_apply(float *q, float *k, const float *cos, const float *sin,
 void rope_apply_gqa(float *q, float *k, const float *cos, const float *sin,
                     int B, int H, int K, int T, int hd);
 void heads_transpose_fwd(const float *in, float *out, int64_t T, int H, int hd);
+/* B-aware variant: [B][T][H*hd] -> [B][H][T][hd]. */
+void heads_transpose_fwd_b(const float *in, float *out, int B, int64_t T, int H, int hd);
 /* SDPA with additive mask: out = softmax(QK'/s + mask) V. mask:[Tq,Tkv] or NULL */
 void sdpa_fwd(const float *q, const float *k, const float *v, const float *mask,
               float *out, int B, int H, int Tq, int Tkv, int hd);
@@ -320,6 +322,19 @@ int train_run_ex(const NCMConfig *c, const char *weights_path,
 int bwd_parity_run(const NCMConfig *c, const char *weights_path,
                    const char *data_path, double tol);
 int bwdops_run(double tol);
+/* ---- taped Qwen forward (train_qwen.c): mirrors qwen.c op-for-op, recorded.
+ * Block: RMSNorm -> q/k/v linears(+bias) -> headsplit -> RoPE(GQA) ->
+ * SDPA(GQA, causal) -> merge -> o_proj -> add -> RMSNorm -> SwiGLU MLP -> add.
+ * Returns logits [B][T][V] via the tied head. cos/sin: caller-built
+ * pair-duplicated tables (train_qwen_tables, theta convention = qwen.c). */
+void train_qwen_tables(float *co_out, float *si_out, int T, int hd, double theta);
+float *train_qwen_block(Tape *tp, WeightStore *ws, const NCMConfig *c,
+                        int li, float *x, int B, int T,
+                        const float *mask, const float *cos, const float *sin);
+float *train_qwen_forward(Tape *tp, WeightStore *ws, const NCMConfig *c,
+                          const int *ids, int B, int T);
+int qwen_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
+                   const char *prompt, int T);
 
 typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
 
@@ -391,9 +406,12 @@ void t_relu2(Tape *t, const float *x, float *y, int64_t n);
 void t_silu(Tape *t, const float *x, float *y, int64_t n);
 void t_softmax(Tape *t, const float *x, float *y, int64_t rows, int C);
 void t_rope(Tape *t, const float *xq, const float *xk, float *yq, float *yk,
-            const float *cos, const float *sin, int B, int H, int T, int hd);
+             const float *cos, const float *sin, int B, int H, int Hkv, int T, int hd);
 void t_sdpa(Tape *t, const float *q, const float *k, const float *v,
-            const float *mask, float *o, int B, int H, int Tq, int Tkv, int hd);
+             const float *mask, float *o, int B, int H, int Hkv, int Tq, int Tkv, int hd);
+/* heads transpose [B][T][H*hd] -> [B][H][T][hd] (B-aware; qwen separate linears) */
+void t_headsplit(Tape *t, const float *in, float *out,
+                 int B, int T, int C, int H, int hd);
 void t_conv(Tape *t, const float *x, const float *W, const float *b, float *y,
             int N, int Cin, int Cout, int T, int K, int stride, int pad);
 void t_convt(Tape *t, const float *x, const float *W, const float *b, float *y,

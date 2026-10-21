@@ -331,6 +331,31 @@ void heads_transpose_fwd(const float *in, float *out, int64_t T, int H, int hd) 
 #endif
 }
 
+/* B-aware variant: [B][T][H*hd] -> [B][H][T][hd]. */
+#ifdef NCM_CUDA
+__global__ static void k_heads_transpose_b(const float *in, float *out,
+                                           int64_t B, int64_t T, int H, int hd) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= B * T * H * hd) return;
+    int64_t t = (i / hd / H) % T, r = i % (H * hd);
+    int64_t h = r / hd, d = r % hd, b = i / ((int64_t)T * H * hd);
+    out[((b * H + h) * T + t) * hd + d] = in[((b * T + t) * H + h) * hd + d];
+}
+#endif
+void heads_transpose_fwd_b(const float *in, float *out, int B, int64_t T, int H, int hd) {
+#ifdef NCM_CUDA
+    NCM_LAUNCH((int64_t)B * T * H * hd, k_heads_transpose_b, in, out, B, T, H, hd);
+#else
+#pragma omp parallel for collapse(3) schedule(static) if((int64_t)B * T * H * hd > 4096)
+    for (int b = 0; b < B; b++)
+        for (int64_t t = 0; t < T; t++)
+            for (int h = 0; h < H; h++)
+                for (int d = 0; d < hd; d++)
+                    out[((int64_t)(b * H + h) * T + t) * hd + d] =
+                        in[((int64_t)(b * T + t) * H + h) * hd + d];
+#endif
+}
+
 /* ================= SDPA ================= */
 
 #ifdef NCM_CUDA

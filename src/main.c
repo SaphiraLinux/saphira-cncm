@@ -33,13 +33,15 @@ static void usage(const char *a) {
         "             --texts FILE (one document per line)\n"
         "  %s qwen-verify --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --fixtures DIR (qwen_tok/gen/ppl.txt + qwen_logits_*.f32)\n"
+        "  %s qwen-taped --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             --prompt TEXT [--tokens N] (taped vs reference parity)\n"
         "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
         "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -313,6 +315,14 @@ int main(int argc, char **argv) {
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
         return qwen_cmd_verify(&cfg, weights, adir, fx);
+    }
+    if (strcmp(argv[1], "qwen-taped") == 0) {
+        const char *prompt = opt(&argc, &argv, "--prompt");
+        const char *nn = opt(&argc, &argv, "--tokens");
+        if (!conf || !weights || !prompt) usage(argv[0]);
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return qwen_cmd_taped(&cfg, weights, adir, prompt, nn ? atoi(nn) : 0);
     }
     if (strcmp(argv[1], "gradcheck") == 0) {
         const char *data = opt(&argc, &argv, "--data");

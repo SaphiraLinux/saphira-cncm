@@ -8,7 +8,7 @@ BUILD   ?= cpu
 BIN     ?= cncm
 
 SRC := src/main.c src/tensor.c src/kernels.c src/vq.c src/vqvae.c \
-       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/qwen.c src/train.c src/train_tape.c src/train_vq.c src/ckpt.c
+       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/qwen.c src/train.c src/train_tape.c src/train_vq.c src/train_qwen.c src/ckpt.c
 
 ifeq ($(BUILD),cuda)
 ODIR   := build/cuda

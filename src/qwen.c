@@ -475,3 +475,43 @@ int qwen_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
     qwen_close(&m);
     return fails != 0;
 }
+
+/* ---------- taped-forward parity: reference vs recorded forward ----------
+ * Runs qwen_forward and train_qwen_forward on the same ids and compares
+ * every logit. Catches wiring bugs (swapped q/k, wrong names, table
+ * mismatch) that per-op checks cannot. Bit-exact on CPU; on CUDA both
+ * sides use the same backend kernels so expect 0 (cuBLAS shapes match). */
+int qwen_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
+                   const char *prompt, int T) {
+    QWEN m;
+    if (qwen_open(&m, c, weights, adir)) return 1;
+    int ids_buf[8192];
+    int n = 0;
+    if (prompt) n = tok_encode(m.tok, prompt, ids_buf, 8192);
+    if (n < 2) { fprintf(stderr, "qwen-taped needs --prompt TEXT (>=2 tokens)\n"); return 2; }
+    if (T > 0 && n > T) n = T;
+    int V = m.vocab_size;
+    /* reference */
+    float *lg = qwen_forward(&m, ids_buf, n, 0);
+    float *href = (float *)backend_to_host(lg, (size_t)n * V * sizeof(float));
+    /* taped */
+    arena_reset();
+    Tape *tp = tape_new();
+    float *tl = train_qwen_forward(tp, &m.ws, c, ids_buf, 1, n);
+    float *htap = (float *)backend_to_host(tl, (size_t)n * V * sizeof(float));
+    tape_free(tp);
+    double mx = 0;
+    int64_t mi = -1;
+    for (int64_t i = 0; i < (int64_t)n * V; i++) {
+        double d = fabs((double)href[i] - htap[i]);
+        if (d > mx) { mx = d; mi = i; }
+    }
+    printf("qwen-taped T=%d V=%d maxabs=%.3g at %lld (ref=%.6g tap=%.6g)\n",
+           n, V, mx, (long long)mi,
+           mi >= 0 ? href[mi] : 0.0, mi >= 0 ? htap[mi] : 0.0);
+    int rc = (mx == 0.0) ? 0 : (mx < 1e-5 ? 0 : 1);
+    printf("QWEN-TAPED %s\n", rc ? "FAIL" : "PASS");
+    free(href); free(htap);
+    qwen_close(&m);
+    return rc;
+}
