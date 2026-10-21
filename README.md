@@ -86,16 +86,20 @@ src/
 tools/
    export.py        .pt -> .ncm + .conf (one-time, needs torch)
    export_data.py   eval pickles -> plain text
-   export_train.py  training rows -> .nctrain
+    export_train.py  training rows -> .nctrain
+    export_text.c    bible-style corpus -> tokenized .nctrain + verse manifest (pure C)
+    qwenimport.c     HF Qwen2 safetensors/tokenizer.json/merges -> .ncm + cncm BPE text
+    qwen2-05.conf    template config for a converted Qwen2.5-0.5B dir
    gpt2import.c     HF safetensors/vocab/merges -> .ncm + cncm BPE text (pure C)
    gpt2-124m.conf   template config for a converted GPT-2 124M dir
    gen_gpt2_ref.py  one-time transformers fixtures (offline only)
    gen_unitables.py one-time Unicode table generator for tok_tables.c
 tests/
-   fixtures/      GPT-2 transformers references (ids, logits, generations, ppl)
-   ktest_kernels.c  kernel parity harness (CPU vs CUDA)
-   gcheck.c         host-side grad-check pieces
-   train_smoke.py   (see TRAINING.md)
+    fixtures/      GPT-2 transformers references (ids, logits, generations, ppl)
+    ktest_kernels.c  kernel parity harness (CPU vs CUDA)
+    gcheck.c         host-side grad-check pieces
+    roundtrip_text.py  export_text .nctrain vs corpus byte-exactness + coverage
+    train_smoke.py   (see TRAINING.md)
 ```
 
 ## Design notes

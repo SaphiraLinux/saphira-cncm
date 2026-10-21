@@ -49,7 +49,10 @@ tools/gpt2import: tools/gpt2import.c
 tools/qwenimport: tools/qwenimport.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<
 
-clean:
-	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport
+tools/export_text: tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c
+	$(CC) -O2 -std=c11 -Wall -Wextra -Isrc -o $@ tools/export_text.c src/tok.c src/tok_tables.c src/tensor.c -lm
 
-.PHONY: all cuda test clean tools/gpt2import tools/qwenimport
+clean:
+	rm -rf build $(BIN) cncm-cuda tools/gpt2import tools/qwenimport tools/export_text
+
+.PHONY: all cuda test clean tools/gpt2import tools/qwenimport tools/export_text
