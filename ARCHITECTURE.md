@@ -185,7 +185,8 @@ models are the stated ceiling.
   ms-normalized determinism, `sudoku-check` valid/invalid + bad-unit
   flags, prefix validation, font-strip md5 (pixel-exact bitmap font),
   train `--view` loss/checkpoint identity vs no-view, `gen --view`
-  same-board. Skips cleanly without weights.
+  same-board, full-frame render content check (not black/blank).
+  Skips cleanly without weights.
 
 ## Native live viewer (SDL2, `src/viewer.c`)
 
@@ -208,6 +209,12 @@ window stops cleanly after the current step (no stray checkpoint);
 without a display (or `SDL_VIDEODRIVER=dummy`) the viewer is a silent
 no-op and computation runs headless. `train*.c` math, `ckpt.c` and the
 CUDA paths are unchanged — only additive hooks.
+Diagnostics: open prints `[viewer] video=DRIVER renderer=...` (which
+backend drives the window); `CNCM_VIEW_SHOT=/tmp/x.bmp` dumps the live
+backbuffer every ~20s (proves what the renderer produces on any
+backend); `tests/fontcheck frame` renders both modes headless and the
+test asserts real content (not black/blank). If a window stays black,
+try `SDL_VIDEODRIVER=x11` (proven path) and report the driver line.
 
 `cncm sudoku-stream` (NDJSON level events) and `cncm sudoku-check`
 (validity query) remain as scriptable machine interfaces over the same

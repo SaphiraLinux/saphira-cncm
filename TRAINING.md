@@ -133,7 +133,9 @@ Memory (12 GB card, fp32 0.5B): weights 2.0 + device grad map ~2.0 (lives
 in the arena) + activations. The device AdamW mirrors (+4 GiB) do not
 fit alongside a training-size arena, so Qwen training uses
 `NCM_ADAMW=cpu` (host moments; verified bit-identical update math) and a
-sized arena: `NCM_ARENA_MB=3072` at T=128, 4096 at T=512.
+sized arena: `NCM_ARENA_MB=3072` at T=128, 8192 at T=512 (measured:
+forward activations plus per-intermediate grad buffers run ~2.5 GB at
+T=128 and ~6.5 GB at T=512, on top of the 2 GB device grad map).
 
 Verified: per-op host-vs-device incl. Qwen-scale LINEAR/SDPA-GQA and a
 composed 1-layer Qwen block (`bwdops`, global maxabs ~1e-7); exact resume

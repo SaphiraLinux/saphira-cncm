@@ -12,6 +12,7 @@
 #ifdef CNCM_HAVE_SDL2
 #include <SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* ---------------- 5x7 bitmap font (uppercase + digits + punctuation) ----
@@ -111,128 +112,136 @@ static double Vhist[VHIST];
 static int Vhn;
 static int Vlast_step = -1;
 
-static void vdraw_board(int ox, int oy, int cell) {
+/* One frame's worth of render inputs, copied under lock (thread path) or
+ * built synthetically (frame test path). Lets the draw code run without
+ * touching globals, so tests exercise the exact live pixels. */
+typedef struct {
+    SDL_Renderer *rn;
+    ViewSnap snap;
+    double hist[VHIST];
+    int hn;
+} VFrame;
+
+static void vdraw_board(const VFrame *f, int ox, int oy, int cell) {
     /* cells */
     for (int r = 0; r < 9; r++) for (int c = 0; c < 9; c++) {
         int i = r * 9 + c;
         int x = ox + c * cell, y = oy + r * cell;
         Uint8 br = 255, bg = 255, bb2 = 255;
-        if (Vsnap.clues[0] && Vsnap.clues[i] != '.' && Vsnap.clues[i] != 0) {
+        if (f->snap.clues[0] && f->snap.clues[i] != '.' && f->snap.clues[i] != 0) {
             br = 242; bg = 242; bb2 = 242;
         }
         int bad = 0;
-        for (int k = 0; k < Vsnap.nr; k++) if (Vsnap.bad_r[k] == r) bad = 1;
-        for (int k = 0; k < Vsnap.nc; k++) if (Vsnap.bad_c[k] == c) bad = 1;
-        for (int k = 0; k < Vsnap.nb; k++)
-            if (Vsnap.bad_b[k] == (r / 3) * 3 + c / 3) bad = 1;
+        for (int k = 0; k < f->snap.nr; k++) if (f->snap.bad_r[k] == r) bad = 1;
+        for (int k = 0; k < f->snap.nc; k++) if (f->snap.bad_c[k] == c) bad = 1;
+        for (int k = 0; k < f->snap.nb; k++)
+            if (f->snap.bad_b[k] == (r / 3) * 3 + c / 3) bad = 1;
         if (bad) { br = 255; bg = 215; bb2 = 215; }
-        SDL_SetRenderDrawColor(Vren, br, bg, bb2, 255);
+        SDL_SetRenderDrawColor(f->rn, br, bg, bb2, 255);
         SDL_Rect rc = {x, y, cell, cell};
-        SDL_RenderFillRect(Vren, &rc);
+        SDL_RenderFillRect(f->rn, &rc);
         char ch = 0;
         Uint8 tr = 11, tg = 92, tb = 173;
-        if (Vsnap.clues[0] && Vsnap.clues[i] != '.' && Vsnap.clues[i] != 0) {
-            ch = Vsnap.clues[i]; tr = 17; tg = 17; tb = 17;
-        } else if (Vsnap.board[0] && Vsnap.board[i] >= '1' && Vsnap.board[i] <= '9') {
-            ch = Vsnap.board[i];
+        if (f->snap.clues[0] && f->snap.clues[i] != '.' && f->snap.clues[i] != 0) {
+            ch = f->snap.clues[i]; tr = 17; tg = 17; tb = 17;
+        } else if (f->snap.board[0] && f->snap.board[i] >= '1' && f->snap.board[i] <= '9') {
+            ch = f->snap.board[i];
         }
         if (ch) {
             int sc = cell / 12;
             if (sc < 1) sc = 1;
             int tw = 5 * sc, th = 7 * sc;
-            vfont_draw(Vren, x + (cell - tw) / 2, y + (cell - th) / 2,
+            vfont_draw(f->rn, x + (cell - tw) / 2, y + (cell - th) / 2,
                        ch, sc, tr, tg, tb);
         }
     }
     /* grid lines: thin inside, thick on box borders */
     for (int i = 0; i <= 9; i++) {
         int thick = (i % 3 == 0);
-        SDL_SetRenderDrawColor(Vren, 34, 34, 34, 255);
+        SDL_SetRenderDrawColor(f->rn, 34, 34, 34, 255);
         int p = ox + i * cell - (thick ? 1 : 0);
         SDL_Rect v = {p, oy - (thick ? 1 : 0), thick ? 3 : 1, 9 * cell + (thick ? 2 : 0)};
-        SDL_RenderFillRect(Vren, &v);
+        SDL_RenderFillRect(f->rn, &v);
         int q = oy + i * cell - (thick ? 1 : 0);
         SDL_Rect h = {ox - (thick ? 1 : 0), q, 9 * cell + (thick ? 2 : 0), thick ? 3 : 1};
-        SDL_RenderFillRect(Vren, &h);
+        SDL_RenderFillRect(f->rn, &h);
     }
 }
 
-static void vdraw_panel(int x0, int y0, int sc) {
+static void vdraw_panel(const VFrame *f, int x0, int y0, int sc) {
     char buf[192];
     int y = y0, lh = 9 * sc;
-    vtext(Vren, x0, y, Vsnap.mode == 0 ? "MODE: TRAINING" : "MODE: SOLVING", sc, 17, 17, 17); y += lh;
-    snprintf(buf, sizeof(buf), "MODEL: %s", Vsnap.model);
-    vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-    snprintf(buf, sizeof(buf), "BACKEND: %s", Vsnap.backend);
-    vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-    if (Vsnap.mode == 0) {
-        snprintf(buf, sizeof(buf), "STEP: %d/%d", Vsnap.step, Vsnap.total);
-        vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-        snprintf(buf, sizeof(buf), "LOSS: %.4F", Vsnap.loss);
-        vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-        snprintf(buf, sizeof(buf), "ACC: %.1F%%", Vsnap.acc * 100.0);
-        vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-        snprintf(buf, sizeof(buf), "LR: %.2E", Vsnap.lr);
-        vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
+    vtext(f->rn, x0, y, f->snap.mode == 0 ? "MODE: TRAINING" : "MODE: SOLVING", sc, 17, 17, 17); y += lh;
+    snprintf(buf, sizeof(buf), "MODEL: %s", f->snap.model);
+    vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+    snprintf(buf, sizeof(buf), "BACKEND: %s", f->snap.backend);
+    vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+    if (f->snap.mode == 0) {
+        snprintf(buf, sizeof(buf), "STEP: %d/%d", f->snap.step, f->snap.total);
+        vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+        snprintf(buf, sizeof(buf), "LOSS: %.4F", f->snap.loss);
+        vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+        snprintf(buf, sizeof(buf), "ACC: %.1F%%", f->snap.acc * 100.0);
+        vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+        snprintf(buf, sizeof(buf), "LR: %.2E", f->snap.lr);
+        vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
     } else {
-        snprintf(buf, sizeof(buf), "LEVEL: %d/%d", Vsnap.step, Vsnap.total);
-        vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-        snprintf(buf, sizeof(buf), "VALID: %s", Vsnap.board[0] ? (Vsnap.valid ? "YES" : "NO") : "-");
-        vtext(Vren, x0, y, buf, sc, Vsnap.valid ? 26 : 180, Vsnap.valid ? 127 : 30, Vsnap.valid ? 55 : 30); y += lh;
+        snprintf(buf, sizeof(buf), "LEVEL: %d/%d", f->snap.step, f->snap.total);
+        vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+        snprintf(buf, sizeof(buf), "VALID: %s", f->snap.board[0] ? (f->snap.valid ? "YES" : "NO") : "-");
+        vtext(f->rn, x0, y, buf, sc, f->snap.valid ? 26 : 180, f->snap.valid ? 127 : 30, f->snap.valid ? 55 : 30); y += lh;
         y += lh; /* keep rows aligned with training panel */
         y += lh;
     }
-    snprintf(buf, sizeof(buf), "ELAPSED: %.1FS", Vsnap.elapsed);
-    vtext(Vren, x0, y, buf, sc, 17, 17, 17); y += lh;
-    if (Vsnap.ckpt) { vtext(Vren, x0, y, "CKPT: SAVED", sc, 26, 127, 55); }
-    else { vtext(Vren, x0, y, "CKPT: -", sc, 17, 17, 17); }
+    snprintf(buf, sizeof(buf), "ELAPSED: %.1FS", f->snap.elapsed);
+    vtext(f->rn, x0, y, buf, sc, 17, 17, 17); y += lh;
+    if (f->snap.ckpt) { vtext(f->rn, x0, y, "CKPT: SAVED", sc, 26, 127, 55); }
+    else { vtext(f->rn, x0, y, "CKPT: -", sc, 17, 17, 17); }
     y += lh;
     /* wrap status over up to 2 lines */
     char st[160];
-    snprintf(st, sizeof(st), "%s", Vsnap.status);
+    snprintf(st, sizeof(st), "%s", f->snap.status);
     st[38] = 0;
-    vtext(Vren, x0, y, st, sc, 80, 80, 80);
+    vtext(f->rn, x0, y, st, sc, 80, 80, 80);
 }
 
-static void vdraw_curve(int x, int y, int w, int h) {
-    SDL_SetRenderDrawColor(Vren, 240, 240, 240, 255);
+static void vdraw_curve(const VFrame *f, int x, int y, int w, int h) {
+    SDL_SetRenderDrawColor(f->rn, 240, 240, 240, 255);
     SDL_Rect bg = {x, y, w, h};
-    SDL_RenderFillRect(Vren, &bg);
-    SDL_SetRenderDrawColor(Vren, 200, 200, 200, 255);
-    SDL_RenderDrawRect(Vren, &bg);
-    if (Vhn < 2) return;
-    double mn = Vhist[0], mx = Vhist[0];
-    for (int i = 1; i < Vhn; i++) {
-        if (Vhist[i] < mn) mn = Vhist[i];
-        if (Vhist[i] > mx) mx = Vhist[i];
+    SDL_RenderFillRect(f->rn, &bg);
+    SDL_SetRenderDrawColor(f->rn, 200, 200, 200, 255);
+    SDL_RenderDrawRect(f->rn, &bg);
+    if (f->hn < 2) return;
+    double mn = f->hist[0], mx = f->hist[0];
+    for (int i = 1; i < f->hn; i++) {
+        if (f->hist[i] < mn) mn = f->hist[i];
+        if (f->hist[i] > mx) mx = f->hist[i];
     }
     if (mx - mn < 1e-9) { mn -= 0.5; mx += 0.5; }
-    SDL_SetRenderDrawColor(Vren, 11, 92, 173, 255);
+    SDL_SetRenderDrawColor(f->rn, 11, 92, 173, 255);
     int prevx = 0, prevy = 0;
-    for (int i = 0; i < Vhn; i++) {
+    for (int i = 0; i < f->hn; i++) {
         int px = x + (int)((double)i / (VHIST - 1) * (w - 1));
-        int py = y + h - 1 - (int)((Vhist[i] - mn) / (mx - mn) * (h - 1));
-        if (i) SDL_RenderDrawLine(Vren, prevx, prevy, px, py);
+        int py = y + h - 1 - (int)((f->hist[i] - mn) / (mx - mn) * (h - 1));
+        if (i) SDL_RenderDrawLine(f->rn, prevx, prevy, px, py);
         prevx = px; prevy = py;
     }
 }
 
-static void vdraw_levels(int x, int y, int w, int h) {
-    int n = Vsnap.nlv > 0 ? Vsnap.nlv : 12;
+static void vdraw_levels(const VFrame *f, int x, int y, int w, int h) {
+    int n = f->snap.nlv > 0 ? f->snap.nlv : 12;
     int bw = (w - (n - 1) * 4) / n;
     for (int i = 0; i < n && i < VIEW_MAXLV; i++) {
-        int done = i < Vsnap.lvl_done_count;
-        SDL_SetRenderDrawColor(Vren, done ? 26 : 230, done ? 127 : 230, done ? 55 : 230, 255);
+        int done = i < f->snap.lvl_done_count;
+        SDL_SetRenderDrawColor(f->rn, done ? 26 : 230, done ? 127 : 230, done ? 55 : 230, 255);
         SDL_Rect rc = {x + i * (bw + 4), y, bw, h};
-        SDL_RenderFillRect(Vren, &rc);
+        SDL_RenderFillRect(f->rn, &rc);
     }
 }
 
-static void vrender(void) {
-    int W, H;
-    SDL_GetWindowSize(Vwin, &W, &H);
-    SDL_SetRenderDrawColor(Vren, 255, 255, 255, 255);
-    SDL_RenderClear(Vren);
+static void vrender_frame(VFrame *f, int W, int H) {
+    SDL_SetRenderDrawColor(f->rn, 255, 255, 255, 255);
+    SDL_RenderClear(f->rn);
     int pad = 16;
     int panel_w = 300;
     int board_px = W - panel_w - pad * 3;
@@ -242,24 +251,28 @@ static void vrender(void) {
     int cell = board_px / 9;
     board_px = cell * 9;
     int ox = pad, oy = pad;
-    vdraw_board(ox, oy, cell);
+    vdraw_board(f, ox, oy, cell);
     int x0 = ox + board_px + pad * 2;
-    vdraw_panel(x0, oy, 2);
+    vdraw_panel(f, x0, oy, 2);
     int by = oy + board_px + pad;
     int bh = H - by - pad;
     if (bh < 40) bh = 40;
-    if (Vsnap.mode == 0) vdraw_curve(ox, by, board_px, bh);
-    else vdraw_levels(ox, by, board_px, bh < 60 ? bh : 60);
-    SDL_RenderPresent(Vren);
+    if (f->snap.mode == 0) vdraw_curve(f, ox, by, board_px, bh);
+    else vdraw_levels(f, ox, by, board_px, bh < 60 ? bh : 60);
 }
 
 static int vthread(void *arg) {
     (void)arg;
+    const char *shotpath = getenv("CNCM_VIEW_SHOT");
+    unsigned long frames = 0;
     for (;;) {
         if (SDL_AtomicGet(&Vstop)) break;
         SDL_Event ev;
         while (SDL_PollEvent(&ev))
             if (ev.type == SDL_QUIT) SDL_AtomicSet(&Vstop, 1);
+        VFrame f;
+        memset(&f, 0, sizeof(f));
+        f.rn = Vren;
         if (SDL_LockMutex(Vmtx) == 0) {
             if (Vdirty) {
                 Vdirty = 0;
@@ -270,9 +283,28 @@ static int vthread(void *arg) {
                     else { memmove(Vhist, Vhist + 1, (VHIST - 1) * sizeof(double)); Vhist[VHIST - 1] = Vsnap.loss; }
                 }
             }
+            f.snap = Vsnap;
+            f.hn = Vhn < VHIST ? Vhn : VHIST;
+            if (f.hn > 0) memcpy(f.hist, Vhist, (size_t)f.hn * sizeof(double));
             SDL_UnlockMutex(Vmtx);
         }
-        vrender();
+        int W, H;
+        SDL_GetWindowSize(Vwin, &W, &H);
+        vrender_frame(&f, W, H);
+        SDL_RenderPresent(Vren);
+        /* diagnostic snapshot of the live backbuffer (real presented pixels):
+         * CNCM_VIEW_SHOT=/tmp/shot.bmp dumps every ~20s. Proves what the
+         * renderer produces on any backend, no external tools needed. */
+        if (shotpath && (++frames % 300 == 0)) {
+            SDL_Surface *shot = SDL_CreateRGBSurface(0, W, H, 32,
+                0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+            if (shot) {
+                if (SDL_RenderReadPixels(Vren, NULL, shot->format->format,
+                                         shot->pixels, shot->pitch) == 0)
+                    SDL_SaveBMP(shot, shotpath);
+                SDL_FreeSurface(shot);
+            }
+        }
         SDL_Delay(66);
     }
     return 0;
@@ -297,6 +329,23 @@ int viewer_open(const char *title) {
     }
     SDL_AtomicSet(&Vstop, 0);
     Vdirty = 0; Vhn = 0; Vlast_step = -1;
+    {
+        /* observability: which backend actually drives the window */
+        SDL_RendererInfo ri;
+        const char *drv = SDL_GetCurrentVideoDriver();
+        const char *rnm = (SDL_GetRendererInfo(Vren, &ri) == 0) ? ri.name : "?";
+        fprintf(stderr, "[viewer] video=%s renderer=%s\n", drv ? drv : "?", rnm);
+        /* synchronous first frame on the calling thread: proves the
+         * renderer presents before the render thread takes over */
+        VFrame f0;
+        memset(&f0, 0, sizeof(f0));
+        f0.rn = Vren;
+        f0.snap = Vsnap;
+        int W0, H0;
+        SDL_GetWindowSize(Vwin, &W0, &H0);
+        vrender_frame(&f0, W0, H0);
+        SDL_RenderPresent(Vren);
+    }
     Vthr = SDL_CreateThread(vthread, "cncm-viewer", NULL);
     if (!Vthr) {
         SDL_DestroyMutex(Vmtx); Vmtx = NULL;
@@ -378,6 +427,88 @@ int viewer_font_test_bmp(const char *path) {
     return rc;
 }
 
+/* test helper: render one full viewer frame (mode 0=train, 1=solve) to a
+ * BMP using the same vrender_frame the live thread uses, on a private
+ * window+software renderer (works headless under the dummy driver).
+ * Returns 0 on success. */
+static void vframe_demo_snap(ViewSnap *s, int mode) {
+    memset(s, 0, sizeof(*s));
+    s->mode = mode;
+    snprintf(s->model, sizeof(s->model), "sudoku-easy");
+    snprintf(s->backend, sizeof(s->backend), "cpu");
+    snprintf(s->status, sizeof(s->status), "frame test");
+    const char *cl = "..3......"
+                     "8......21"
+                     ".17......"
+                     ".....7..."
+                     "....18..."
+                     "....7..9."
+                     ".5..6...."
+                     "..4..2..1"
+                     "..69..5..";
+    memcpy(s->clues, cl, 81);
+    s->clues[81] = 0;
+    if (mode == 0) {
+        s->step = 12; s->total = 100;
+        s->loss = 9.8765; s->acc = 0.873; s->lr = 3e-5; s->elapsed = 123.4;
+        s->nlv = 12;
+        for (int i = 0; i < 12; i++) {
+            s->lvl_loss[i] = 10.0 - 0.2 * i;
+            s->lvl_acc[i] = 0.5 + 0.03 * i;
+            s->lvl_n[i] = 8;
+            s->lvl_ms[i] = 200.0 + 5 * i;
+        }
+        s->lvl_done_count = 0;
+        s->ckpt = 1;
+    } else {
+        s->step = 12; s->total = 12;
+        s->nlv = 12;
+        for (int i = 0; i < 12; i++) {
+            s->lvl_n[i] = 8;
+            s->lvl_ms[i] = 200.0 + 5 * i;
+        }
+        s->lvl_done_count = 12;
+        const char *bd = "921647385764835291583912764452369178179458623836721549217584936698173452345296817";
+        memcpy(s->board, bd, 81);
+        s->board[81] = 0;
+        s->valid = 1;
+        s->elapsed = 3.3;
+    }
+}
+
+int viewer_test_frame_bmp(const char *path, int mode) {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
+    SDL_Window *wn = SDL_CreateWindow("cncm-frame-test", 0, 0, 820, 620, SDL_WINDOW_HIDDEN);
+    if (!wn) { SDL_Quit(); return 1; }
+    SDL_Renderer *rn = SDL_CreateRenderer(wn, -1, SDL_RENDERER_SOFTWARE);
+    if (!rn) { SDL_DestroyWindow(wn); SDL_Quit(); return 1; }
+    VFrame f;
+    memset(&f, 0, sizeof(f));
+    f.rn = rn;
+    vframe_demo_snap(&f.snap, mode);
+    if (mode == 0) {
+        f.hn = 200;
+        for (int i = 0; i < f.hn; i++) f.hist[i] = 14.0 - 0.03 * i + 0.2 * ((i % 7) / 7.0);
+    }
+    vrender_frame(&f, 820, 620);
+    SDL_RenderPresent(rn);
+    /* read back the presented pixels */
+    SDL_Surface *shot = SDL_CreateRGBSurface(0, 820, 620, 32,
+                                             0x00FF0000, 0x0000FF00,
+                                             0x000000FF, 0xFF000000);
+    int rc = 1;
+    if (shot) {
+        if (SDL_RenderReadPixels(rn, NULL, shot->format->format,
+                                 shot->pixels, shot->pitch) == 0)
+            rc = SDL_SaveBMP(shot, path);
+        SDL_FreeSurface(shot);
+    }
+    SDL_DestroyRenderer(rn);
+    SDL_DestroyWindow(wn);
+    SDL_Quit();
+    return rc;
+}
+
 #else
 /* No SDL2 at build time: every entry point is a silent no-op. */
 int viewer_open(const char *title) { (void)title; return 1; }
@@ -387,4 +518,5 @@ void viewer_hold(void) { }
 void viewer_close(void) { }
 int viewer_active(void) { return 0; }
 int viewer_font_test_bmp(const char *path) { (void)path; return 2; }
+int viewer_test_frame_bmp(const char *path, int mode) { (void)path; (void)mode; return 2; }
 #endif /* CNCM_HAVE_SDL2 */

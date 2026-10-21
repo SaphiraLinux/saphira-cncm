@@ -378,6 +378,7 @@ void viewer_hold(void);
 void viewer_close(void);
 int viewer_active(void);
 int viewer_font_test_bmp(const char *path); /* test/diagnostic helper */
+int viewer_test_frame_bmp(const char *path, int mode); /* full-frame render test */
 
 typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
 

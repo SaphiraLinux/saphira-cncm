@@ -98,6 +98,37 @@ else
   FM="$(md5sum "$WORK/fontstrip.bmp" | awk '{print $1}')"
   FX="$(cat "$REPO/tests/fixtures/viewer_font.md5")"
   [ "$FM" = "$FX" ] && pass "font strip md5 $FM" || fail "font md5: got $FM want $FX"
+  # full viewer frames through the live render path (headless dummy video):
+  # must show content (white bg + grid + text), never all-black/blank.
+  for m in 0 1; do
+    SDL_VIDEODRIVER=dummy "$REPO/tests/fontcheck" frame "$WORK/frame$m.bmp" "$m" \
+      || fail "frame render mode $m"
+  done
+  FR="$(python3 - "$WORK/frame0.bmp" "$WORK/frame1.bmp" <<'EOF'
+import struct, sys
+ok = True
+for path in sys.argv[1:]:
+    d = open(path, 'rb').read()
+    if d[:2] != b'BM':
+        print('not-bmp', path); ok = False; continue
+    off = struct.unpack('<I', d[10:14])[0]
+    w, h = struct.unpack('<ii', d[18:26])
+    px = d[off:off + w * h * 4]
+    n = w * h
+    if len(px) < n * 4 or w != 820 or h != 620:
+        print('bad-size', path); ok = False; continue
+    dark = sum(1 for i in range(0, len(px), 4)
+               if (px[i] + px[i+1] + px[i+2]) // 3 < 40)
+    f = dark / n
+    print('%s dark=%.3f' % (path.split('/')[-1], f))
+    if not (0.01 < f < 0.60):
+        print('bad-content', path); ok = False
+print('FRAMES-OK' if ok else 'FRAMES-BAD')
+EOF
+)"
+  echo "$FR" | grep -q FRAMES-OK \
+    && pass "viewer frames render content (not black/blank)" \
+    || { fail "viewer frame content"; echo "$FR" | tail -4; }
 fi
 
 # ---------- 7. train --view identity (viewer must not change numerics) ----------
