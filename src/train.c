@@ -746,7 +746,9 @@ static double train_randn(void) {
 int train_run_ex(const NCMConfig *c_, const char *weights_path,
                  const char *data_path, int max_steps, double lr,
                  const TrainOpts *o_) {
-    TrainOpts o = o_ ? *o_ : (TrainOpts){0};
+    TrainOpts o;
+    memset(&o, 0, sizeof(o));
+    if (o_) o = *o_;
     int ckpt_every = o.ckpt_every > 0 ? o.ckpt_every : 10;
     const char *tokid = o.tokenizer_id ? o.tokenizer_id : "";
     NCMConfig c = *c_;
@@ -872,7 +874,7 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
         }
         double loss = train_ncp_step(t, tp, pbuf, cbuf, B);
         completed++;
-        char *save_path = NULL;
+        const char *save_path = NULL;
         char rot[256];
         if (completed % ckpt_every == 0 || completed == target) {
             if (o.ckpt_out) save_path = (char *)o.ckpt_out;

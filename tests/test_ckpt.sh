@@ -73,7 +73,7 @@ refuse_case() { # name, resume-file-setup..., extra train args...
   ( cd "$WORK/fmt/$name" && "$BIN" train "${COMMON[@]}" --steps 1 "$@" >run.log 2>&1 )
   local rc=$?
   if [ $rc -ne 0 ] && [ -z "$(ls "$WORK/fmt/$name"/*.nckpt 2>/dev/null)" ] \
-     && grep -q -i -E "refus|mismatch|corrupt|truncat|cannot|bad" "$WORK/fmt/$name/run.log"; then
+     && grep -q -i -E "refus|mismatch|corrupt|truncat|cannot|bad|row_len" "$WORK/fmt/$name/run.log"; then
     pass "refuse: $name"
   else
     fail "refuse: $name (rc=$rc)"
@@ -90,7 +90,11 @@ cp "$WORK/fmt/good.nckpt" "$WORK/fmt/flipc.nckpt"
 SZ=$(stat -c%s "$WORK/fmt/flipc.nckpt")
 printf '\377' | dd of="$WORK/fmt/flipc.nckpt" bs=1 seek=$((SZ - 4)) conv=notrunc 2>/dev/null
 refuse_case flip-checksum --resume "$WORK/fmt/flipc.nckpt"
-refuse_case wrong-data --resume "$WORK/fmt/good.nckpt" --data "$DATA2"
+refuse_case wrong-data-geometry --resume "$WORK/fmt/good.nckpt" --data "$DATA2"
+# same geometry, different bytes: exercises the dataset hash check
+cp "$DATA" "$WORK/fmt/dataflip.nctrain"
+printf '\377\377\377\377' | dd of="$WORK/fmt/dataflip.nctrain" bs=1 seek=100 conv=notrunc 2>/dev/null
+refuse_case wrong-data-hash --resume "$WORK/fmt/good.nckpt" --data "$WORK/fmt/dataflip.nctrain"
 refuse_case wrong-lr --resume "$WORK/fmt/good.nckpt" --lr 0.001
 refuse_case wrong-tok --resume "$WORK/fmt/good.nckpt" --tokenizer-id other
 refuse_case missing-file --resume "$WORK/fmt/nope.nckpt"
@@ -132,7 +136,7 @@ mkdir -p "$WORK/A" "$WORK/B"
 ( cd "$WORK/B" && S=$SECONDS; "$BIN" train "${COMMON[@]}" --steps "$NSTEPS" \
     --ckpt-every 1 --resume mid.nckpt >runB2.log 2>&1; echo "B2-time=$((SECONDS-S))s" >timeB2.txt )
 cat "$WORK/A/timeA.txt" "$WORK/B/timeB1.txt" "$WORK/B/timeB2.txt"
-grep -h "checkpoint saved in\|checkpoint loaded in" "$WORK/A/runA.log" "$WORK/B/runB*.log" | sort | uniq -c
+grep -h "checkpoint saved in\|checkpoint loaded in" "$WORK/A/runA.log" "$WORK"/B/runB1.log "$WORK"/B/runB2.log | sort | uniq -c
 # loss-line continuity: A steps == B1 steps ++ B2 steps
 grep -h "^\[train\] step" "$WORK/A/runA.log" | sed 's/ (saved.*//' >"$WORK/stepsA.txt"
 { grep -h "^\[train\] step" "$WORK/B/runB1.log"; grep -h "^\[train\] step" "$WORK/B/runB2.log"; } \
