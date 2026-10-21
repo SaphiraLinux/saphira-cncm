@@ -482,7 +482,35 @@ static void hadd_into(float *dst, const float *src, int64_t n) {
     for (int64_t i = 0; i < n; i++) dst[i] += src[i];
 }
 
+void tape_backward_host(Tape *t, PMap *pm, float seed);
+int tape_backward_dev(Tape *t, PMap *pm, float seed); /* CUDA only; 1 = handled */
+
+/* Env dispatch: NCM_BWD=cpu forces the legacy host path. Otherwise, on
+ * CUDA builds, the device path handles NCP-training tapes and falls back
+ * to host wholesale for VQ-only conv-family tapes. */
 void tape_backward(Tape *t, PMap *pm, float seed) {
+#ifdef NCM_CUDA
+    {
+        const char *e = getenv("NCM_BWD");
+        if (!(e && strcmp(e, "cpu") == 0))
+            if (tape_backward_dev(t, pm, seed)) return;
+    }
+#endif
+    tape_backward_host(t, pm, seed);
+}
+
+/* Explicit path selection (bwd-parity proof). dev!=0 wants device. */
+void tape_backward_force(Tape *t, PMap *pm, float seed, int dev) {
+#ifdef NCM_CUDA
+    if (dev)
+        if (tape_backward_dev(t, pm, seed)) return;
+#else
+    (void)dev;
+#endif
+    tape_backward_host(t, pm, seed);
+}
+
+void tape_backward_host(Tape *t, PMap *pm, float seed) {
     (void)seed;
     GMap *gm = gmap_new();
     if (pm) for (int pi = 0; pi < pm->n; pi++)
@@ -1229,3 +1257,717 @@ void tape_backward(Tape *t, PMap *pm, float seed) {
     }
     gmap_free(gm);
 }
+
+#ifdef NCM_CUDA
+/* ================= device backward =================
+ *
+ * Mirrors tape_backward_host() op-for-op; grads accumulate in a device
+ * map (DMap, arena-backed, zeroed). Summation order reproduces the host
+ * serial inner loops exactly (one thread per output, serial reductions),
+ * so every op except LINEAR is bit-identical to the host path; LINEAR
+ * goes through cuBLAS (blocked summation -> fp32-noise diffs, gated by
+ * the bwd-parity tolerance). GELU/SILU may differ by 1 ulp (CUDA vs
+ * libm transcendentals).
+ *
+ * Scatter-adds (EMBED/GATHER) stay host-staged: device atomics would
+ * break run-to-run determinism. VQ-only conv-family tapes fall back to
+ * the host backward wholesale (no mixed mode).
+ */
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+
+#define DBWD_CHECK(x) do { cudaError_t e_ = (x); \
+    if (e_ != cudaSuccess) { fprintf(stderr, "dbwd: %s:%d %s\n", \
+    __FILE__, __LINE__, cudaGetErrorString(e_)); exit(1); } } while (0)
+#define DBWD_CUBLAS(x) do { cublasStatus_t s_ = (x); \
+    if (s_ != CUBLAS_STATUS_SUCCESS) { fprintf(stderr, "dbwd cublas: %s:%d %d\n", \
+    __FILE__, __LINE__, (int)s_); exit(1); } } while (0)
+
+typedef struct { const float *key; float *g; int64_t n; } DEnt;
+typedef struct { DEnt *e; int n, cap; } DMap;
+
+static DMap *dmap_new(void) {
+    DMap *m = (DMap *)calloc(1, sizeof(DMap));
+    m->cap = 256;
+    m->e = (DEnt *)malloc((size_t)m->cap * sizeof(DEnt));
+    return m;
+}
+static void dmap_free(DMap *m) { free(m->e); free(m); } /* buffers die with arena */
+
+static float *dmap_find(DMap *m, const float *key) {
+    for (int i = 0; i < m->n; i++)
+        if (m->e[i].key == key) return m->e[i].g;
+    return NULL;
+}
+/* find or arena-allocate a zeroed device grad buffer */
+static float *dmap_get(DMap *m, const float *key, int64_t n) {
+    for (int i = 0; i < m->n; i++)
+        if (m->e[i].key == key) return m->e[i].g;
+    if (m->n == m->cap) {
+        m->cap *= 2;
+        m->e = (DEnt *)realloc(m->e, (size_t)m->cap * sizeof(DEnt));
+    }
+    float *g = arena_alloc((size_t)n);
+    DBWD_CHECK(cudaMemset(g, 0, (size_t)n * sizeof(float)));
+    m->e[m->n].key = key; m->e[m->n].g = g; m->e[m->n].n = n;
+    m->n++;
+    return g;
+}
+
+static cublasHandle_t dbwd_blas(void) {
+    static cublasHandle_t h = NULL;
+    if (!h) DBWD_CUBLAS(cublasCreate(&h));
+    return h;
+}
+static int dbwd_blocks(int64_t n) { return (int)((n + 255) / 256); }
+
+/* dst[i] += src[i] */
+__global__ static void k_add_into(float *dst, const float *src, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[i] += src[i];
+}
+/* dst[off+i] += src[i] */
+__global__ static void k_add_off(float *dst, int64_t off, const float *src, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[off + i] += src[i];
+}
+/* dx[i] += dy[i]*s */
+__global__ static void k_scale_bwd(float *dx, const float *dy, float s, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dx[i] += dy[i] * s;
+}
+/* dxa += dy*hb; dxb += dy*ha */
+__global__ static void k_mul_bwd(float *dxa, float *dxb, const float *ha,
+                                 const float *hb, const float *dy, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) { dxa[i] += dy[i] * hb[i]; dxb[i] += dy[i] * ha[i]; }
+}
+/* gelu/silu backward, double math mirroring host */
+__global__ static void k_gelu_bwd(float *dx, const float *hx, const float *dy,
+                                  int64_t n, int is_gelu) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    const double s2 = 1.4142135623730951, ip = 0.3989422804014327;
+    double g;
+    if (is_gelu) {
+        double e = erf(hx[i] / s2);
+        g = 0.5 * (1 + e) + hx[i] * exp(-0.5 * hx[i] * hx[i]) * ip;
+    } else {
+        double s = 1.0 / (1.0 + exp(-hx[i]));
+        g = s * (1 + hx[i] * (1 - s));
+    }
+    dx[i] += (float)(dy[i] * g);
+}
+/* relu2: dx += dy*2x for x>0 */
+__global__ static void k_relu2_bwd(float *dx, const float *hx, const float *dy, int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n && hx[i] > 0) dx[i] += dy[i] * 2 * hx[i];
+}
+/* softmax backward: per-row serial dot in double */
+__global__ static void k_softmax_bwd(float *dx, const float *hy, const float *dy,
+                                     int64_t rows, int C) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    double dot = 0;
+    for (int c = 0; c < C; c++) dot += (double)dy[rr * C + c] * hy[rr * C + c];
+    for (int c = 0; c < C; c++)
+        dx[rr * C + c] += (float)(hy[rr * C + c] * (dy[rr * C + c] - dot));
+}
+/* linear bias: db[m] += (float)sum_rr dy[rr*M+m], double accum ascending */
+__global__ static void k_rowsum_db(float *db, const float *dy, int64_t batch, int M) {
+    int m = blockIdx.x * blockDim.x + threadIdx.x;
+    if (m >= M) return;
+    double s = 0;
+    for (int64_t rr = 0; rr < batch; rr++) s += dy[rr * M + m];
+    db[m] += (float)s;
+}
+/* mse: dx += (a-b)*sc */
+__global__ static void k_mse_bwd(float *dx, const float *ha, const float *hb,
+                                 int64_t n, double sc) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dx[i] += (float)((ha[i] - hb[i]) * sc);
+}
+/* layernorm/rmsnorm per-row stats in double */
+__global__ static void k_ln_stats(const float *hx, int64_t rows, int C,
+                                  double *pmean, double *pinv, double eps) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    double mean = 0;
+    for (int c = 0; c < C; c++) mean += hx[rr * C + c];
+    mean /= C;
+    double var = 0;
+    for (int c = 0; c < C; c++) { double d = hx[rr * C + c] - mean; var += d * d; }
+    var /= C;
+    pmean[rr] = mean;
+    pinv[rr] = 1.0 / sqrt(var + eps);
+}
+__global__ static void k_rmsn_stats(const float *hx, int64_t rows, int C, double *pinv) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    double ms = 0;
+    for (int c = 0; c < C; c++) ms += (double)hx[rr * C + c] * hx[rr * C + c];
+    ms /= C;
+    pinv[rr] = 1.0 / sqrt(ms + 1e-6);
+}
+/* ln param grads: one thread per c, serial ascending rr (host order) */
+__global__ static void k_ln_param(const float *hx, const float *dy, const double *pmean,
+                                  const double *pinv, int64_t rows, int C,
+                                  float *dw, float *db) {
+    int c = blockIdx.x * blockDim.x + threadIdx.x;
+    if (c >= C) return;
+    double sw = 0, sb = 0;
+    for (int64_t rr = 0; rr < rows; rr++) {
+        double y = (hx[rr * C + c] - pmean[rr]) * pinv[rr];
+        sw += dy[rr * C + c] * y;
+        sb += dy[rr * C + c];
+    }
+    if (dw) dw[c] += (float)sw;
+    if (db) db[c] += (float)sb;
+}
+/* ln dx: per-row serial reductions in double */
+__global__ static void k_ln_dx(float *dx, const float *hx, const float *dy, const float *hw,
+                               const double *pmean, const double *pinv,
+                               int64_t rows, int C) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    double mean = pmean[rr], inv = pinv[rr];
+    double dmean = 0, dvar = 0;
+    for (int c = 0; c < C; c++) {
+        double w = hw ? hw[c] : 1.0;
+        double d = dy[rr * C + c] * w;
+        dmean += d;
+        dvar += d * (hx[rr * C + c] - mean);
+    }
+    dmean /= C;
+    dvar *= -0.5 * inv * inv * inv / C;
+    for (int c = 0; c < C; c++) {
+        double w = hw ? hw[c] : 1.0;
+        double d = dy[rr * C + c] * w;
+        dx[rr * C + c] += (float)((d - dmean) * inv + 2 * (hx[rr * C + c] - mean) * dvar);
+    }
+}
+/* rmsn param grads: float accum with per-term cast, ascending rr (host order) */
+__global__ static void k_rmsn_param(const float *hx, const float *dy, const double *pinv,
+                                    int64_t rows, int C, float *dw) {
+    int c = blockIdx.x * blockDim.x + threadIdx.x;
+    if (c >= C) return;
+    float sw = 0;
+    for (int64_t rr = 0; rr < rows; rr++)
+        sw += (float)(dy[rr * C + c] * hx[rr * C + c] * pinv[rr]);
+    dw[c] += sw;
+}
+__global__ static void k_rmsn_dx(float *dx, const float *hx, const float *dy, const float *hw,
+                                 const double *pinv, int64_t rows, int C) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    double inv = pinv[rr];
+    double dot = 0;
+    for (int c = 0; c < C; c++) {
+        double w = hw ? hw[c] : 1.0;
+        dot += dy[rr * C + c] * w * hx[rr * C + c];
+    }
+    dot /= C;
+    for (int c = 0; c < C; c++) {
+        double w = hw ? hw[c] : 1.0;
+        dx[rr * C + c] += (float)((dy[rr * C + c] * w - dot * hx[rr * C + c] * inv * inv) * inv);
+    }
+}
+/* groupnorm (affine-free): per-(n,g) serial math in double */
+__global__ static void k_gn_bwd(float *dx, const float *hx, const float *dy,
+                                int N, int G, int Cg, int TT) {
+    int64_t ng = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (ng >= (int64_t)N * G) return;
+    int n = (int)(ng / G), g = (int)(ng % G);
+    int64_t cnt = (int64_t)Cg * TT;
+    double mean = 0;
+    for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++)
+        mean += hx[((int64_t)n * (G * Cg) + g * Cg + c) * TT + t];
+    mean /= cnt;
+    double var = 0;
+    for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+        double d = hx[((int64_t)n * (G * Cg) + g * Cg + c) * TT + t] - mean;
+        var += d * d;
+    }
+    var /= cnt;
+    double inv = 1.0 / sqrt(var + 1e-5);
+    double dmean = 0, dvar = 0;
+    for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+        int64_t i = ((int64_t)n * (G * Cg) + g * Cg + c) * TT + t;
+        dmean += dy[i];
+        dvar += dy[i] * (hx[i] - mean);
+    }
+    dmean /= cnt;
+    dvar *= -0.5 * inv * inv * inv / cnt;
+    for (int c = 0; c < Cg; c++) for (int t = 0; t < TT; t++) {
+        int64_t i = ((int64_t)n * (G * Cg) + g * Cg + c) * TT + t;
+        dx[i] += (float)((dy[i] - dmean) * inv + 2 * (hx[i] - mean) * dvar);
+    }
+}
+/* rope backward: one thread per (rr), serial d (inverse rotation) */
+__global__ static void k_rope_bwd(float *dx, const float *gd, const float *co,
+                                  const float *si, int64_t nrr, int T, int hd) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= nrr) return;
+    int t = (int)(rr % T), h = hd / 2;
+    for (int d = 0; d < h; d++) {
+        double g0 = gd[rr * hd + d], g1 = gd[rr * hd + h + d];
+        double c0 = co[t * hd + d], s0 = si[t * hd + d];
+        double c1 = co[t * hd + h + d], s1 = si[t * hd + h + d];
+        dx[rr * hd + d] += (float)(g0 * c0 + g1 * s1);
+        dx[rr * hd + h + d] += (float)(-g0 * s0 + g1 * c1);
+    }
+}
+/* sdpa pass 1a: per-row softmax-Jacobian coeffs in double (ds: rows x Tkv) */
+__global__ static void k_sdpa_ds(double *ds, const float *P, const float *hv,
+                                 const float *dy, int64_t rows, int Tkv, int hd,
+                                 int H, int Tq) {
+    int64_t rr = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rr >= rows) return;
+    int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H);
+    double tot = 0;
+    for (int tk = 0; tk < Tkv; tk++) {
+        const float *vr = hv + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
+        double s = 0;
+        for (int d = 0; d < hd; d++) s += (double)dy[rr * hd + d] * vr[d];
+        s *= P[rr * Tkv + tk];
+        ds[rr * Tkv + tk] = s;
+        tot += s;
+    }
+    for (int tk = 0; tk < Tkv; tk++) ds[rr * Tkv + tk] -= P[rr * Tkv + tk] * tot;
+}
+/* sdpa pass 1b: dq per (rr,d), serial ascending tk */
+__global__ static void k_sdpa_dq(float *dq, const double *ds, const float *hk,
+                                 int64_t rows, int Tkv, int hd, int H, int Tq,
+                                 double scale) {
+    int64_t rd = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rd >= rows * hd) return;
+    int64_t rr = rd / hd;
+    int d = (int)(rd % hd);
+    int b = (int)(rr / (H * Tq)), h = (int)((rr / Tq) % H), tq = (int)(rr % Tq);
+    for (int tk = 0; tk < Tkv; tk++) {
+        const float *kr = hk + ((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd;
+        dq[((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd + d] +=
+            (float)(ds[rr * Tkv + tk] * scale * kr[d]);
+    }
+}
+/* sdpa pass 2: dk/dv per (b,h,tk,d), serial ascending tq, float accum
+ * with per-term casts (host order) */
+__global__ static void k_sdpa_dkdv(float *dk, float *dv, const double *ds, const float *P,
+                                   const float *hq, const float *hdy,
+                                   int B, int H, int Tq, int Tkv, int hd, double scale) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * H * Tkv * hd) return;
+    int d = (int)(x % hd), tk = (int)((x / hd) % Tkv);
+    int h = (int)((x / hd / Tkv) % H), b = (int)(x / hd / Tkv / H);
+    float sk = 0, sv = 0;
+    for (int tq = 0; tq < Tq; tq++) {
+        int64_t rr = ((int64_t)b * H + h) * Tq + tq;
+        const float *qr = hq + ((int64_t)b * H + h) * Tq * hd + (int64_t)tq * hd;
+        sk += (float)(ds[rr * Tkv + tk] * scale * qr[d]);
+        sv += (float)(P[rr * Tkv + tk] * hdy[rr * hd + d]);
+    }
+    dk[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sk;
+    dv[((int64_t)b * H + h) * Tkv * hd + (int64_t)tk * hd + d] += sv;
+}
+/* CE backward: per (row,v), exact float math */
+__global__ static void k_ce_bwd(float *dl, const float *probs, const int *tgt,
+                                const float *w, int64_t rows, int V, double inv) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= rows * V) return;
+    int64_t rr = i / V;
+    int v = (int)(i % V);
+    float wm = w ? w[rr] : 1.0f;
+    if (wm == 0) return;
+    dl[i] += (float)((probs[i] - (v == tgt[rr] ? 1.0 : 0.0)) * wm * inv);
+}
+/* tied-head dx: per (rr,d), serial v, per-term casts (host order) */
+__global__ static void k_tied_dx(float *dx, const float *dy, const float *hE,
+                                 int64_t rows, int Dd, int V, double k) {
+    int64_t rd = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (rd >= rows * Dd) return;
+    int64_t rr = rd / Dd;
+    int d = (int)(rd % Dd);
+    float s = 0;
+    for (int v = 0; v < V; v++) {
+        double g = (double)dy[rr * V + v] * k;
+        s += (float)(2 * hE[v * Dd + d] * g);
+    }
+    dx[rr * Dd + d] += s;
+}
+/* tied-head dE: per (v,d), serial ascending rr, per-term casts.
+ * (The host computes a bias grad then discards it; so do we.) */
+__global__ static void k_tied_de(float *dE, const float *dy, const float *hz,
+                                 const float *hE, int64_t rows, int Dd, int V, double k) {
+    int64_t vd = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (vd >= (int64_t)V * Dd) return;
+    int v = (int)(vd / Dd), d = (int)(vd % Dd);
+    float se = 0;
+    for (int64_t rr = 0; rr < rows; rr++) {
+        double g = (double)dy[rr * V + v] * k;
+        se += (float)(2 * hz[rr * Dd + d] * g);
+        se += (float)(2 * hE[v * Dd + d] * -g);
+    }
+    dE[v * Dd + d] += se;
+}
+/* split q path: strided copy-add. gq is [b][h][t][d]-flat, so x
+ * decomposes d-fastest, then t, then h, then b (NOT h before t). */
+__global__ static void k_split_q(float *dx, const float *gq, int B, int T, int H,
+                                 int hd, int64_t row) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * T * H * hd) return;
+    int d = (int)(x % hd), t = (int)((x / hd) % T);
+    int h = (int)((x / hd / T) % H), b = (int)(x / hd / T / H);
+    dx[((size_t)b * T + t) * row + h * hd + d] += gq[x];
+}
+/* split k/v paths: GQA fan-in, serial ascending h (host order) */
+__global__ static void k_split_kv(float *dx, const float *g, int B, int T, int K, int hd,
+                                  int rep, int H, int coff, int64_t row) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * T * K * hd) return;
+    int d = (int)(x % hd), kvh = (int)((x / hd) % K);
+    int t = (int)((x / hd / K) % T), b = (int)(x / hd / K / T);
+    float s = 0;
+    for (int h = kvh * rep; h < (kvh + 1) * rep && h < H; h++)
+        s += g[((size_t)b * H + h) * T * hd + (size_t)t * hd + d];
+    dx[((size_t)b * T + t) * row + coff + kvh * hd + d] += s;
+}
+/* merge: strided copy-add. dx is [b][h][t][d]-flat (ctx layout), so x
+ * decomposes d-fastest, then t, then h, then b (NOT h before t). */
+__global__ static void k_merge_bwd(float *dx, const float *dy, int B, int T, int H, int hd) {
+    int64_t x = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (x >= (int64_t)B * T * H * hd) return;
+    int d = (int)(x % hd), t = (int)((x / hd) % T);
+    int h = (int)((x / hd / T) % H), b = (int)(x / hd / T / H);
+    dx[x] += dy[((size_t)b * T + t) * H * hd + (h * hd + d)];
+}
+
+/* Scatter-adds stay host-staged (deterministic serial order). dy is on
+ * device; temp grads are built on host, then pushed into the DMap buffer. */
+static void dbwd_embed_host(DMap *gm, TopRec *r, float *ddy) {
+    int64_t n = r->n;
+    int D = r->p1, V = r->p2;
+    int *idx = (int *)r->sv;
+    float *hdy = (float *)malloc((size_t)n * D * sizeof(float));
+    mem_d2h(hdy, ddy, (size_t)n * D * sizeof(float));
+    float *dW = (float *)calloc((size_t)V * D, sizeof(float));
+    for (int64_t i = 0; i < n; i++) {
+        int id = idx[i];
+        if (id < 0 || id >= V) continue;
+        for (int d = 0; d < D; d++) dW[(size_t)id * D + d] += hdy[i * D + d];
+    }
+    free(hdy);
+    float *dx = dmap_get(gm, r->a, (size_t)V * D);
+    float *hd = (float *)malloc((size_t)V * D * sizeof(float));
+    mem_d2h(hd, dx, (size_t)V * D * sizeof(float));
+    for (int64_t i = 0; i < (int64_t)V * D; i++) hd[i] += dW[i];
+    mem_h2d(dx, hd, (size_t)V * D * sizeof(float));
+    free(hd); free(dW);
+}
+
+static void dbwd_gather_host(DMap *gm, TopRec *r, float *ddy) {
+    int nrows = (int)r->n, C = r->p1;
+    int *rows = (int *)r->sv;
+    float *hdy = (float *)malloc((size_t)nrows * C * sizeof(float));
+    mem_d2h(hdy, ddy, (size_t)nrows * C * sizeof(float));
+    int mx = 0;
+    for (int i = 0; i < nrows; i++) if (rows[i] > mx) mx = rows[i];
+    int64_t n = (size_t)(mx + 1) * C;
+    float *dx = dmap_get(gm, r->a, n);
+    float *hd = (float *)malloc((size_t)n * sizeof(float));
+    mem_d2h(hd, dx, (size_t)n * sizeof(float));
+    for (int i = 0; i < nrows; i++)
+        for (int c = 0; c < C; c++)
+            hd[(size_t)rows[i] * C + c] += hdy[(size_t)i * C + c];
+    mem_h2d(dx, hd, (size_t)n * sizeof(float));
+    free(hd); free(hdy);
+}
+
+/* Device backward. Returns 1 when fully handled on device, 0 when the
+ * tape contains unported (VQ conv-family) ops -> caller runs host. */
+int tape_backward_dev(Tape *t, PMap *pm, float seed) {
+    (void)seed;
+    /* fallback scan first: all-or-nothing, no mixed mode */
+    for (int i = 0; i < t->n; i++) {
+        TopKind op = t->r[i].op;
+        if (op == TOP_CONV || op == TOP_CONVT || op == TOP_IAREA || op == TOP_ILIN)
+            return 0;
+    }
+    cublasHandle_t bh = dbwd_blas();
+    const float one = 1.0f, zero = 0.0f;
+    DMap *gm = dmap_new();
+    /* stage per-param device grad buffers (zeroed); d2h+accumulate at end */
+    if (pm) for (int pi = 0; pi < pm->n; pi++)
+        dmap_get(gm, pm->params[pi], pm->sizes[pi]);
+    for (int i = t->n - 1; i >= 0; i--) {
+        TopRec *r = &t->r[i];
+        float *dy = dmap_find(gm, r->y);
+        if (!dy && r->op != TOP_CE && r->op != TOP_MSE) {
+            if (r->op == TOP_ROPE) {
+                if (!dmap_find(gm, r->c) && !dmap_find(gm, r->y)) continue;
+            } else if (r->op == TOP_SPLIT) {
+                if (!dmap_find(gm, r->b) && !dmap_find(gm, r->c) &&
+                    !dmap_find(gm, r->y)) continue;
+            } else continue;
+        }
+        switch (r->op) {
+        case TOP_CE: {
+            CeAux *st = (CeAux *)r->sv;
+            int64_t rows = r->n;
+            int V = r->p1;
+            double inv = (st->cnt > 0 ? 1.0 / st->cnt : 0.0) * r->s;
+            float *dl = dmap_get(gm, r->a, rows * V);
+            int *dt = (int *)arena_alloc((size_t)rows);
+            mem_h2d(dt, st->tgt, (size_t)rows * sizeof(int));
+            float *dw = NULL;
+            if (st->w) {
+                dw = arena_alloc((size_t)rows);
+                mem_h2d(dw, st->w, (size_t)rows * sizeof(float));
+            }
+            k_ce_bwd<<<dbwd_blocks(rows * V), 256>>>(dl, st->probs, dt, dw, rows, V, inv);
+            break;
+        }
+        case TOP_MSE: {
+            int64_t n = r->n;
+            double g = 1.0;
+            float hg = 1.0f;
+            if (dy) { mem_d2h(&hg, dy, sizeof(float)); g = hg; }
+            double sc = 2.0 * r->s / n * g;
+            float *dx = dmap_get(gm, r->a, n);
+            k_mse_bwd<<<dbwd_blocks(n), 256>>>(dx, r->a, r->b, n, sc);
+            break;
+        }
+        case TOP_LINEAR: {
+            int64_t batch = r->n;
+            int M = r->p1, K = r->p2;
+            float *dx = dmap_get(gm, r->a, batch * K);
+            float *dW = dmap_get(gm, r->b, (size_t)M * K);
+            /* Row-major C(m x n) = A(m x k) @ B(k x n) runs as col-major
+             * C^T(n x m) = B^T(n x k) @ A^T(k x m): swap m/n and A/B,
+             * read the row-major buffers straight through as the
+             * transposed col-major operands. */
+            /* dx = dy @ W */
+            DBWD_CUBLAS(cublasSgemm(bh, CUBLAS_OP_N, CUBLAS_OP_N, K, (int)batch, M,
+                                    &one, r->b, K, dy, M, &zero, dx, K));
+            /* dW = dy^T @ x, accumulated (beta=1 into zeroed buffer) */
+            DBWD_CUBLAS(cublasSgemm(bh, CUBLAS_OP_N, CUBLAS_OP_T, K, M, (int)batch,
+                                    &one, r->a, K, dy, M, &one, dW, K));
+            if (r->c) {
+                float *db = dmap_get(gm, r->c, M);
+                k_rowsum_db<<<dbwd_blocks(M), 256>>>(db, dy, batch, M);
+            }
+            break;
+        }
+        case TOP_EMBED: { dbwd_embed_host(gm, r, dy); break; }
+        case TOP_GATHER: { dbwd_gather_host(gm, r, dy); break; }
+        case TOP_LN: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            /* two rows-double arrays: rows*4 floats, not rows*2
+             * (a rows*2-float reservation would leave pinv hanging
+             * past the end, clobbered by the next allocation). */
+            double *pmean = (double *)arena_alloc((size_t)rows * 4);
+            double *pinv = pmean + rows;
+            k_ln_stats<<<dbwd_blocks(rows), 256>>>(r->a, rows, C, pmean, pinv, 1e-6);
+            float *dx = dmap_get(gm, r->a, rows * C);
+            k_ln_dx<<<dbwd_blocks(rows), 256>>>(dx, r->a, dy, r->b, pmean, pinv, rows, C);
+            if (r->b || r->c) {
+                /* param grads into temps, then into dmap (params aliased there) */
+                float *dw = NULL, *dbt = NULL;
+                if (r->b) { dw = arena_alloc(C); DBWD_CHECK(cudaMemset(dw, 0, (size_t)C * 4)); }
+                if (r->c) { dbt = arena_alloc(C); DBWD_CHECK(cudaMemset(dbt, 0, (size_t)C * 4)); }
+                k_ln_param<<<dbwd_blocks(C), 256>>>(r->a, dy, pmean, pinv, rows, C, dw, dbt);
+                if (dw) {
+                    float *g = dmap_get(gm, r->b, C);
+                    k_add_into<<<dbwd_blocks(C), 256>>>(g, dw, C);
+                }
+                if (dbt) {
+                    float *g = dmap_get(gm, r->c, C);
+                    k_add_into<<<dbwd_blocks(C), 256>>>(g, dbt, C);
+                }
+            }
+            break;
+        }
+        case TOP_RMSN: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            double *pinv = (double *)arena_alloc((size_t)rows * 2);
+            k_rmsn_stats<<<dbwd_blocks(rows), 256>>>(r->a, rows, C, pinv);
+            float *dx = dmap_get(gm, r->a, rows * C);
+            k_rmsn_dx<<<dbwd_blocks(rows), 256>>>(dx, r->a, dy, r->b, pinv, rows, C);
+            if (r->b) {
+                float *dw = arena_alloc(C);
+                DBWD_CHECK(cudaMemset(dw, 0, (size_t)C * 4));
+                k_rmsn_param<<<dbwd_blocks(C), 256>>>(r->a, dy, pinv, rows, C, dw);
+                float *g = dmap_get(gm, r->b, C);
+                k_add_into<<<dbwd_blocks(C), 256>>>(g, dw, C);
+            }
+            break;
+        }
+        case TOP_GN: {
+            int N = (int)r->n, G = r->p1, C = r->p2, TT = r->p3;
+            int Cg = C / G;
+            float *dx = dmap_get(gm, r->a, (size_t)N * C * TT);
+            k_gn_bwd<<<dbwd_blocks((int64_t)N * G), 256>>>(dx, r->a, dy, N, G, Cg, TT);
+            break;
+        }
+        case TOP_GELU:
+        case TOP_SILU: {
+            int64_t n = r->n;
+            float *dx = dmap_get(gm, r->a, n);
+            k_gelu_bwd<<<dbwd_blocks(n), 256>>>(dx, r->a, dy, n, r->op == TOP_GELU);
+            break;
+        }
+        case TOP_RELU2: {
+            int64_t n = r->n;
+            float *dx = dmap_get(gm, r->a, n);
+            k_relu2_bwd<<<dbwd_blocks(n), 256>>>(dx, r->a, dy, n);
+            break;
+        }
+        case TOP_SOFTMAX: {
+            int64_t rows = r->n;
+            int C = r->p1;
+            float *dx = dmap_get(gm, r->a, rows * C);
+            k_softmax_bwd<<<dbwd_blocks(rows), 256>>>(dx, r->y, dy, rows, C);
+            break;
+        }
+        case TOP_ROPE: {
+            int B = (int)r->n, H = r->p1, T = r->p2, hd = r->p3;
+            const float **cs = (const float **)r->sv;
+            int64_t n = (int64_t)B * H * T * hd;
+            float *gdq = dmap_find(gm, r->c);
+            float *gdk = dmap_find(gm, r->y);
+            if (gdq) {
+                float *dxq = dmap_get(gm, r->a, n);
+                k_rope_bwd<<<dbwd_blocks(n / hd), 256>>>(dxq, gdq, cs[0], cs[1], n / hd, T, hd);
+            }
+            if (gdk) {
+                float *dxk = dmap_get(gm, r->b, n);
+                k_rope_bwd<<<dbwd_blocks(n / hd), 256>>>(dxk, gdk, cs[0], cs[1], n / hd, T, hd);
+            }
+            break;
+        }
+        case TOP_SDPA: {
+            SdpaAux *st = (SdpaAux *)r->sv;
+            int64_t rows = r->n;
+            int hd = r->p1, Tq = r->p2, Tkv = r->p3;
+            int H = st->H, B = (int)(rows / (Tq * H));
+            double *ds = (double *)arena_alloc((size_t)rows * Tkv * 2);
+            k_sdpa_ds<<<dbwd_blocks(rows), 256>>>(ds, st->P, r->c, dy, rows, Tkv, hd, H, Tq);
+            float *dq = dmap_get(gm, r->a, (size_t)B * H * Tq * hd);
+            k_sdpa_dq<<<dbwd_blocks(rows * hd), 256>>>(dq, ds, r->b, rows, Tkv, hd, H, Tq, st->scale);
+            float *dk = dmap_get(gm, r->b, (size_t)B * H * Tkv * hd);
+            float *dv = dmap_get(gm, r->c, (size_t)B * H * Tkv * hd);
+            k_sdpa_dkdv<<<dbwd_blocks((int64_t)B * H * Tkv * hd), 256>>>(
+                dk, dv, ds, st->P, r->a, dy, B, H, Tq, Tkv, hd, st->scale);
+            break;
+        }
+        case TOP_ADD: {
+            int64_t n = r->n;
+            float *dxa = dmap_get(gm, r->a, n);
+            float *dxb = dmap_get(gm, r->b, n);
+            /* saxpy takes int n: chunk defensively (Qwen-scale safety) */
+            for (int64_t off = 0; off < n; off += (int64_t)1 << 30) {
+                int chunk = (int)((n - off) > ((int64_t)1 << 30) ? ((int64_t)1 << 30) : (n - off));
+                DBWD_CUBLAS(cublasSaxpy(bh, chunk, &one, dy + off, 1, dxa + off, 1));
+                DBWD_CUBLAS(cublasSaxpy(bh, chunk, &one, dy + off, 1, dxb + off, 1));
+            }
+            break;
+        }
+        case TOP_SCALE: {
+            int64_t n = r->n;
+            float *dx = dmap_get(gm, r->a, n);
+            k_scale_bwd<<<dbwd_blocks(n), 256>>>(dx, dy, (float)r->s, n);
+            break;
+        }
+        case TOP_CONCAT: {
+            int64_t na = r->n;
+            int64_t nb = (int64_t)r->s;
+            float *dxa = dmap_get(gm, r->a, na);
+            float *dxb = dmap_get(gm, r->b, nb);
+            k_add_off<<<dbwd_blocks(na), 256>>>(dxa, 0, dy, na);
+            k_add_off<<<dbwd_blocks(nb), 256>>>(dxb, 0, dy + na, nb);
+            break;
+        }
+        case TOP_JOIN: {
+            int B = (int)r->n, P = r->p1, T = r->p2, C = r->p3;
+            float *dxa = dmap_get(gm, r->a, (size_t)B * P * C);
+            float *dxb = dmap_get(gm, r->b, (size_t)B * T * C);
+            for (int bb = 0; bb < B; bb++) {
+                k_add_off<<<dbwd_blocks((size_t)P * C), 256>>>(
+                    dxa, (size_t)bb * P * C, dy + ((size_t)bb * (P + T)) * C, (size_t)P * C);
+                k_add_off<<<dbwd_blocks((size_t)T * C), 256>>>(
+                    dxb, (size_t)bb * T * C, dy + (((size_t)bb * (P + T)) + P) * C, (size_t)T * C);
+            }
+            break;
+        }
+        case TOP_SPLIT: {
+            int B = (int)r->n, T = r->p1, C = r->p2, H = r->p3, hd = r->p4;
+            int *ip = (int *)r->sv;
+            int K = ip[0], rep = ip[1];
+            int64_t row = (int64_t)C + 2 * K * hd;
+            float *gq = dmap_find(gm, r->b);
+            float *gk = dmap_find(gm, r->c);
+            float *gv = dmap_find(gm, r->y);
+            float *dx = dmap_get(gm, r->a, (size_t)B * T * row);
+            if (gq)
+                k_split_q<<<dbwd_blocks((int64_t)B * T * C), 256>>>(dx, gq, B, T, H, hd, row);
+            if (gk)
+                k_split_kv<<<dbwd_blocks((int64_t)B * T * K * hd), 256>>>(
+                    dx, gk, B, T, K, hd, rep, H, C, row);
+            if (gv)
+                k_split_kv<<<dbwd_blocks((int64_t)B * T * K * hd), 256>>>(
+                    dx, gv, B, T, K, hd, rep, H, C + K * hd, row);
+            break;
+        }
+        case TOP_MERGE: {
+            int B = (int)r->n, T = r->p1, H = r->p3, hd = r->p4;
+            float *dx = dmap_get(gm, r->a, (size_t)B * H * T * hd);
+            k_merge_bwd<<<dbwd_blocks((int64_t)B * T * H * hd), 256>>>(dx, dy, B, T, H, hd);
+            break;
+        }
+        case TOP_MUL: {
+            int64_t n = r->n;
+            float *dxa = dmap_get(gm, r->a, n);
+            float *dxb = dmap_get(gm, r->b, n);
+            k_mul_bwd<<<dbwd_blocks(n), 256>>>(dxa, dxb, r->a, r->b, dy, n);
+            break;
+        }
+        case TOP_TIED: {
+            int64_t rows = r->n;
+            int Dd = r->p1, V = r->p2;
+            TiedAux *st = (TiedAux *)r->sv;
+            double k = st->invT / st->dscale;
+            float *dx = dmap_get(gm, r->a, rows * Dd);
+            k_tied_dx<<<dbwd_blocks(rows * Dd), 256>>>(dx, dy, r->b, rows, Dd, V, k);
+            /* dE into dmap (frozen codebook still tracked, as on host) */
+            float *dE = arena_alloc((size_t)V * Dd);
+            DBWD_CHECK(cudaMemset(dE, 0, (size_t)V * Dd * sizeof(float)));
+            k_tied_de<<<dbwd_blocks((int64_t)V * Dd), 256>>>(dE, dy, r->a, r->b, rows, Dd, V, k);
+            float *g = dmap_get(gm, r->b, (size_t)V * Dd);
+            k_add_into<<<dbwd_blocks((int64_t)V * Dd), 256>>>(g, dE, (int64_t)V * Dd);
+            break;
+        }
+        case TOP_CONV:
+        case TOP_CONVT:
+        case TOP_IAREA:
+        case TOP_ILIN:
+            /* unreachable: fallback scan above returns 0 for these */
+            DBWD_CHECK(cudaErrorUnknown);
+            break;
+        }
+    }
+    /* push param grads to host PMap (accumulate, as host does) */
+    if (pm) for (int pi = 0; pi < pm->n; pi++) {
+        float *gd = dmap_find(gm, pm->params[pi]);
+        if (!gd) continue;
+        int64_t n = pm->sizes[pi];
+        float *tmp = (float *)malloc((size_t)n * sizeof(float));
+        mem_d2h(tmp, gd, (size_t)n * sizeof(float));
+        for (int64_t k = 0; k < n; k++) pm->grads[pi][k] += tmp[k];
+        free(tmp);
+    }
+    dmap_free(gm);
+    return 1;
+}
+#endif /* NCM_CUDA */
+

@@ -317,6 +317,9 @@ typedef struct {
 int train_run_ex(const NCMConfig *c, const char *weights_path,
                  const char *data_path, int max_steps, double lr,
                  const TrainOpts *o);
+int bwd_parity_run(const NCMConfig *c, const char *weights_path,
+                   const char *data_path, double tol);
+int bwdops_run(double tol);
 
 typedef struct AdamW AdamW; /* defined below; the ckpt API needs the name early */
 
@@ -414,6 +417,9 @@ typedef struct {
     int n;
 } PMap;
 void tape_backward(Tape *t, PMap *pm, float seed);
+void tape_backward_host(Tape *t, PMap *pm, float seed);
+int tape_backward_dev(Tape *t, PMap *pm, float seed); /* CUDA only; 1 = handled */
+void tape_backward_force(Tape *t, PMap *pm, float seed, int dev);
 typedef struct AdamW {
     float **params;   /* backend pointers (WeightStore tensors) */
     float **m, **v;   /* host first/second moments */

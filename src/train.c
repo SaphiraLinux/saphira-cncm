@@ -616,10 +616,10 @@ static NCPTrainer *ncptrainer_new(NCPState *m, WeightStore *ws, NCMConfig *c,
     return t;
 }
 
-/* one training step. prefix:[B][P] host ints, codes:[B][total] host ints
- * (per-board level-major). Returns mean CE loss. */
-static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
-                             const int *codes, int B) {
+/* forward only (records tape). prefix:[B][P] host ints, codes:[B][total]
+ * host ints (per-board level-major). Returns mean CE loss. */
+static double train_ncp_forward(NCPTrainer *t, Tape *tp, const int *prefix,
+                                const int *codes, int B) {
     NCMConfig *c = t->c;
     NCPState *m = t->m;
     WeightStore *ws = t->ws;
@@ -674,10 +674,17 @@ static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
     double ppl = 0;
     double loss = train_ncp_loss(tp, m, ws, c, xfull, prefix, codes, l0q, B, &ppl);
     (void)ppl;
+    (void)codes;
+    return loss;
+}
+
+/* one training step = forward + backward + clip + AdamW step */
+static double train_ncp_step(NCPTrainer *t, Tape *tp, const int *prefix,
+                             const int *codes, int B) {
+    double loss = train_ncp_forward(t, tp, prefix, codes, B);
     tape_backward(tp, &t->pm, 0);
     /* manual grad for l0_queries expansion (sum over batch of input grads).
      * d_xfull lives in activation map; fetch it. */
-    (void)codes;
     /* clip + step */
     {
         double g2 = 0;
@@ -917,6 +924,384 @@ int train_run(const NCMConfig *c_, const char *weights_path,
     return train_run_ex(c_, weights_path, data_path, max_steps, lr, NULL);
 }
 
+
+/* ---------------- device/host backward parity ----------------
+ * One deterministic forward, backward on host, snapshot grads, redo the
+ * same forward, backward on device, compare every PMap grad tensor.
+ * CUDA-only (the device path does not exist on CPU builds). */
+int bwd_parity_run(const NCMConfig *c_, const char *weights_path,
+                   const char *data_path, double tol) {
+#ifdef NCM_CUDA
+    NCMConfig c = *c_;
+    WeightStore ws = {NULL, 0};
+    if (weights_load(&ws, weights_path)) return 1;
+    arena_init_default();
+    parena_init(1ULL << 28);
+    VQVAEState *vqvae = vqvae_load(&c, &ws);
+    (void)vqvae;
+    NCPState *m = ncp_load(&c, &ws, vqvae);
+    Tape *tp = tape_new();
+    NCPTrainer *t = ncptrainer_new(m, &ws, &c, 3e-4, 0.01, 100, 1000);
+    TrainData *d = train_data_load(data_path, 0);
+    if (!d) return 1;
+    int P = ncp_P(m);
+    int total = vq_total_dummy(&c);
+    if (d->row_len != P + total) {
+        fprintf(stderr, "row_len %d != P+total %d\n", d->row_len, P + total);
+        return 1;
+    }
+    int B = 4;
+    int *pbuf = (int *)malloc(B * P * sizeof(int));
+    int *cbuf = (int *)malloc(B * total * sizeof(int));
+    unsigned long long rng = 0x12345;
+    for (int b = 0; b < B; b++) {
+        rng = rng_next(&rng);
+        int r = (int)(rng % (unsigned long long)d->n_rows);
+        memcpy(pbuf + b * P, d->rows + r * d->row_len, P * sizeof(int));
+        memcpy(cbuf + b * total, d->rows + r * d->row_len + P, total * sizeof(int));
+    }
+    /* host backward on first forward */
+    double loss_h = train_ncp_forward(t, tp, pbuf, cbuf, B);
+    tape_backward_force(tp, &t->pm, 0, 0);
+    float **snap = (float **)malloc((size_t)t->pm.n * sizeof(float *));
+    for (int i = 0; i < t->pm.n; i++) {
+        snap[i] = (float *)malloc((size_t)t->pm.sizes[i] * sizeof(float));
+        memcpy(snap[i], t->pm.grads[i], (size_t)t->pm.sizes[i] * sizeof(float));
+    }
+    adamw_zero_grad(t->opt);
+    /* identical forward again, device backward */
+    double loss_d = train_ncp_forward(t, tp, pbuf, cbuf, B);
+    tape_backward_force(tp, &t->pm, 0, 1);
+    printf("forward loss host-path=%.6f device-path=%.6f\n", loss_h, loss_d);
+    double gmax = 0, worst_rel = 0;
+    const char *worst_nm = "";
+    for (int i = 0; i < t->pm.n; i++) {
+        const char *nm = "?";
+        for (int j = 0; j < ws.count; j++)
+            if (ws.items[j].t->data == t->pm.params[i]) { nm = ws.items[j].name; break; }
+        double mx = 0, hm = 0;
+        int64_t n = t->pm.sizes[i];
+        for (int64_t k = 0; k < n; k++) {
+            double a = fabs((double)t->pm.grads[i][k] - snap[i][k]);
+            if (a > mx) mx = a;
+            double h = fabs((double)snap[i][k]);
+            if (h > hm) hm = h;
+        }
+        double rel = mx / (hm + 1e-30);
+        printf("  %-52s n=%-10lld maxabs=%.3g maxrel=%.3g\n",
+               nm, (long long)n, mx, rel);
+        if (mx > gmax) { gmax = mx; worst_nm = nm; worst_rel = rel; }
+        free(snap[i]);
+    }
+    free(snap); free(pbuf); free(cbuf);
+    printf("bwd-parity: global maxabs=%.3g at %s (rel=%.3g), tol=%.3g -> %s\n",
+           gmax, worst_nm, worst_rel, tol, gmax <= tol ? "PASS" : "FAIL");
+    return gmax <= tol ? 0 : 1;
+#else
+    (void)c_; (void)weights_path; (void)data_path; (void)tol;
+    fprintf(stderr, "bwd-parity needs a CUDA build (no device backward on CPU)\n");
+    return 2;
+#endif
+}
+
+/* ---------------- synthetic per-op backward check ----------------
+ * For every non-conv tape op: record it on random small tensors, seed
+ * with an MSE terminal, run host backward, snapshot, redo device
+ * backward, compare every grad. CUDA-only. Covers ops the NCP workload
+ * never emits (TIED/SILU/MUL/...); conv-family is fallback-only. */
+#ifdef NCM_CUDA
+/* (helpers are CUDA-only; bwdops_run itself is defined on both builds) */
+static unsigned long long bwo_rng = 0x243F6A8885A308D3ULL;
+static float bwo_frand(float lo, float hi) {
+    bwo_rng ^= bwo_rng << 13; bwo_rng ^= bwo_rng >> 7; bwo_rng ^= bwo_rng << 17;
+    double u = (bwo_rng >> 11) * (1.0 / 9007199254740992.0);
+    return (float)(lo + u * (hi - lo));
+}
+static Tensor *bwo_tensor(int ndim, const int64_t *shape, float lo, float hi) {
+    Tensor *t = tensor_alloc(ndim, shape);
+    float *h = (float *)malloc((size_t)t->n * sizeof(float));
+    for (int64_t k = 0; k < t->n; k++) h[k] = bwo_frand(lo, hi);
+    mem_h2d(t->data, h, (size_t)t->n * sizeof(float));
+    free(h);
+    return t;
+}
+static int bwo_nfail = 0;
+static double bwo_gmax = 0;
+static double bwo_tol = 1e-4;
+static const char *bwo_gname = "";
+/* compare PMap grads host-vs-device; snapshots host grads then zeroes */
+static void bwo_compare(PMap *pm, float **snap, const char *op) {
+    for (int i = 0; i < pm->n; i++) {
+        double mx = 0, hm = 0;
+        for (int64_t k = 0; k < pm->sizes[i]; k++) {
+            double a = fabs((double)pm->grads[i][k] - snap[i][k]);
+            if (a > mx) mx = a;
+            double h = fabs((double)snap[i][k]);
+            if (h > hm) hm = h;
+        }
+        double rel = mx / (hm + 1e-30);
+        printf("  bwdop %-8s p%d n=%-7lld maxabs=%.3g maxrel=%.3g\n",
+               op, i, (long long)pm->sizes[i], mx, rel);
+        if (mx > bwo_tol) { bwo_nfail++; printf("  FAIL %s p%d\n", op, i); }
+        if (mx > bwo_gmax) { bwo_gmax = mx; bwo_gname = op; }
+    }
+}
+/* run one op: record + MSE seed, host bwd, snapshot, device bwd, compare.
+ * build() emits records into tp and fills pm with the grad-carrying bufs. */
+typedef void (*bwo_build_fn)(Tape *tp, PMap *pm);
+static void bwo_run_one(bwo_build_fn build, const char *op) {
+    PMap pm;
+    memset(&pm, 0, sizeof(pm));
+    pm.params = (float **)malloc(8 * sizeof(float *));
+    pm.grads = (float **)malloc(8 * sizeof(float *));
+    pm.sizes = (int64_t *)malloc(8 * sizeof(int64_t));
+    pm.n = 0;
+    Tape *tp = tape_new();
+    arena_reset();
+    build(tp, &pm);
+    tape_backward_force(tp, &pm, 0, 0);
+    float **snap = (float **)malloc((size_t)pm.n * sizeof(float *));
+    for (int i = 0; i < pm.n; i++) {
+        snap[i] = (float *)malloc((size_t)pm.sizes[i] * sizeof(float));
+        memcpy(snap[i], pm.grads[i], (size_t)pm.sizes[i] * sizeof(float));
+        memset(pm.grads[i], 0, (size_t)pm.sizes[i] * sizeof(float));
+    }
+    tape_backward_force(tp, &pm, 0, 1);
+    bwo_compare(&pm, snap, op);
+    for (int i = 0; i < pm.n; i++) { free(snap[i]); free(pm.grads[i]); }
+    free(snap); free(pm.params); free(pm.grads); free(pm.sizes);
+    tape_free(tp);
+}
+static void bwo_reg(PMap *pm, Tensor *t) {
+    int i = pm->n++;
+    pm->params[i] = t->data;
+    pm->sizes[i] = t->n;
+    pm->grads[i] = (float *)calloc((size_t)t->n, sizeof(float));
+}
+/* each builder records one op + MSE seed; registers grad buffers.
+ * Leaks the tiny loss-side tensors per op (test-only; freed at exit). */
+static void bwo_mse_seed(Tape *tp, float *y, int64_t n) {
+    int64_t one = 1;
+    Tensor *z = tensor_alloc(1, &n);
+    float *zz = (float *)calloc((size_t)n, sizeof(float));
+    mem_h2d(z->data, zz, (size_t)n * sizeof(float));
+    free(zz);
+    Tensor *l = tensor_alloc(1, &one);
+    t_mse(tp, y, z->data, l->data, n, 1.0);
+}
+static void bwo_linear(Tape *tp, PMap *pm) {
+    int64_t b = 8, M = 12, K = 16;
+    int64_t sx[2] = {b, K}, sw[2] = {M, K}, sv[2] = {b, M}, s1[1] = {M};
+    Tensor *x = bwo_tensor(2, sx, -1, 1), *W = bwo_tensor(2, sw, -1, 1);
+    Tensor *bb = bwo_tensor(1, s1, -1, 1), *y = tensor_alloc(2, sv);
+    bwo_reg(pm, x); bwo_reg(pm, W); bwo_reg(pm, bb);
+    t_linear(tp, x->data, W->data, bb->data, y->data, b, (int)M, (int)K);
+    bwo_mse_seed(tp, y->data, b * M);
+}
+static void bwo_ln(Tape *tp, PMap *pm) {
+    int64_t rows = 32, C = 16, s[2] = {rows, C}, s1[1] = {C};
+    Tensor *x = bwo_tensor(2, s, -2, 2), *w = bwo_tensor(1, s1, 0.5, 1.5);
+    Tensor *b = bwo_tensor(1, s1, -1, 1), *y = tensor_alloc(2, s);
+    bwo_reg(pm, x); bwo_reg(pm, w); bwo_reg(pm, b);
+    t_layernorm(tp, x->data, w->data, b->data, y->data, rows, (int)C);
+    bwo_mse_seed(tp, y->data, rows * C);
+}
+static void bwo_rmsn(Tape *tp, PMap *pm) {
+    int64_t rows = 32, C = 16, s[2] = {rows, C}, s1[1] = {C};
+    Tensor *x = bwo_tensor(2, s, -2, 2), *w = bwo_tensor(1, s1, 0.5, 1.5);
+    Tensor *y = tensor_alloc(2, s);
+    bwo_reg(pm, x); bwo_reg(pm, w);
+    t_rmsnorm(tp, x->data, w->data, y->data, rows, (int)C);
+    bwo_mse_seed(tp, y->data, rows * C);
+}
+static void bwo_gn(Tape *tp, PMap *pm) {
+    int N = 2, G = 2, C = 8, TT = 8;
+    int64_t flat[1] = {(int64_t)N * C * TT};
+    Tensor *x = bwo_tensor(1, flat, -2, 2), *y = tensor_alloc(1, flat);
+    bwo_reg(pm, x);
+    t_groupnorm(tp, x->data, y->data, N, G, C, TT);
+    bwo_mse_seed(tp, y->data, (int64_t)N * C * TT);
+}
+static void bwo_act(Tape *tp, PMap *pm, int which) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *x = bwo_tensor(1, s, -2, 2), *y = tensor_alloc(1, s);
+    bwo_reg(pm, x);
+    if (which == 0) t_gelu(tp, x->data, y->data, n);
+    else if (which == 1) t_silu(tp, x->data, y->data, n);
+    else t_relu2(tp, x->data, y->data, n);
+    bwo_mse_seed(tp, y->data, n);
+}
+static void bwo_gelu(Tape *tp, PMap *pm) { bwo_act(tp, pm, 0); }
+static void bwo_silu(Tape *tp, PMap *pm) { bwo_act(tp, pm, 1); }
+static void bwo_relu2(Tape *tp, PMap *pm) { bwo_act(tp, pm, 2); }
+static void bwo_softmax(Tape *tp, PMap *pm) {
+    int64_t rows = 8, C = 16, s[2] = {rows, C};
+    Tensor *x = bwo_tensor(2, s, -2, 2), *y = tensor_alloc(2, s);
+    bwo_reg(pm, x);
+    t_softmax(tp, x->data, y->data, rows, (int)C);
+    bwo_mse_seed(tp, y->data, rows * C);
+}
+static void bwo_rope(Tape *tp, PMap *pm) {
+    int B = 2, H = 4, T = 8, hd = 8;
+    int64_t n = (int64_t)B * H * T * hd, s[1] = {n}, st[1] = {(int64_t)T * hd};
+    Tensor *xq = bwo_tensor(1, s, -1, 1), *xk = bwo_tensor(1, s, -1, 1);
+    Tensor *yq = tensor_alloc(1, s), *yk = tensor_alloc(1, s);
+    Tensor *co = bwo_tensor(1, st, -1, 1), *si = bwo_tensor(1, st, -1, 1);
+    bwo_reg(pm, xq); bwo_reg(pm, xk);
+    t_rope(tp, xq->data, xk->data, yq->data, yk->data, co->data, si->data, B, H, T, hd);
+    bwo_mse_seed(tp, yq->data, n);
+    bwo_mse_seed(tp, yk->data, n);
+}
+static void bwo_sdpa(Tape *tp, PMap *pm) {
+    int B = 2, H = 4, Tq = 8, Tkv = 8, hd = 8;
+    int64_t sq[1] = {(int64_t)B * H * Tq * hd}, sk[1] = {(int64_t)B * H * Tkv * hd};
+    Tensor *q = bwo_tensor(1, sq, -1, 1), *k = bwo_tensor(1, sk, -1, 1);
+    Tensor *v = bwo_tensor(1, sk, -1, 1), *o = tensor_alloc(1, sq);
+    bwo_reg(pm, q); bwo_reg(pm, k); bwo_reg(pm, v);
+    t_sdpa(tp, q->data, k->data, v->data, NULL, o->data, B, H, Tq, Tkv, hd);
+    bwo_mse_seed(tp, o->data, (int64_t)B * H * Tq * hd);
+}
+static void bwo_add(Tape *tp, PMap *pm) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *a = bwo_tensor(1, s, -1, 1), *b = bwo_tensor(1, s, -1, 1);
+    Tensor *y = tensor_alloc(1, s);
+    bwo_reg(pm, a); bwo_reg(pm, b);
+    t_add(tp, a->data, b->data, y->data, n);
+    bwo_mse_seed(tp, y->data, n);
+}
+static void bwo_scale(Tape *tp, PMap *pm) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *x = bwo_tensor(1, s, -1, 1), *y = tensor_alloc(1, s);
+    bwo_reg(pm, x);
+    t_scale(tp, x->data, 0.37f, y->data, n);
+    bwo_mse_seed(tp, y->data, n);
+}
+static void bwo_mul(Tape *tp, PMap *pm) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *a = bwo_tensor(1, s, -1, 1), *b = bwo_tensor(1, s, -1, 1);
+    Tensor *y = tensor_alloc(1, s);
+    bwo_reg(pm, a); bwo_reg(pm, b);
+    t_mul(tp, a->data, b->data, y->data, n);
+    bwo_mse_seed(tp, y->data, n);
+}
+static void bwo_concat(Tape *tp, PMap *pm) {
+    int64_t na = 100, nb = 156, sa[1] = {na}, sb[1] = {nb}, sy[1] = {na + nb};
+    Tensor *a = bwo_tensor(1, sa, -1, 1), *b = bwo_tensor(1, sb, -1, 1);
+    Tensor *y = tensor_alloc(1, sy);
+    bwo_reg(pm, a); bwo_reg(pm, b);
+    t_concat(tp, a->data, b->data, y->data, na, nb);
+    bwo_mse_seed(tp, y->data, na + nb);
+}
+static void bwo_join(Tape *tp, PMap *pm) {
+    int B = 2, P = 6, T = 10, C = 8;
+    int64_t sa[1] = {(int64_t)B * P * C}, sb[1] = {(int64_t)B * T * C};
+    int64_t sy[1] = {(int64_t)B * (P + T) * C};
+    Tensor *a = bwo_tensor(1, sa, -1, 1), *b = bwo_tensor(1, sb, -1, 1);
+    Tensor *y = tensor_alloc(1, sy);
+    bwo_reg(pm, a); bwo_reg(pm, b);
+    t_join(tp, a->data, b->data, y->data, B, P, T, C);
+    bwo_mse_seed(tp, y->data, (int64_t)B * (P + T) * C);
+}
+static void bwo_split(Tape *tp, PMap *pm) {
+    /* MHA only (K==H). GQA (K<H) is NOT supported by the tape (host or
+     * device): SPLIT/ROPE assume H heads throughout. Qwen needs a proper
+     * GQA tape path (separate milestone, forward + backward together). */
+    int B = 2, T = 8, C = 64, H = 4, hd = 16, K = 4, rep = 1;
+    int64_t row = (int64_t)C + 2 * K * hd;
+    int64_t si[1] = {(int64_t)B * T * row};
+    int64_t sq[1] = {(int64_t)B * H * T * hd}, sk[1] = {(int64_t)B * K * T * hd};
+    Tensor *in = bwo_tensor(1, si, -1, 1);
+    Tensor *qq = tensor_alloc(1, sq), *kk = tensor_alloc(1, sk), *vv = tensor_alloc(1, sk);
+    bwo_reg(pm, in);
+    t_qkvsplit(tp, in->data, qq->data, kk->data, vv->data, B, T, C, H, hd, K, rep);
+    bwo_mse_seed(tp, qq->data, (int64_t)B * H * T * hd);
+    bwo_mse_seed(tp, kk->data, (int64_t)B * K * T * hd);
+    bwo_mse_seed(tp, vv->data, (int64_t)B * K * T * hd);
+}
+static void bwo_merge(Tape *tp, PMap *pm) {
+    int B = 2, T = 8, C = 64, H = 4, hd = 16;
+    int64_t sc[1] = {(int64_t)B * H * T * hd}, so[1] = {(int64_t)B * T * C};
+    Tensor *ctx = bwo_tensor(1, sc, -1, 1), *out = tensor_alloc(1, so);
+    bwo_reg(pm, ctx);
+    t_headmerge(tp, ctx->data, out->data, B, T, C, H, hd);
+    bwo_mse_seed(tp, out->data, (int64_t)B * T * C);
+}
+static void bwo_gather(Tape *tp, PMap *pm) {
+    int nrows = 16, C = 16, V = 32;
+    int64_t sx[1] = {(int64_t)V * C}, sy[1] = {(int64_t)nrows * C};
+    Tensor *x = bwo_tensor(1, sx, -1, 1), *y = tensor_alloc(1, sy);
+    int *rows = (int *)malloc((size_t)nrows * sizeof(int));
+    for (int i = 0; i < nrows; i++) rows[i] = (i * 7) % V;
+    bwo_reg(pm, x);
+    t_gather_rows(tp, x->data, rows, nrows, C, y->data);
+    free(rows);
+    bwo_mse_seed(tp, y->data, (int64_t)nrows * C);
+}
+static void bwo_embed(Tape *tp, PMap *pm) {
+    int n = 16, D = 16, V = 32;
+    int64_t sw[1] = {(int64_t)V * D}, sy[1] = {(int64_t)n * D};
+    Tensor *W = bwo_tensor(1, sw, -1, 1), *y = tensor_alloc(1, sy);
+    int *idx = (int *)malloc((size_t)n * sizeof(int));
+    for (int i = 0; i < n; i++) idx[i] = (i * 5 + 1) % V;
+    bwo_reg(pm, W);
+    t_embed(tp, W->data, idx, V, y->data, n, D);
+    free(idx);
+    bwo_mse_seed(tp, y->data, (int64_t)n * D);
+}
+static void bwo_ce(Tape *tp, PMap *pm) {
+    int64_t rows = 8, V = 32, s[2] = {rows, V};
+    Tensor *lg = bwo_tensor(2, s, -3, 3);
+    int64_t one = 1;
+    Tensor *loss = tensor_alloc(1, &one), *probs = tensor_alloc(2, s);
+    int *tgt = (int *)malloc((size_t)rows * sizeof(int));
+    for (int i = 0; i < rows; i++) tgt[i] = (i * 3 + 1) % (int)V;
+    bwo_reg(pm, lg);
+    t_ce(tp, lg->data, tgt, NULL, loss->data, probs->data, rows, (int)V, 1.0);
+    free(tgt);
+}
+static void bwo_tied(Tape *tp, PMap *pm) {
+    int64_t rows = 8, Dd = 16, V = 32;
+    int64_t sz[2] = {rows, Dd}, se[2] = {V, Dd}, so[2] = {rows, V};
+    Tensor *z = bwo_tensor(2, sz, -1, 1), *E = bwo_tensor(2, se, -1, 1);
+    Tensor *o = tensor_alloc(2, so);
+    bwo_reg(pm, z); bwo_reg(pm, E);
+    t_tied(tp, z->data, E->data, NULL, o->data, rows, (int)Dd, (int)V, 1.0, 1.0);
+    bwo_mse_seed(tp, o->data, rows * V);
+}
+static void bwo_mse(Tape *tp, PMap *pm) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *a = bwo_tensor(1, s, -1, 1), *b = bwo_tensor(1, s, -1, 1);
+    int64_t one = 1;
+    Tensor *l = tensor_alloc(1, &one);
+    bwo_reg(pm, a);
+    t_mse(tp, a->data, b->data, l->data, n, 0.5);
+}
+#endif /* NCM_CUDA (bwo helpers) */
+int bwdops_run(double tol) {
+#ifdef NCM_CUDA
+    arena_init_default();
+    static const struct { bwo_build_fn f; const char *nm; } ops[] = {
+        {bwo_linear, "linear"}, {bwo_ln, "ln"}, {bwo_rmsn, "rmsn"},
+        {bwo_gn, "gn"}, {bwo_gelu, "gelu"}, {bwo_silu, "silu"},
+        {bwo_relu2, "relu2"}, {bwo_softmax, "softmax"}, {bwo_rope, "rope"},
+        {bwo_sdpa, "sdpa"}, {bwo_add, "add"}, {bwo_scale, "scale"},
+        {bwo_concat, "concat"}, {bwo_join, "join"}, {bwo_split, "split"},
+        {bwo_merge, "merge"}, {bwo_mul, "mul"}, {bwo_gather, "gather"},
+        {bwo_embed, "embed"}, {bwo_ce, "ce"}, {bwo_tied, "tied"},
+        {bwo_mse, "mse"},
+    };
+    bwo_nfail = 0; bwo_gmax = 0; bwo_gname = ""; bwo_tol = tol;
+    for (unsigned i = 0; i < sizeof(ops) / sizeof(ops[0]); i++)
+        bwo_run_one(ops[i].f, ops[i].nm);
+    printf("bwdops: %s (global maxabs=%.3g at %s, tol=%.3g)\n",
+           bwo_nfail ? "FAIL" : "PASS", bwo_gmax, bwo_gname, tol);
+    return bwo_nfail ? 1 : 0;
+#else
+    (void)tol;
+    fprintf(stderr, "bwdops needs a CUDA build (no device backward on CPU)\n");
+    return 2;
+#endif
+}
 
 /* ---------------- gradient check (finite differences) ----------------
  * Analytic grads from train_ncp_loss+tape vs numeric grads from the

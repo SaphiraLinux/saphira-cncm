@@ -17,7 +17,7 @@ CFLAGS := -O2 -std=c++17 -Isrc -DNCM_CUDA \
           -gencode arch=compute_86,code=sm_86 \
           -gencode arch=compute_86,code=compute_86 \
           -Xcompiler "-Wall -Wextra -fopenmp"
-LDFLAGS := -lm -lcudart -lgomp
+LDFLAGS := -lm -lcudart -lcublas -lgomp
 XFLAG  := -x cu
 else
 ODIR   := build/cpu

@@ -36,7 +36,10 @@ static void usage(const char *a) {
         "  %s train    --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--steps N] [--lr f] [--total T] [--resume R.nckpt]\n"
         "             [--ckpt-out F] [--ckpt-every N] [--tokenizer-id S]\n"
-        "  %s ckpt-info --weights F.nckpt\n", a, a, a, a, a, a, a, a, a, a, a);
+        "  %s ckpt-info --weights F.nckpt\n"
+        "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
+        "             [--tol f] (CUDA build only)\n"
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -232,8 +235,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -357,6 +360,20 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "ckpt-info") == 0) {
         if (!weights) { fprintf(stderr, "ckpt-info needs --weights <file>\n"); return 2; }
         return ckpt_info(weights);
+    }
+    if (strcmp(argv[1], "bwd-parity") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *tol = opt(&argc, &argv, "--tol");
+        if (!data || !conf || !weights) { fprintf(stderr, "bwd-parity needs --data <file.nctrain> [--tol f]\n"); return 2; }
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        extern int bwd_parity_run(const NCMConfig*, const char*, const char*, double);
+        return bwd_parity_run(&cfg, weights, data, tol ? atof(tol) : 1e-4);
+    }
+    if (strcmp(argv[1], "bwdops") == 0) {
+        const char *tol = opt(&argc, &argv, "--tol");
+        extern int bwdops_run(double);
+        return bwdops_run(tol ? atof(tol) : 1e-4);
     }
     fprintf(stderr, "unknown subcommand %s\n", argv[1]);
     return 2;

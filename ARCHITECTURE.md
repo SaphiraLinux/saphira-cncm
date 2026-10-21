@@ -67,7 +67,7 @@ Qwen within fp32 noise floor). What runs where today:
 | Piece | CPU build | CUDA build |
 |---|---|---|
 | Forward | OpenMP host | device kernels (`NCM_CUDA`) |
-| Backward (tape) | OpenMP host | **same host code** (stages via `mem_d2h`) |
+| Backward (tape) | OpenMP host | **device kernels** by default (`NCM_BWD=cpu` forces host path) |
 | AdamW | OpenMP over params (host) | **device kernel** by default (`NCM_ADAMW=cpu` forces host path) |
 | Checkpointing | NCK1, exact resume | same (moments synced to host on save) |
 
@@ -77,6 +77,23 @@ grads staged per step); it is **bit-identical** to the host path
 Training on CUDA works end-to-end (same loss as CPU step-by-step;
 gradcheck passes on both; 4-step CPU-vs-CUDA drift is 9.7e-8 weights,
 ~1e-9 moments — well inside the 1e-3 `test-resume-cuda` gate).
+
+Native device backward (`src/train_tape.c`, `NCM_CUDA` section): the tape
+dispatches to per-op device kernels with a device-side grad map; LINEAR
+goes through cuBLAS (`-lcublas`), everything else reproduces the host
+summation order exactly; scatter-adds (EMBED/GATHER) stay host-staged to
+preserve run-to-run determinism. VQ-only conv-family tapes fall back to
+the host backward wholesale (no mixed mode). Verified: `cncm bwd-parity`
+(host vs device grads on the sudoku workload, maxabs 8.6e-7),
+`cncm bwdops` (all 22 non-conv ops on synthetic tensors, maxabs 1.5e-8),
+device `gradcheck` passes, and resumed training with device backward is
+byte-identical run-to-run. Sudoku step: ~5s (device) vs ~39s (host
+backward), same losses. `NCM_BWD=cpu` restores the legacy path.
+
+Known gap (Qwen prerequisite, not a regression): the tape's GQA path
+(SPLIT/ROPE with K<H) is MHA-only on host and device alike — GQA needs
+a forward+backward tape extension with its own verification, tracked
+for the taped-Qwen milestone.
 
 Memory: the tape holds all intermediates, plus per-layer CUDA SDPA
 scratch (`dscores`). Default arena is 2 GiB (`NCM_ARENA_MB` overrides);
@@ -146,7 +163,8 @@ models are the stated ceiling.
 - `tests/roundtrip_text.py`: export round-trip byte-exact over corpora.
 - `make test`: `tests/test_units.sh` (gcheck + ckpt_unit, weight-free,
   clean-checkout safe) + `tests/test_ckpt.sh --quick` (format/refusals +
-  N=2 exact-resume proof; skips cleanly without weights).
+  N=2 exact-resume proof + bwd-parity/bwdops where the binary is CUDA;
+  skips cleanly without weights or on CPU).
   `make test-resume` runs the full N=4 CPU proof (1 and 8 threads verified);
   `make test-resume-cuda` the CUDA leg (numeric tolerance gate 1e-3).
 

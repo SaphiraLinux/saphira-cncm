@@ -125,6 +125,27 @@ if [ $? -eq 0 ] && [ -f "$WORK/fmt/shim/shim.nckpt" ]; then
 else fail "NCK1 scaffold"; fi
 [ -z "$(find "$WORK/fmt" -name '*.tmp.*' 2>/dev/null)" ] \
   && pass "no .tmp leftovers" || fail "tmp leftovers"
+# host-vs-device backward parity (CUDA builds only; CPU prints skip)
+"$BIN" bwd-parity --conf "$CONF" --weights "$W0" --data "$DATA" --tol 1e-5 \
+  >"$WORK/fmt/bwdparity.log" 2>&1
+BRC=$?
+if [ $BRC -eq 2 ] && grep -q "needs a CUDA build" "$WORK/fmt/bwdparity.log"; then
+  echo "SKIP bwd-parity (CPU binary)"
+elif [ $BRC -eq 0 ]; then
+  pass "bwd-parity (host vs device grads)"
+else
+  fail "bwd-parity"; tail -3 "$WORK/fmt/bwdparity.log"
+fi
+# synthetic per-op device backward checks (CUDA builds only)
+"$BIN" bwdops --tol 1e-4 >"$WORK/fmt/bwdops.log" 2>&1
+ORC=$?
+if [ $ORC -eq 2 ] && grep -q "needs a CUDA build" "$WORK/fmt/bwdops.log"; then
+  echo "SKIP bwdops (CPU binary)"
+elif [ $ORC -eq 0 ]; then
+  pass "bwdops (all tape ops host vs device)"
+else
+  fail "bwdops"; tail -3 "$WORK/fmt/bwdops.log"
+fi
 
 # ---------- Phase 2: exact resume ----------
 # A: continuous NSTEPS. B: NSTEPS/2, fresh process resumes the rest.

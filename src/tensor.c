@@ -280,12 +280,13 @@ void arena_init(size_t bytes) {
     arena_off = 0;
 }
 
-/* Default scratch size: NCM_ARENA_MB env, else 2048 MB. CUDA training needs
- * >1 GiB (per-layer sdpa dscores accumulate in-arena); 2 GiB is modest for
- * the sm_86 12 GiB target and harmless as host malloc. */
+/* Default scratch size: NCM_ARENA_MB env, else 4096 MB. Device backward
+ * keeps a full grad map alongside forward activations (~2x residency:
+ * sudoku needs ~2.2 GiB); 4 GiB is modest for the sm_86 12 GiB target
+ * and harmless as host malloc (only touched pages commit). */
 void arena_init_default(void) {
     const char *e = getenv("NCM_ARENA_MB");
-    size_t mb = e ? (size_t)atol(e) : 2048;
+    size_t mb = e ? (size_t)atol(e) : 4096;
     if (mb < 64) mb = 64;
     arena_init(mb * (1ULL << 20));
 }
@@ -295,7 +296,8 @@ float *arena_alloc(size_t n_floats) {
     /* 16-byte align */
     arena_off = (arena_off + 15) & ~(size_t)15;
     if (arena_off + need > arena_size) {
-        fprintf(stderr, "arena overflow (%zu > %zu)\n", arena_off + need, arena_size);
+        fprintf(stderr, "arena overflow (%zu > %zu MB); raise NCM_ARENA_MB\n",
+                arena_off + need, arena_size >> 20);
         exit(1);
     }
     float *p = (float *)(arena_base + arena_off);
