@@ -49,9 +49,14 @@ adaptive tau; tau<=0 or level>=soft_levels reproduces exact argmin.
   200-step baseline, isolating the mechanism change as causal.
 - `vq16_soft_stages.svg` plots L0-L4 across stages; `vq16_recon_soft*.txt`
   hold the 64-board reconstructions.
-- Verdict: PARTIAL revival. Soft assignment genuinely repopulates L0 and
-  holds it through continued training, but L1/L2 resist. Next levers:
-  longer run, per-level tau, or soft+surgery combined. NCP untouched.
+- Extended +700 (1000 total soft steps): L0 reached 16/16 (H 3.97,
+  dom 0.09) and held through the run; L1 moved 2 -> 5/16 late;
+  L2 frozen at 1/16 throughout. Held-out L0-L4: 16,5,1,4,11.
+  Recon 96.9% cell, still 0/64 valid (first valid board was at 300).
+- Verdict: PARTIAL revival, stronger than before. Soft assignment
+  genuinely repopulates L0 and holds it through 700 more steps, but
+  L1/L2 resist (L1 late partial movement only). Next levers: longer
+  run, per-level tau, or soft+surgery combined. NCP untouched.
 
 ## VQ revival experiment (+400 steps, no surgery)
 
