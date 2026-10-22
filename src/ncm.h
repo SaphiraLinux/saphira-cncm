@@ -220,6 +220,11 @@ void        vqvae_free(VQVAEState *v);
 VQState    *vqvae_vq(VQVAEState *v);
 void vq_ema_init(VQState *vq);
 void vq_ema_update(VQState *vq, const float *z, const int *codes, int B, double decay, double eps);
+/* Dead-code revival: detect unused codes over a window of nrows, reseed
+ * from actual encoder outputs at the matching level, reset EMA counts /
+ * accumulators consistently. Returns codes revived. Deterministic. */
+int vq_revive_dead(VQState *vq, VQVAEState *vqvae, const int *ids, int nrows,
+                   int T, int D, unsigned long long seed, double eps);
 int vq_nlevels(const VQState *vq);
 int vq_level_len(const VQState *vq, int k);
 int vq_level_V(const VQState *vq, int k);

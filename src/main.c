@@ -36,6 +36,11 @@ static void usage(const char *a) {
         "             --sol S.nctrain --out recon.txt [--max-rows N]\n"
         "             (diagnostic: solution ids -> VQ codes -> decoded text;\n"
         "             reports id-level reconstruction match)\n"
+        "  %s vq-revive --conf M.conf --weights IN.ncm --data S.nctrain\n"
+        "             --out OUT.ncm [--window N] [--seed S]\n"
+        "             (dead-code revival: detect unused codes over a window,\n"
+        "             reseed from actual encoder outputs, reset EMA state;\n"
+        "             reports per-level occupancy before/after)\n"
         "  %s arith-check --op OP ... (deterministic number-theory checks,\n"
         "             no model involved)\n"
         "             cubesum --a A --b B --n N : A^3+B^3 == N ?\n"
@@ -75,7 +80,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -192,6 +197,9 @@ static int cmd_vq_encode(const NCMConfig *c, const char *weights,
 static int cmd_vq_recon(const NCMConfig *c, const char *weights,
                         const char *sol_path, const char *out_path,
                         int max_rows);
+static int cmd_vq_revive(const NCMConfig *c, const char *weights,
+                         const char *data_path, const char *out_path,
+                         int window, unsigned long long seed);
 static double stream_now_ms(void);static void sudoku_cells(const char *s, char *out);
 static int sudoku_valid_sz(const char *cells, int n);
 static int stream_bad_units_sz(const char *cells, int n, int box,
@@ -450,6 +458,40 @@ static int cmd_vq_recon(const NCMConfig *c, const char *weights,
     return 0;
 }
 
+/* vq-revive: dead-code surgery into a NEW weights file (inputs untouched).
+ * Encodes a window of solution rows, counts per-level code usage, reseeds
+ * codes with zero uses from actual encoder outputs at the matching level,
+ * and resets their EMA counts/accumulators consistently. Prints before/
+ * after occupancy. Deterministic given --seed. */
+static int cmd_vq_revive(const NCMConfig *c, const char *weights,
+                        const char *data_path, const char *out_path,
+                        int window, unsigned long long seed) {
+    WeightStore ws;
+    memset(&ws, 0, sizeof(ws));
+    if (weights_load(&ws, weights)) return 1;
+    arena_init(1ULL << 31);
+    VQVAEState *vqvae = vqvae_load(c, &ws);
+    VQState *vq = vqvae_vq(vqvae);
+    TrainData *d = train_data_load(data_path, 0);
+    if (!d) { fprintf(stderr, "vq-revive: cannot open %s\n", data_path); return 1; }
+    int T = c->vq_context_length, D = c->vq_embed_dim;
+    if (d->row_len != T) {
+        fprintf(stderr, "vq-revive: row_len %d != T %d\n", d->row_len, T);
+        return 1;
+    }
+    int nrows = d->n_rows;
+    if (window > 0 && window < nrows) nrows = window;
+    /* in-place encode needs host ids; rows are host already */
+    int revived = vq_revive_dead(vq, vqvae, d->rows, nrows, T, D, seed, 1e-5);
+    if (weights_save(&ws, out_path)) {
+        fprintf(stderr, "vq-revive: cannot write %s\n", out_path);
+        return 1;
+    }
+    printf("[vq-revive] wrote %s (%d codes revived)\n", out_path, revived);
+    train_data_free(d);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     /* Threading: NCM_THREADS if set, else 8 workers. Applies to forward
      * kernels and the parallelized training backward. */
@@ -466,8 +508,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && strcmp(argv[1], "vq-revive") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "vq-revive") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -612,6 +654,20 @@ int main(int argc, char **argv) {
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
         return cmd_vq_recon(&cfg, weights, sol, out, mr ? atoi(mr) : 0);
+    }
+    if (strcmp(argv[1], "vq-revive") == 0) {
+        const char *data = opt(&argc, &argv, "--data");
+        const char *out = opt(&argc, &argv, "--out");
+        const char *wn = opt(&argc, &argv, "--window");
+        const char *ss = opt(&argc, &argv, "--seed");
+        if (!data || !out || !conf || !weights) {
+            fprintf(stderr, "vq-revive needs --conf --weights IN.ncm --data S.nctrain --out OUT.ncm [--window N] [--seed S]\n");
+            return 2;
+        }
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return cmd_vq_revive(&cfg, weights, data, out, wn ? atoi(wn) : 1024,
+                             ss ? strtoull(ss, NULL, 10) : 0x9E3779B97F4A7C15ULL);
     }
     if (strcmp(argv[1], "train") == 0) {
         const char *data = opt(&argc, &argv, "--data");

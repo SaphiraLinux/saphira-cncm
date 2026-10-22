@@ -757,3 +757,209 @@ int vq_level_len(const VQState *vq, int k) { return vq->levels[k]; }
 int vq_level_V(const VQState *vq, int k) { return vq->vocabs[k]; }
 int vq_Ltotal(const VQState *vq) { return vq->L; }
 int vq_Ddim(const VQState *vq) { return vq->D; }
+
+/* ---- dead-code revival (training aid; no architecture change) ----
+ * Detects codes with zero uses over a fixed observation window of real
+ * encoder outputs, reseeds them from actual encoder-output frames at
+ * the matching level (never random vectors), and resets their EMA
+ * counts/accumulators consistently (ema_cs=1.0 like cold start,
+ * ema_w=reseeded vector scaled so the smoothing write-back reproduces
+ * it exactly; stale means therefore cannot snap it straight back).
+ *
+ * Traversal mirrors vq_z_to_idx (same downsample/residual/resi path),
+ * but records per-level usage and keeps a bounded reservoir of input
+ * frames per level instead of argmin codes. Deterministic given seed.
+ * Returns the number of codes revived. Prints per-level used/total
+ * before and after. */
+static unsigned long long revive_rng_next(unsigned long long *s) {
+    *s ^= *s << 13; *s ^= *s >> 7; *s ^= *s << 17;
+    return (*s >> 11);
+}
+
+#define REVIVE_RESERVOIR 2048
+
+int vq_revive_dead(VQState *vq, VQVAEState *vqvae, const int *ids, int nrows,
+                   int T, int D, unsigned long long seed, double eps) {
+    int nl = vq->n_levels, L = vq->L;
+    int total = vq_total_codes(vq);
+    if (nl <= 0 || L <= 0 || T <= 0 || D <= 0 || nrows <= 0 || total <= 0) return 0;
+    vq_ema_init(vq);
+    int stride = 0;
+    for (int l = 0; l < nl; l++)
+        if (vq->vocabs[l] > stride) stride = vq->vocabs[l];
+    /* per-level usage over the window + frame reservoirs (host) */
+    long *use = (long *)calloc((size_t)nl * stride, sizeof(long));
+    float **pool = (float **)malloc((size_t)nl * sizeof(float *));
+    int *poolfill = (int *)calloc((size_t)nl, sizeof(int));
+    long *poolseen = (long *)calloc((size_t)nl, sizeof(long));
+    for (int l = 0; l < nl; l++)
+        pool[l] = (float *)malloc((size_t)REVIVE_RESERVOIR * D * sizeof(float));
+    int *off = (int *)malloc((size_t)(nl + 1) * sizeof(int));
+    off[0] = 0;
+    for (int l = 0; l < nl; l++) off[l + 1] = off[l] + vq->levels[l];
+    unsigned long long rng = seed ? seed : 0x9E3779B97F4A7C15ULL;
+    int B = 32;
+    int *sbuf = (int *)malloc((size_t)B * T * sizeof(int));
+    int *codes = (int *)malloc((size_t)B * total * sizeof(int));
+    for (int s = 0; s < nrows; s += B) {
+        int bb = nrows - s < B ? nrows - s : B;
+        for (int b = 0; b < bb; b++)
+            memcpy(sbuf + b * T, ids + (s + b) * T, T * sizeof(int));
+        float *z = arena_alloc((size_t)bb * L * D);
+        vqvae_encode_z(vqvae, sbuf, z, bb);
+        vq_z_to_idx(vq, z, bb, codes);
+        /* residual traversal (mirrors vq_z_to_idx): per-level inputs */
+        float *z_rest = arena_alloc((size_t)bb * L * D);
+        float *z_hat = arena_alloc((size_t)bb * L * D);
+#ifdef NCM_CUDA
+        cudaMemcpy(z_rest, z, (size_t)bb * L * D * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemset(z_hat, 0, (size_t)bb * L * D * sizeof(float));
+#else
+        memcpy(z_rest, z, (size_t)bb * L * D * sizeof(float));
+        memset(z_hat, 0, (size_t)bb * L * D * sizeof(float));
+#endif
+        float *up = arena_alloc((size_t)bb * L * D);
+        float *down = arena_alloc((size_t)bb * L * D);
+        for (int lv = 0; lv < nl; lv++) {
+            int tlen = vq->levels[lv], V = vq->vocabs[lv];
+            down_for_quant(vq, z_rest, bb, L, lv, down);
+            float *hf = b2h(down, (size_t)bb * tlen * D);
+            float *hfc = (float *)malloc((size_t)bb * tlen * D * sizeof(float));
+            memcpy(hfc, hf, (size_t)bb * tlen * D * sizeof(float));
+            for (int b = 0; b < bb; b++) for (int t = 0; t < tlen; t++) {
+                int cd = codes[(size_t)b * total + off[lv] + t];
+                if (cd >= 0 && cd < V) use[(size_t)lv * stride + cd]++;
+                /* reservoir-sample an input frame for later reseeding */
+                long k = (long)poolseen[lv]++;
+                float *dst;
+                if (k < REVIVE_RESERVOIR) dst = pool[lv] + (size_t)k * D;
+                else {
+                    unsigned long long r = revive_rng_next(&rng);
+                    if ((long)(r % (unsigned long long)(k + 1)) >= REVIVE_RESERVOIR) continue;
+                    dst = pool[lv] + (size_t)(r % REVIVE_RESERVOIR) * D;
+                }
+                memcpy(dst, hfc + ((size_t)b * tlen + t) * D, D * sizeof(float));
+                if (k < REVIVE_RESERVOIR) poolfill[lv]++;
+            }
+            free(hfc);
+            /* advance residual exactly like vq_z_to_idx (host gather) */
+            float *Eh = b2h(vq->E[lv], (size_t)V * D);
+            float *Ec = (float *)malloc((size_t)V * D * sizeof(float));
+            memcpy(Ec, Eh, (size_t)V * D * sizeof(float));
+            int base = off[lv];
+            float *qq = (float *)malloc((size_t)bb * tlen * D * sizeof(float));
+            for (int b = 0; b < bb; b++) for (int t = 0; t < tlen; t++) {
+                int code = codes[(size_t)b * total + base + t];
+                if (code < 0 || code >= V) code = 0;
+                memcpy(qq + ((size_t)b * tlen + t) * D, Ec + (size_t)code * D, D * sizeof(float));
+            }
+            free(Ec);
+            float *q = arena_alloc((size_t)bb * tlen * D);
+#ifdef NCM_CUDA
+            cudaMemcpy(q, qq, (size_t)bb * tlen * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy(q, qq, (size_t)bb * tlen * D * sizeof(float));
+#endif
+            free(qq);
+            up_to_full(vq, q, bb, tlen, lv, up);
+            apply_resi(vq, up, bb, L, lv);
+            {
+                /* z_hat += up; z_rest -= up (all bb-wide here) */
+                float *zh = b2h(z_hat, (size_t)bb * L * D);
+                float *uu = b2h(up, (size_t)bb * L * D);
+                float *uc = (float *)malloc((size_t)bb * L * D * sizeof(float));
+                memcpy(uc, uu, (size_t)bb * L * D * sizeof(float));
+                for (size_t i = 0; i < (size_t)bb * L * D; i++) zh[i] += uc[i];
+                free(uc);
+#ifdef NCM_CUDA
+                cudaMemcpy(z_hat, zh, (size_t)bb * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+                memcpy(z_hat, zh, (size_t)bb * L * D * sizeof(float));
+#endif
+                float *zr = b2h(z_rest, (size_t)bb * L * D);
+                float *zrc = (float *)malloc((size_t)bb * L * D * sizeof(float));
+                memcpy(zrc, zr, (size_t)bb * L * D * sizeof(float));
+                for (size_t i = 0; i < (size_t)bb * L * D; i++) zrc[i] -= uu[i];
+#ifdef NCM_CUDA
+                cudaMemcpy(z_rest, zrc, (size_t)bb * L * D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+                memcpy(z_rest, zrc, (size_t)bb * L * D * sizeof(float));
+#endif
+                free(zrc);
+            }
+        }
+        arena_reset();
+    }
+    free(sbuf);
+    /* usage report (before) */
+    printf("[vq-revive] window=%d rows\n", nrows);
+    for (int l = 0; l < nl; l++) {
+        int u = 0;
+        for (int v = 0; v < vq->vocabs[l]; v++) if (use[(size_t)l * stride + v]) u++;
+        printf("[vq-revive] L%02d before used=%d/%d\n", l, u, vq->vocabs[l]);
+    }
+    fflush(stdout);
+    /* reseed dead codes from distinct reservoir frames + exact EMA reset.
+     * Pass 1: choose frames, set dead counts to cold-start 1.0.
+     * Pass 2 (same level): recompute the level normalizer, then scale
+     * each accumulator so the smoothing write-back reproduces its
+     * reseeded vector exactly. A continued run therefore inherits an
+     * EMA state consistent with the revised codebooks. */
+    int revived = 0;
+    int *revived_per = (int *)calloc((size_t)nl, sizeof(int));
+    int *taken = (int *)calloc((size_t)REVIVE_RESERVOIR, sizeof(int));
+    int *selfi = (int *)malloc((size_t)stride * sizeof(int));
+    for (int l = 0; l < nl; l++) {
+        int V = vq->vocabs[l];
+        if (poolfill[l] <= 0) continue; /* no frames: cannot reseed */
+        for (int v = 0; v < V; v++) selfi[v] = -1;
+        for (int v = 0; v < V; v++) {
+            if (use[(size_t)l * stride + v] > 0) continue;
+            int fi = -1;
+            for (int k = 0; k < poolfill[l]; k++) {
+                unsigned long long r = revive_rng_next(&rng);
+                int cand = (int)(r % (unsigned long long)poolfill[l]);
+                if (!taken[cand]) { fi = cand; taken[cand] = 1; break; }
+            }
+            if (fi < 0) fi = (int)(revive_rng_next(&rng) % (unsigned long long)poolfill[l]);
+            selfi[v] = fi;
+            vq->ema_cs[l][v] = 1.0f;
+            revived_per[l]++;
+            revived++;
+        }
+        memset(taken, 0, (size_t)REVIVE_RESERVOIR * sizeof(int));
+        if (!revived_per[l]) continue;
+        double n = 0;
+        for (int v = 0; v < V; v++) n += vq->ema_cs[l][v];
+        float *hE = (float *)malloc((size_t)D * sizeof(float));
+        for (int v = 0; v < V; v++) {
+            if (selfi[v] < 0) continue;
+            float *vec = pool[l] + (size_t)selfi[v] * D;
+            double sm = (1.0 + eps) / (n + V * eps) * n;
+            for (int d = 0; d < D; d++) {
+                vq->ema_w[l][(size_t)v * D + d] = (float)(vec[d] * sm);
+                hE[d] = vec[d];
+            }
+#ifdef NCM_CUDA
+            cudaMemcpy((void *)(vq->E[l] + (size_t)v * D), hE, (size_t)D * sizeof(float), cudaMemcpyHostToDevice);
+#else
+            memcpy((void *)(vq->E[l] + (size_t)v * D), hE, (size_t)D * sizeof(float));
+#endif
+        }
+        free(hE);
+    }
+    free(taken);
+    free(selfi);
+    /* usage report (after): previously-dead codes now point at data */
+    for (int l = 0; l < nl; l++) {
+        int used = 0;
+        for (int v = 0; v < vq->vocabs[l]; v++) if (use[(size_t)l * stride + v]) used++;
+        printf("[vq-revive] L%02d after used=%d/%d (+%d revived)\n",
+               l, used + revived_per[l], vq->vocabs[l], revived_per[l]);
+    }
+    printf("[vq-revive] revived %d codes\n", revived);
+    fflush(stdout);
+    for (int l = 0; l < nl; l++) free(pool[l]);
+    free(pool); free(poolfill); free(poolseen); free(use); free(off); free(codes);
+    return revived;
+}
