@@ -25,6 +25,12 @@ human-readable traces.
   the original 800-step schedule (same flags, `--resume`).
 - `ncp16_resume_curve.svg` — loss curve parsed from that log
   (regenerate after completion with `tools/plot_results.py`).
+- `ncp16_held512.jsonl` — 512 held-out 16x16 puzzles vs the 800-step
+  checkpoint (seed 7, command in same form as the magic eval above
+  with the sudoku-16 conf/weights/inputs/refs and `--size 16`).
+  Result: **0/512 exact, 0/512 valid, cell 0.074, givens 8.3%**
+  (chance 6.25%) — mode collapse persists after 4x training
+  (loss 0.55 -> 0.44). `ncp16_held_eval.svg` plots it.
 
 ## Provenance note (2026-10-22)
 

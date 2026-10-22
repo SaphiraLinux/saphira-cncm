@@ -1,0 +1,10 @@
+16x16 NCP solver checkpoints (all NCK1, B=4, lr 3e-4, tokenizer sudoku16):
+- ckpt-step50/100/150.nckpt: first correct-targets run, 200-step cosine
+  schedule (loss 2.83 -> 0.55). Optimizer state included.
+- ckpt-final.nckpt: EXTENDED run. Fresh-optimizer continuation from the
+  200-step final (same data), new 800-step cosine schedule, completed
+  steps 0-799 (loss 0.55 -> 0.44). THIS is the current solver.
+- ckpt-step700.nckpt: snapshot of the extended run at step 700.
+- ckpts_run1_puzzle_targets/ (sibling dir): superseded run trained on
+  puzzle codes instead of solution codes (data bug, kept for forensics).
+9x9 weights/sudoku-easy/model.ncm untouched throughout.

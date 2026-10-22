@@ -220,3 +220,186 @@
 [train] step 707 loss 0.4445
   [train] loss=0.4450 gnorm=0.375
 [train] step 708 loss 0.4450
+  [train] loss=0.4480 gnorm=0.376
+[train] step 709 loss 0.4480
+  [train] loss=0.4390 gnorm=0.352
+[train] step 710 loss 0.4390
+  [train] loss=0.4375 gnorm=0.351
+[train] step 711 loss 0.4375
+  [train] loss=0.4427 gnorm=0.375
+[train] step 712 loss 0.4427
+  [train] loss=0.4247 gnorm=0.363
+[train] step 713 loss 0.4247
+  [train] loss=0.4382 gnorm=0.383
+[train] step 714 loss 0.4382
+  [train] loss=0.4374 gnorm=0.353
+[train] step 715 loss 0.4374
+  [train] loss=0.4486 gnorm=0.366
+[train] step 716 loss 0.4486
+  [train] loss=0.4489 gnorm=0.381
+[train] step 717 loss 0.4489
+  [train] loss=0.4473 gnorm=0.401
+[train] step 718 loss 0.4473
+  [train] loss=0.4506 gnorm=0.387
+[train] step 719 loss 0.4506
+  [train] loss=0.4425 gnorm=0.354
+[train] step 720 loss 0.4425
+  [train] loss=0.4401 gnorm=0.359
+[train] step 721 loss 0.4401
+  [train] loss=0.4263 gnorm=0.363
+[train] step 722 loss 0.4263
+  [train] loss=0.4446 gnorm=0.351
+[train] step 723 loss 0.4446
+  [train] loss=0.4329 gnorm=0.365
+[train] step 724 loss 0.4329
+  [train] loss=0.4487 gnorm=0.378
+[train] step 725 loss 0.4487
+  [train] loss=0.4513 gnorm=0.369
+[train] step 726 loss 0.4513
+  [train] loss=0.4425 gnorm=0.383
+[train] step 727 loss 0.4425
+  [train] loss=0.4398 gnorm=0.365
+[train] step 728 loss 0.4398
+  [train] loss=0.4299 gnorm=0.328
+[train] step 729 loss 0.4299
+  [train] loss=0.4378 gnorm=0.342
+[train] step 730 loss 0.4378
+  [train] loss=0.4548 gnorm=0.373
+[train] step 731 loss 0.4548
+  [train] loss=0.4330 gnorm=0.360
+[train] step 732 loss 0.4330
+  [train] loss=0.4381 gnorm=0.346
+[train] step 733 loss 0.4381
+  [train] loss=0.4386 gnorm=0.371
+[train] step 734 loss 0.4386
+  [train] loss=0.4435 gnorm=0.376
+[train] step 735 loss 0.4435
+  [train] loss=0.4371 gnorm=0.374
+[train] step 736 loss 0.4371
+  [train] loss=0.4424 gnorm=0.376
+[train] step 737 loss 0.4424
+  [train] loss=0.4380 gnorm=0.371
+[train] step 738 loss 0.4380
+  [train] loss=0.4234 gnorm=0.365
+[train] step 739 loss 0.4234
+  [train] loss=0.4430 gnorm=0.389
+[train] step 740 loss 0.4430
+  [train] loss=0.4388 gnorm=0.373
+[train] step 741 loss 0.4388
+  [train] loss=0.4376 gnorm=0.373
+[train] step 742 loss 0.4376
+  [train] loss=0.4483 gnorm=0.407
+[train] step 743 loss 0.4483
+  [train] loss=0.4420 gnorm=0.369
+[train] step 744 loss 0.4420
+  [train] loss=0.4434 gnorm=0.373
+[train] step 745 loss 0.4434
+  [train] loss=0.4402 gnorm=0.400
+[train] step 746 loss 0.4402
+  [train] loss=0.4272 gnorm=0.398
+[train] step 747 loss 0.4272
+  [train] loss=0.4412 gnorm=0.380
+[train] step 748 loss 0.4412
+  [train] loss=0.4424 gnorm=0.375
+[train] step 749 loss 0.4424
+  [train] loss=0.4345 gnorm=0.372
+[train] step 750 loss 0.4345
+  [train] loss=0.4401 gnorm=0.357
+[train] step 751 loss 0.4401
+  [train] loss=0.4417 gnorm=0.362
+[train] step 752 loss 0.4417
+  [train] loss=0.4450 gnorm=0.372
+[train] step 753 loss 0.4450
+  [train] loss=0.4331 gnorm=0.368
+[train] step 754 loss 0.4331
+  [train] loss=0.4476 gnorm=0.379
+[train] step 755 loss 0.4476
+  [train] loss=0.4435 gnorm=0.356
+[train] step 756 loss 0.4435
+  [train] loss=0.4327 gnorm=0.378
+[train] step 757 loss 0.4327
+  [train] loss=0.4398 gnorm=0.361
+[train] step 758 loss 0.4398
+  [train] loss=0.4429 gnorm=0.360
+[train] step 759 loss 0.4429
+  [train] loss=0.4527 gnorm=0.363
+[train] step 760 loss 0.4527
+  [train] loss=0.4465 gnorm=0.351
+[train] step 761 loss 0.4465
+  [train] loss=0.4659 gnorm=0.365
+[train] step 762 loss 0.4659
+  [train] loss=0.4481 gnorm=0.367
+[train] step 763 loss 0.4481
+  [train] loss=0.4412 gnorm=0.379
+[train] step 764 loss 0.4412
+  [train] loss=0.4375 gnorm=0.376
+[train] step 765 loss 0.4375
+  [train] loss=0.4398 gnorm=0.339
+[train] step 766 loss 0.4398
+  [train] loss=0.4367 gnorm=0.366
+[train] step 767 loss 0.4367
+  [train] loss=0.4410 gnorm=0.409
+[train] step 768 loss 0.4410
+  [train] loss=0.4462 gnorm=0.358
+[train] step 769 loss 0.4462
+  [train] loss=0.4415 gnorm=0.374
+[train] step 770 loss 0.4415
+  [train] loss=0.4384 gnorm=0.370
+[train] step 771 loss 0.4384
+  [train] loss=0.4382 gnorm=0.365
+[train] step 772 loss 0.4382
+  [train] loss=0.4392 gnorm=0.373
+[train] step 773 loss 0.4392
+  [train] loss=0.4227 gnorm=0.343
+[train] step 774 loss 0.4227
+  [train] loss=0.4453 gnorm=0.355
+[train] step 775 loss 0.4453
+  [train] loss=0.4258 gnorm=0.347
+[train] step 776 loss 0.4258
+  [train] loss=0.4321 gnorm=0.374
+[train] step 777 loss 0.4321
+  [train] loss=0.4564 gnorm=0.414
+[train] step 778 loss 0.4564
+  [train] loss=0.4470 gnorm=0.391
+[train] step 779 loss 0.4470
+  [train] loss=0.4560 gnorm=0.402
+[train] step 780 loss 0.4560
+  [train] loss=0.4483 gnorm=0.398
+[train] step 781 loss 0.4483
+  [train] loss=0.4448 gnorm=0.367
+[train] step 782 loss 0.4448
+  [train] loss=0.4315 gnorm=0.350
+[train] step 783 loss 0.4315
+  [train] loss=0.4374 gnorm=0.363
+[train] step 784 loss 0.4374
+  [train] loss=0.4376 gnorm=0.369
+[train] step 785 loss 0.4376
+  [train] loss=0.4436 gnorm=0.358
+[train] step 786 loss 0.4436
+  [train] loss=0.4501 gnorm=0.610
+[train] step 787 loss 0.4501
+  [train] loss=0.4318 gnorm=0.377
+[train] step 788 loss 0.4318
+  [train] loss=0.4438 gnorm=0.383
+[train] step 789 loss 0.4438
+  [train] loss=0.4390 gnorm=0.351
+[train] step 790 loss 0.4390
+  [train] loss=0.4255 gnorm=0.354
+[train] step 791 loss 0.4255
+  [train] loss=0.4476 gnorm=0.387
+[train] step 792 loss 0.4476
+  [train] loss=0.4328 gnorm=0.373
+[train] step 793 loss 0.4328
+  [train] loss=0.4434 gnorm=0.354
+[train] step 794 loss 0.4434
+  [train] loss=0.4464 gnorm=0.373
+[train] step 795 loss 0.4464
+  [train] loss=0.4350 gnorm=0.381
+[train] step 796 loss 0.4350
+  [train] loss=0.4371 gnorm=0.350
+[train] step 797 loss 0.4371
+  [train] loss=0.4516 gnorm=0.366
+[train] step 798 loss 0.4516
+  [train] loss=0.4400 gnorm=0.350
+[train] checkpoint saved in 1.08s
+[train] step 799 loss 0.4400 (saved ckpt-final.nckpt)
