@@ -5,6 +5,7 @@
  * Vocab/merge assets are plain text emitted by tools/export.py (data, not deps).
  */
 #include "ncm.h"
+#include "sudoku_size.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ struct TokState {
     int n_special;
     unsigned char *skip; /* n_vocab bitmap for skip_special */
     int eos_id, pad_id;
+    int sudoku_n; /* grid width for kind=sudoku (9,16,25); default 9 */
     /* splitter pattern */
     int pattern; /* 0 = repo/gpt2, 1 = qwen/tiktoken */
     int mapped;  /* 1 = GPT-2 bytes_to_unicode layer (gpt2-style HF BPE) */
@@ -285,6 +287,7 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
     snprintf(t->kind, sizeof(t->kind), "%s", c->pre_tok);
     t->eos_id = c->eos_token_id;
     t->pad_id = c->pad_token_id;
+    t->sudoku_n = c->sudoku_size > 0 ? c->sudoku_size : 9;
     if (strcmp(t->kind, "sudoku") == 0) return t;
 
     int is_bpe = (strcmp(t->kind, "bpe") == 0) || (strcmp(t->kind, "qwen") == 0) ||
@@ -540,16 +543,23 @@ static int bpe_encode_word(TokState *t, const unsigned char *w, int n,
 
 int tok_encode(TokState *t, const char *text, int *out, int cap) {
     if (strcmp(t->kind, "sudoku") == 0) {
-        int n = 0;
-        for (const char *p = text; *p && n < cap; p++) {
+        int n = t->sudoku_n > 0 ? t->sudoku_n : 9;
+        int sep = n + 1, wrap = n + 2;
+        int nn = 0;
+        for (const char *p = text; *p && nn < cap; p++) {
             char c = *p;
             if (c == ' ' || c == '\n' || c == '\t' || c == '\r') continue;
-            if (c == '_') out[n++] = 0;
-            else if (c >= '0' && c <= '9') out[n++] = c - '0';
-            else if (c == '|') out[n++] = 10;
-            else if (c == 'B') out[n++] = 11;
+            if (c == '_') out[nn++] = 0;
+            else if (c >= '0' && c <= '9') {
+                int v = c - '0';
+                if (n == 9 || v <= n) out[nn++] = v;
+            } else if (c >= 'A' && c <= 'Z') {
+                int v = 10 + (c - 'A');
+                if (v <= n) out[nn++] = v;
+            } else if (c == '|') out[nn++] = sep;
+            else if (c == 'B') out[nn++] = wrap;
         }
-        return n;
+        return nn;
     }
     const unsigned char *u = (const unsigned char *)text;
     int nu = strlen(text);
@@ -570,14 +580,21 @@ int tok_encode(TokState *t, const char *text, int *out, int cap) {
 int tok_decode(TokState *t, const int *ids, int n, char *out, int cap,
                int skip_special) {
     if (strcmp(t->kind, "sudoku") == 0) {
-        static const char *ch = "_123456789|<BOS>";
+        int sz = t->sudoku_n > 0 ? t->sudoku_n : 9;
+        int sep = sz + 1, wrap = sz + 2;
         int o = 0;
         for (int i = 0; i < n && o + 5 < cap; i++) {
             int id = ids[i];
-            if (skip_special && id == 11) continue;
-            if (id < 0 || id > 11) continue;
-            if (id == 11) { memcpy(out + o, "<BOS>", 5); o += 5; }
-            else out[o++] = ch[id];
+            if (skip_special && id == wrap) continue;
+            if (id < 0 || id > wrap) continue;
+            if (id == wrap) { memcpy(out + o, "<BOS>", 5); o += 5; }
+            else if (id == sep) out[o++] = '|';
+            else if (id == 0) out[o++] = '_';
+            else {
+                char c = sudoku_val_char(id);
+                if (!c || id > sz) continue;
+                out[o++] = c;
+            }
         }
         out[o] = 0;
         return o;

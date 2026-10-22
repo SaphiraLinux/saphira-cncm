@@ -4,6 +4,7 @@
  * backward stages to host (see train_tape.c). CPU-adequate speed.
  */
 #include "ncm.h"
+#include "sudoku_size.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -940,18 +941,23 @@ int train_run_ex(const NCMConfig *c_, const char *weights_path,
             clock_gettime(CLOCK_MONOTONIC, &vtn);
             vs.elapsed = (vtn.tv_sec - vt0.tv_sec) + (vtn.tv_nsec - vt0.tv_nsec) * 1e-9;
             /* clues from board 0 of the batch (sudoku prefix framing) */
-            if (P == 91 && pbuf[0] == 11 && pbuf[P - 1] == 11) {
-                int okf = 1;
-                for (int r = 0; r < 9 && okf; r++) {
-                    if (r < 8 && pbuf[10 + r * 10] != 10) { okf = 0; break; }
-                    for (int cc = 0; cc < 9; cc++) {
-                        int id = pbuf[1 + r * 10 + cc];
-                        if (id < 0 || id > 9) { okf = 0; break; }
-                        vs.clues[r * 9 + cc] = id ? (char)('0' + id) : '.';
+            {
+                SudokuSize tsz;
+                int okf = 0;
+                if (sudoku_size_from_prefix(P, &tsz) == 0 &&
+                    pbuf[0] == tsz.wrap_id && pbuf[P - 1] == tsz.wrap_id) {
+                    okf = 1;
+                    for (int r = 0; r < tsz.n && okf; r++) {
+                        if (r < tsz.n - 1 && pbuf[1 + r * (tsz.n + 1) + tsz.n] != tsz.sep_id) { okf = 0; break; }
+                        for (int cc = 0; cc < tsz.n; cc++) {
+                            int id = pbuf[1 + r * (tsz.n + 1) + cc];
+                            if (id < 0 || id > tsz.n) { okf = 0; break; }
+                            vs.clues[r * tsz.n + cc] = id ? sudoku_val_char(id) : '.';
+                        }
                     }
-                }
-                if (okf) vs.clues[81] = 0;
-                else vs.clues[0] = 0;
+                    if (okf) vs.clues[tsz.ncells] = 0;
+                    else vs.clues[0] = 0;
+                } else vs.clues[0] = 0;
             }
             /* per-level loss/agreement + code-weighted accuracy */
             vs.nlv = ntgt < VIEW_MAXLV ? ntgt : VIEW_MAXLV;

@@ -123,6 +123,7 @@ typedef struct {
     /* pre-tokenizer */
     /* pre-tokenizer */
     char pre_tok[16];          /* sudoku | bpe | hf */
+    int  sudoku_size;          /* grid width for kind=sudoku (9,16,25); 0 = 9 */
     char hf_model_id[128];
     int  eos_token_id, pad_token_id;
     /* generation defaults */
@@ -364,10 +365,10 @@ typedef struct {
     int nlv;
     double lvl_loss[VIEW_MAXLV], lvl_acc[VIEW_MAXLV], lvl_ms[VIEW_MAXLV];
     int lvl_n[VIEW_MAXLV], lvl_done_count;
-    char clues[82];
-    char board[82]; /* solve: final board when available */
+    char clues[627];  /* ncells+1; 82 for 9x9, 257 for 16x16, 626 for 25x25 */
+    char board[627]; /* solve: final board when available */
     int valid, nr, nc, nb;
-    int bad_r[9], bad_c[9], bad_b[9];
+    int bad_r[25], bad_c[25], bad_b[25];
     char model[64], backend[16], status[160];
     int ckpt; /* checkpoint saved on this step (train) */
 } ViewSnap;

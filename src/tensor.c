@@ -234,6 +234,7 @@ int config_load(NCMConfig *c, const char *path) {
         else if KEY("vq.dec_layers") c->dec_layers = atoi(v);
         else if KEY("vq.dec_positional") c->dec_positional = atoi(v);
         else if KEY("tok.kind") set_str(c->pre_tok, sizeof(c->pre_tok), v);
+        else if KEY("model.sudoku_size") c->sudoku_size = atoi(v);
         else if KEY("tok.model_id") set_str(c->hf_model_id, sizeof(c->hf_model_id), v);
         else if KEY("tok.eos_id") c->eos_token_id = parse_int(v);
         else if KEY("tok.pad_id") c->pad_token_id = parse_int(v);

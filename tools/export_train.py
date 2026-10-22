@@ -12,12 +12,6 @@ import os
 import struct
 import sys
 
-sys.path.insert(0, "/scratch/ncm")
-os.chdir("/scratch/ncm")
-import torch
-from omegaconf import OmegaConf
-from tokenization.vqvae_tokenizer import VQVAETokenizer
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -25,8 +19,33 @@ def main():
     ap.add_argument("--n", type=int, default=512)
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--holes", type=int, default=96,
+                    help="sudoku-16 only: cells to dig per puzzle")
     args = ap.parse_args()
 
+    if args.task == "sudoku-16":
+        # Pure-python path (stdlib only): solved grids + digs.
+        # VQ encoding into .nctrain rows happens in the documented
+        # 16x16 training flow (TRAINING.md) once a 16x16 tokenizer
+        # checkpoint exists; --dry-run only prints prefix rows.
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+        import sudoku16
+        import random as pyrandom
+        rng = pyrandom.Random(args.seed)
+        if args.out == "-":
+            for i in range(args.n):
+                full = sudoku16.shuffled_full(rng)
+                pz = sudoku16.dig(full, rng, args.holes)
+                print(",".join(map(str, sudoku16.prefix_ids(pz))))
+            return
+        raise SystemExit("sudoku-16 export to .nctrain needs a 16x16 VQ "
+                         "checkpoint (see TRAINING.md); use --out - for rows")
+
+    sys.path.insert(0, "/scratch/ncm")
+    os.chdir("/scratch/ncm")
+    import torch
+    from omegaconf import OmegaConf
+    from tokenization.vqvae_tokenizer import VQVAETokenizer
     CFG = OmegaConf.load(f"config/eval/{args.task}.yaml")
     SUB = {"sudoku-easy": "sudoku/easy", "sudoku-medium": "sudoku/medium",
            "sudoku-hard": "sudoku/hard", "lm1b-small": "lm1b/small",

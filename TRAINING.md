@@ -154,3 +154,53 @@ silently drops real gradient paths on Qwen (NCP's fused qkv never
 shares an input this way, which is why only Qwen showed it). Caught by
 the composed-block bwdops case: host-vs-device went from maxrel 0.95 to
 1e-7 with the one-word fix.
+
+## 16x16 Sudoku (and 25x25-ready) support
+
+Parse, validate, render and evaluate generalize over the grid size
+(`src/sudoku_size.h`); 9x9 is the frozen n=9 case and existing
+checkpoints/weights are untouched. Size parameters:
+
+| n | box | ncells | prefix_len (P) | text_len | symbols |
+|---|-----|--------|----------------|----------|---------|
+| 9 | 3 | 81 | 91 | 89 | 1-9 |
+| 16 | 4 | 256 | 273 | 271 | 1-9,A-G |
+| 25 | 5 | 625 | 651 | 649 | 1-9,A-P |
+
+Token ids generalize too: 0=empty, 1..n=values, n+1=`|` separator,
+n+2=wrap (`B`) — for n=9 this is exactly the historical 0..9,10,11
+mapping, so 9x9 encode/decode bytes are unchanged. Grid size resolves
+as: `--size` flag > `model.sudoku_size` conf key > guess from the
+prefix length > 9. Existing 9x9 confs carry no `model.sudoku_size`
+and resolve to 9 as before. **Existing 9x9 weights cannot solve
+16x16** — new sizes need new model confs and new weights.
+
+New CLI surface: `sudoku-check --board DIGITS [--size 9|16|25]
+[--clues CELLS]` (adds optional `clue_ok`; without `--clues` the JSON
+is unchanged) and `eval-sudoku --size N --jsonl out.jsonl` (per-puzzle
+`{idx,size,exact,valid,clue_ok,cell_frac,ms,board}`; stdout aggregate
+unchanged). Tests: `tests/test_sudoku_size.sh` (20 checks, CPU-only
+except a bounded n=2 CUDA/CPU parity smoke) plus fixtures under
+`tests/fixtures/sudoku{16,25}_*.txt`.
+
+### What remains for 16x16 training (not run yet)
+
+1. Train a 16x16 VQ-VAE tokenizer (context 271, in_vocab 19) and
+   freeze a checkpoint.
+2. Generate rows: `python3 tools/export_train.py --task sudoku-16
+   --n ROWS --seed S --holes 96 --out - > rows16_prefix.txt`
+   (stdlib-only dry-run of prefix rows), then VQ-encode to
+   `train16.nctrain` (`[273 prefix | codes]` per row).
+3. Write `weights/sudoku-16/model.conf` (copy sudoku-easy, set
+   `model.sudoku_size=16`, `model.prefix_len=273`,
+   `model.context_length=272`, `vq.context_length=271`,
+   `vq.in_vocab=19`, fresh `vq.levels` sized for 271).
+4. Train on CUDA (heavy CPU training is out of scope for this box):
+   `NCM_ADAMW=cpu ./cncm-cuda train --conf weights/sudoku-16/model.conf
+   --weights <init16.ncm> --data train16.nctrain --steps S --lr LR`,
+   then `nvidia-smi` for the GPU-memory report. Start with a short
+   smoke (`--steps 2` + resume-parity), scale up separately.
+5. Evaluate bounded: `./cncm-cuda eval-sudoku --conf ... --inputs ...
+   --refs ... --n 32 --seed 7 --jsonl eval16.jsonl` — CUDA only.
+6. 25x25 needs only data + conf + weights following the same table;
+   no code redesign (max buffers already cover 625 cells).

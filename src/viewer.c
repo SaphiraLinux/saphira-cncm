@@ -8,6 +8,7 @@
  * a no-op (SDL_VIDEODRIVER=dummy exercises the real path headless).
  */
 #include "ncm.h"
+#include "sudoku_size.h"
 
 #ifdef CNCM_HAVE_SDL2
 #include <SDL.h>
@@ -122,10 +123,30 @@ typedef struct {
     int hn;
 } VFrame;
 
+/* grid width for a snapshot: derived from the clues/board length
+ * (81->9, 256->16, 625->25), defaulting to 9 when empty. */
+static int vsnap_n(const ViewSnap *s) {
+    size_t L = 0;
+    if (s->clues[0]) L = strlen(s->clues);
+    else if (s->board[0]) L = strlen(s->board);
+    if (L == 81) return 9;
+    if (L == 256) return 16;
+    if (L == 625) return 25;
+    return 9;
+}
+
+static int vsnap_box(int n) {
+    if (n == 16) return 4;
+    if (n == 25) return 5;
+    return 3;
+}
+
 static void vdraw_board(const VFrame *f, int ox, int oy, int cell) {
+    int n = vsnap_n(&f->snap);
+    int box = vsnap_box(n);
     /* cells */
-    for (int r = 0; r < 9; r++) for (int c = 0; c < 9; c++) {
-        int i = r * 9 + c;
+    for (int r = 0; r < n; r++) for (int c = 0; c < n; c++) {
+        int i = r * n + c;
         int x = ox + c * cell, y = oy + r * cell;
         Uint8 br = 255, bg = 255, bb2 = 255;
         if (f->snap.clues[0] && f->snap.clues[i] != '.' && f->snap.clues[i] != 0) {
@@ -135,7 +156,7 @@ static void vdraw_board(const VFrame *f, int ox, int oy, int cell) {
         for (int k = 0; k < f->snap.nr; k++) if (f->snap.bad_r[k] == r) bad = 1;
         for (int k = 0; k < f->snap.nc; k++) if (f->snap.bad_c[k] == c) bad = 1;
         for (int k = 0; k < f->snap.nb; k++)
-            if (f->snap.bad_b[k] == (r / 3) * 3 + c / 3) bad = 1;
+            if (f->snap.bad_b[k] == (r / box) * box + c / box) bad = 1;
         if (bad) { br = 255; bg = 215; bb2 = 215; }
         SDL_SetRenderDrawColor(f->rn, br, bg, bb2, 255);
         SDL_Rect rc = {x, y, cell, cell};
@@ -144,7 +165,7 @@ static void vdraw_board(const VFrame *f, int ox, int oy, int cell) {
         Uint8 tr = 11, tg = 92, tb = 173;
         if (f->snap.clues[0] && f->snap.clues[i] != '.' && f->snap.clues[i] != 0) {
             ch = f->snap.clues[i]; tr = 17; tg = 17; tb = 17;
-        } else if (f->snap.board[0] && f->snap.board[i] >= '1' && f->snap.board[i] <= '9') {
+        } else if (f->snap.board[0] && f->snap.board[i] != '.' && f->snap.board[i] != 0) {
             ch = f->snap.board[i];
         }
         if (ch) {
@@ -156,14 +177,14 @@ static void vdraw_board(const VFrame *f, int ox, int oy, int cell) {
         }
     }
     /* grid lines: thin inside, thick on box borders */
-    for (int i = 0; i <= 9; i++) {
-        int thick = (i % 3 == 0);
+    for (int i = 0; i <= n; i++) {
+        int thick = (i % box == 0);
         SDL_SetRenderDrawColor(f->rn, 34, 34, 34, 255);
         int p = ox + i * cell - (thick ? 1 : 0);
-        SDL_Rect v = {p, oy - (thick ? 1 : 0), thick ? 3 : 1, 9 * cell + (thick ? 2 : 0)};
+        SDL_Rect v = {p, oy - (thick ? 1 : 0), thick ? 3 : 1, n * cell + (thick ? 2 : 0)};
         SDL_RenderFillRect(f->rn, &v);
         int q = oy + i * cell - (thick ? 1 : 0);
-        SDL_Rect h = {ox - (thick ? 1 : 0), q, 9 * cell + (thick ? 2 : 0), thick ? 3 : 1};
+        SDL_Rect h = {ox - (thick ? 1 : 0), q, n * cell + (thick ? 2 : 0), thick ? 3 : 1};
         SDL_RenderFillRect(f->rn, &h);
     }
 }
@@ -248,8 +269,9 @@ static void vrender_frame(VFrame *f, int W, int H) {
     int avail_h = H - pad * 3 - 64;
     if (board_px > avail_h) board_px = avail_h;
     if (board_px < 180) board_px = 180;
-    int cell = board_px / 9;
-    board_px = cell * 9;
+    int vn = vsnap_n(&f->snap);
+    int cell = board_px / vn;
+    board_px = cell * vn;
     int ox = pad, oy = pad;
     vdraw_board(f, ox, oy, cell);
     int x0 = ox + board_px + pad * 2;
@@ -572,28 +594,43 @@ int con_viewer_open(const char *title) {
     return 0;
 }
 
-/* one board line into buf (<= 64 chars): cells with | separators */
+/* one board row into out (<= 160 chars): cells with | separators */
 static void con_board_row(const ViewSnap *s, int r, char *out) {
+    int n = vsnap_n(s);
+    int box = vsnap_box(n);
     int p = 0;
-    for (int c = 0; c < 9; c++) {
+    for (int c = 0; c < n; c++) {
         char ch = '.';
         int is_clue = 0;
-        if (s->clues[0] && s->clues[r * 9 + c] != '.' && s->clues[r * 9 + c] != 0) {
-            ch = s->clues[r * 9 + c];
+        if (s->clues[0] && s->clues[r * n + c] != '.' && s->clues[r * n + c] != 0) {
+            ch = s->clues[r * n + c];
             is_clue = 1;
-        } else if (s->board[0] && s->board[r * 9 + c] >= '1' && s->board[r * 9 + c] <= '9') {
-            ch = s->board[r * 9 + c];
+        } else if (s->board[0] && s->board[r * n + c] != '.' && s->board[r * n + c] != 0) {
+            ch = s->board[r * n + c];
         }
         int bad = 0;
         for (int k = 0; k < s->nr; k++) if (s->bad_r[k] == r) bad = 1;
         for (int k = 0; k < s->nc; k++) if (s->bad_c[k] == c) bad = 1;
         for (int k = 0; k < s->nb; k++)
-            if (s->bad_b[k] == (r / 3) * 3 + c / 3) bad = 1;
+            if (s->bad_b[k] == (r / box) * box + c / box) bad = 1;
         if (bad) out[p++] = '!';
         out[p++] = is_clue ? ch : (ch == '.' ? '.' : ch);
         if (bad) out[p++] = '!';
-        if (c == 2 || c == 5) { out[p++] = ' '; out[p++] = '|'; out[p++] = ' '; }
-        else if (c < 8) out[p++] = ' ';
+        if ((c + 1) % box == 0 && c + 1 < n) { out[p++] = ' '; out[p++] = '|'; out[p++] = ' '; }
+        else if (c + 1 < n) out[p++] = ' ';
+    }
+    out[p] = 0;
+}
+
+/* separator row matching con_board_row layout ("--...--" with '+' under '|') */
+static void con_sep_row(const ViewSnap *s, char *out) {
+    int n = vsnap_n(s);
+    int box = vsnap_box(n);
+    int p = 0;
+    for (int c = 0; c < n; c++) {
+        out[p++] = '-';
+        if ((c + 1) % box == 0 && c + 1 < n) { out[p++] = '-'; out[p++] = '+'; out[p++] = '-'; }
+        else if (c + 1 < n) out[p++] = '-';
     }
     out[p] = 0;
 }
@@ -628,7 +665,7 @@ static void con_emit_line(const char *s) {
 }
 
 void con_viewer_push(const ViewSnap *s) {
-    char line[256], spark[128], brow[80];
+    char line[512], spark[128], brow[160], sep[160];
     if (!con_active || !s) return;
     if (s->mode == 0 && s->step != con_last_step) {
         con_last_step = s->step;
@@ -654,13 +691,19 @@ void con_viewer_push(const ViewSnap *s) {
     }
     /* tty: move up over the last frame, redraw in place */
     if (con_lines > 0) printf("\x1b[%dA", con_lines);
-    int n = 0;
+    int n = vsnap_n(s);
+    int box = vsnap_box(n);
+    int nseps = n / box - 1; /* box-boundary separators */
+    int rwidth = n + (n - 1) + 2 * nseps; /* cells + gaps + "| " extras */
+    int fw = (n == 9) ? 21 : rwidth;
+    if (fw > (int)sizeof(brow) - 40) fw = (int)sizeof(brow) - 40;
+    int nn = 0;
     snprintf(line, sizeof(line), "CNCM %s [%s]  step %d/%d  t=%.1fs",
              s->mode == 0 ? "train" : "solve", s->backend[0] ? s->backend : "?",
              s->step, s->total, s->elapsed);
     con_emit_line(line);
-    n = 1;
-    for (int r = 0; r < 9; r++) {
+    nn = 1;
+    for (int r = 0; r < n; r++) {
         con_board_row(s, r, brow);
         if (r == 0) {
             char tmp[128];
@@ -669,11 +712,11 @@ void con_viewer_push(const ViewSnap *s) {
             else
                 snprintf(tmp, sizeof(tmp), "level %d/%d  valid %s", s->step, s->total,
                          s->board[0] ? (s->valid ? "YES" : "NO") : "-");
-            snprintf(line, sizeof(line), "%-21s %s", brow, tmp);
-        } else if (r == 3) {
+            snprintf(line, sizeof(line), "%-*s %s", fw, brow, tmp);
+        } else if (r == box) {
             con_spark(con_hist, con_hn, 28, spark);
-            snprintf(line, sizeof(line), "%-21s loss %s", brow, con_hn > 1 ? spark : "-");
-        } else if (r == 6) {
+            snprintf(line, sizeof(line), "%-*s loss %s", fw, brow, con_hn > 1 ? spark : "-");
+        } else if (r == 2 * box) {
             char bars[64];
             int bi = 0;
             if (s->mode == 0) {
@@ -689,26 +732,27 @@ void con_viewer_push(const ViewSnap *s) {
             }
             bars[bi] = 0;
             if (s->mode == 0)
-                snprintf(line, sizeof(line), "%-21s acc [%s]%s", brow, bars,
+                snprintf(line, sizeof(line), "%-*s acc [%s]%s", fw, brow, bars,
                          s->ckpt ? " CKPT" : "");
             else
-                snprintf(line, sizeof(line), "%-21s lv [%s]", brow, bars);
+                snprintf(line, sizeof(line), "%-*s lv [%s]", fw, brow, bars);
         } else {
             snprintf(line, sizeof(line), "%s", brow);
         }
         con_emit_line(line);
-        n++;
-        if (r == 2 || r == 5) {
-            con_emit_line("------+-------+-------");
-            n++;
+        nn++;
+        if ((r + 1) % box == 0 && r + 1 < n) {
+            if (n == 9) con_emit_line("------+-------+-------");
+            else { con_sep_row(s, sep); con_emit_line(sep); }
+            nn++;
         }
     }
     snprintf(line, sizeof(line), "%s", s->status);
     con_emit_line(line);
-    n++;
+    nn++;
     printf("\x1b[J");
     fflush(stdout);
-    con_lines = n;
+    con_lines = nn;
 }
 
 void con_viewer_close(void) {

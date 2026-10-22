@@ -1,5 +1,6 @@
 /* main.c — cncm CLI: infer (parity dumps), generate, eval-sudoku. */
 #include "ncm.h"
+#include "sudoku_size.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -19,11 +20,14 @@ static void usage(const char *a) {
         "             [--temp f] [--top-k n] [--top-p f] [--cfg f] [--freq f] [--mu f]\n"
         "             [--adj a,w,d] [--seed n] [--n N] [--l0 unigram|FILE] [--view[=text]]\n"
         "  %s eval-sudoku --conf M.conf --weights M.ncm --asset-dir D\n"
-        "             --inputs inputs.txt --refs refs.txt [--n N]\n"
+        "             --inputs inputs.txt --refs refs.txt [--n N] [--size 9|16|25]\n"
+        "             [--seed n] [--jsonl out.jsonl]\n"
         "  %s sudoku-stream --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --prefix IDS [--seed n] [--step] [--out trace.json]\n"
         "             (live level-by-level solve events as NDJSON)\n"
-        "  %s sudoku-check --board DIGITS (81 of 1-9; prints validity JSON)\n"
+        "  %s sudoku-check --board DIGITS [--size 9|16|25] [--clues CELLS]\n"
+        "             (9: 81 of 1-9; 16: 256 of 1-9,A-G; 25: 625 of 1-9,A-P;\n"
+        "              prints validity JSON, plus clue_ok when --clues given)\n"
         "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
         "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
         "             [--top-k n] [--top-p f] [--seed n]\n"
@@ -155,15 +159,22 @@ static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
 static int cmd_sudoku_stream(App *a, int argc, char **argv);
 static int cmd_sudoku_check(int argc, char **argv);
-static int prefix_clues(const int *prefix, int P, char *out);
 static double stream_now_ms(void);
 static void sudoku_cells(const char *s, char *out);
-static int stream_bad_units(const char *cells, int *br, int *nb_r,
-                            int *bc, int *nb_c, int *bb, int *nb_b);
-static int stream_check_clues(const char *cells, const char *clues,
-                              int *br, int *nb_r,
-                              int *bc, int *nb_c,
-                              int *bb, int *nb_b);
+static int sudoku_valid_sz(const char *cells, int n);
+static int stream_bad_units_sz(const char *cells, int n, int box,
+                               int *br, int *nb_r,
+                               int *bc, int *nb_c,
+                               int *bb, int *nb_b);
+static int stream_check_clues_sz(const char *cells, const char *clues,
+                                 int n, int box,
+                                 int *br, int *nb_r,
+                                 int *bc, int *nb_c,
+                                 int *bb, int *nb_b);
+static int prefix_clues_sz(const int *prefix, int P, char *out, size_t cap);
+/* grid size for a run: explicit --size wins, else model.sudoku_size,
+ * else guessed from the prefix length, else 9. */
+static SudokuSize sudoku_run_size(App *a, int size_flag, int P);
 static int cmd_infer(App *a, const char *ids_csv) {
     int P = a->cfg.prefix_len;
     int T = a->cfg.vq_context_length;
@@ -624,8 +635,9 @@ static int cmd_gen(App *a, int argc, char **argv) {
          * real model forward; board 0 shown (B>1 displays board 0). */
         ViewSnap vs0;
         memset(&vs0, 0, sizeof(vs0));
+        SudokuSize vgz0 = sudoku_run_size(a, 0, P);
         vs0.mode = 1;
-        if (prefix_clues(prefix, P, vs0.clues)) vs0.clues[81] = 0;
+        if (prefix_clues_sz(prefix, P, vs0.clues, sizeof(vs0.clues))) vs0.clues[vgz0.ncells] = 0;
         snprintf(vs0.model, sizeof(vs0.model), "%s", a->cfg.task);
 #ifdef NCM_CUDA
         snprintf(vs0.backend, sizeof(vs0.backend), "cuda");
@@ -664,7 +676,7 @@ static int cmd_gen(App *a, int argc, char **argv) {
                 vs.lvl_n[k] = lsizes[k];
                 vs.lvl_ms[k] = (k == s) ? ms : 0;
             }
-            if (prefix_clues(prefix, P, vs.clues)) vs.clues[81] = 0;
+            if (prefix_clues_sz(prefix, P, vs.clues, sizeof(vs.clues))) vs.clues[vgz0.ncells] = 0;
             snprintf(vs.model, sizeof(vs.model), "%s", a->cfg.task);
 #ifdef NCM_CUDA
             snprintf(vs.backend, sizeof(vs.backend), "cuda");
@@ -693,27 +705,30 @@ static int cmd_gen(App *a, int argc, char **argv) {
         /* final board + validity for board 0, shown when available */
         {
             char *txt = decode_board(a, codes);
-            char cells[128];
+            char cells[SUDOKU_MAX_CELLS + 1];
             sudoku_cells(txt, cells);
             free(txt);
             ViewSnap vd;
             memset(&vd, 0, sizeof(vd));
+            SudokuSize vgz = sudoku_run_size(a, 0, P);
             vd.mode = 1; vd.total = ns; vd.step = ns;
             vd.nlv = nls;
             vd.lvl_done_count = ns;
             for (int k = 0; k < nls; k++) vd.lvl_n[k] = lsizes[k];
-            if (prefix_clues(prefix, P, vd.clues)) vd.clues[81] = 0;
-            if (strlen(cells) == 81) {
-                memcpy(vd.board, cells, 82);
-                vd.valid = stream_bad_units(cells, vd.bad_r, &vd.nr,
-                                            vd.bad_c, &vd.nc, vd.bad_b, &vd.nb);
+            if (prefix_clues_sz(prefix, P, vd.clues, sizeof(vd.clues))) vd.clues[vgz.ncells] = 0;
+            if ((int)strlen(cells) == vgz.ncells) {
+                memcpy(vd.board, cells, (size_t)vgz.ncells + 1);
+                vd.valid = stream_bad_units_sz(cells, vgz.n, vgz.box,
+                                               vd.bad_r, &vd.nr,
+                                               vd.bad_c, &vd.nc, vd.bad_b, &vd.nb);
                 /* a board that drops given digits is not a solution to
                  * THIS puzzle, even if internally consistent */
                 if (vd.valid)
-                    vd.valid = stream_check_clues(cells, vd.clues,
-                                                  vd.bad_r, &vd.nr,
-                                                  vd.bad_c, &vd.nc,
-                                                  vd.bad_b, &vd.nb);
+                    vd.valid = stream_check_clues_sz(cells, vd.clues,
+                                                     vgz.n, vgz.box,
+                                                     vd.bad_r, &vd.nr,
+                                                     vd.bad_c, &vd.nc,
+                                                     vd.bad_b, &vd.nb);
             }
             snprintf(vd.model, sizeof(vd.model), "%s", a->cfg.task);
 #ifdef NCM_CUDA
@@ -744,16 +759,17 @@ static int cmd_gen(App *a, int argc, char **argv) {
     if (g_view_mode && B > 0) {
         /* the viewer already validated board 0; a failed board is a real
          * failure, reported loudly (plain gen keeps historical exit 0) */
-        char cells0[128];
+        char cells0[SUDOKU_MAX_CELLS + 1];
         char *txt0 = decode_board(a, codes);
         sudoku_cells(txt0, cells0);
         free(txt0);
-        if (strlen(cells0) == 81) {
-            int br[9], bc[9], bb[9], nr = 0, nc = 0, nb = 0;
-            char clues0[82];
-            int ok = stream_bad_units(cells0, br, &nr, bc, &nc, bb, &nb);
-            if (ok && prefix_clues(prefix, P, clues0))
-                ok = stream_check_clues(cells0, clues0, br, &nr, bc, &nc, bb, &nb);
+        SudokuSize vgz = sudoku_run_size(a, 0, P);
+        if ((int)strlen(cells0) == vgz.ncells) {
+            int br[SUDOKU_MAX_N], bc[SUDOKU_MAX_N], bb[SUDOKU_MAX_N], nr = 0, nc = 0, nb = 0;
+            char clues0[SUDOKU_MAX_TEXT + 2];
+            int ok = stream_bad_units_sz(cells0, vgz.n, vgz.box, br, &nr, bc, &nc, bb, &nb);
+            if (ok && prefix_clues_sz(prefix, P, clues0, sizeof(clues0)))
+                ok = stream_check_clues_sz(cells0, clues0, vgz.n, vgz.box, br, &nr, bc, &nc, bb, &nb);
             if (!ok) {
                 fprintf(stderr, "gen: solved board failed validation\n");
                 vrc = 2;
@@ -772,21 +788,24 @@ static void sudoku_cells(const char *s, char *out) {
     *out = 0;
 }
 
-static int sudoku_valid(const char *cells) {
-    if (strlen(cells) != 81) return 0;
-    for (int i = 0; i < 81; i++) if (cells[i] < '1' || cells[i] > '9') return 0;
-    for (int r = 0; r < 9; r++) {
-        int seen[10] = {0};
-        for (int c = 0; c < 9; c++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; else seen[d] = 1; }
+static int sudoku_valid_sz(const char *cells, int n) {
+    SudokuSize z = sudoku_size_default();
+    if (sudoku_size_for(n, &z)) return 0;
+    if ((int)strlen(cells) != z.ncells) return 0;
+    for (int i = 0; i < z.ncells; i++)
+        if (sudoku_char_val(cells[i], n) < 1) return 0;
+    for (int r = 0; r < n; r++) {
+        int seen[36] = {0};
+        for (int c = 0; c < n; c++) { int d = sudoku_char_val(cells[r * n + c], n); if (seen[d]) return 0; else seen[d] = 1; }
     }
-    for (int c = 0; c < 9; c++) {
-        int seen[10] = {0};
-        for (int r = 0; r < 9; r++) { int d = cells[r * 9 + c] - '0'; if (seen[d]) return 0; else seen[d] = 1; }
+    for (int c = 0; c < n; c++) {
+        int seen[36] = {0};
+        for (int r = 0; r < n; r++) { int d = sudoku_char_val(cells[r * n + c], n); if (seen[d]) return 0; else seen[d] = 1; }
     }
-    for (int br = 0; br < 3; br++) for (int bc = 0; bc < 3; bc++) {
-        int seen[10] = {0};
-        for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) {
-            int d = cells[(br * 3 + r) * 9 + bc * 3 + c] - '0';
+    for (int br = 0; br < z.box; br++) for (int bc = 0; bc < z.box; bc++) {
+        int seen[36] = {0};
+        for (int r = 0; r < z.box; r++) for (int c = 0; c < z.box; c++) {
+            int d = sudoku_char_val(cells[(br * z.box + r) * n + bc * z.box + c], n);
             if (seen[d]) return 0;
             seen[d] = 1;
         }
@@ -794,14 +813,29 @@ static int sudoku_valid(const char *cells) {
     return 1;
 }
 
+/* Grid size for a run: explicit --size wins, else model.sudoku_size,
+ * else guessed from the prefix length, else 9. */
+static SudokuSize sudoku_run_size(App *a, int size_flag, int P) {
+    SudokuSize z = sudoku_size_default();
+    SudokuSize s = sudoku_size_default();
+    if (size_flag > 0 && sudoku_size_for(size_flag, &s) == 0) return s;
+    if (a && a->cfg.sudoku_size > 0 && sudoku_size_for(a->cfg.sudoku_size, &s) == 0)
+        return s;
+    if (sudoku_size_from_prefix(P, &s) == 0) return s;
+    return z;
+}
+
 static int cmd_eval_sudoku(App *a, int argc, char **argv) {
     const char *inp = opt(&argc, &argv, "--inputs");
     const char *refs = opt(&argc, &argv, "--refs");
     const char *sn = opt(&argc, &argv, "--n");
     const char *ss = opt(&argc, &argv, "--seed");
+    const char *szs = opt(&argc, &argv, "--size");
+    const char *jpath = opt(&argc, &argv, "--jsonl");
     if (!inp || !refs) { fprintf(stderr, "need --inputs and --refs\n"); return 2; }
     int nmax = sn ? atoi(sn) : 2000;
     unsigned long long seed = ss ? strtoull(ss, NULL, 10) : 0;
+    int size_flag = szs ? atoi(szs) : 0;
     size_t ilen, rlen;
     char *ibuf = slurp(inp, &ilen);
     char *rbuf = slurp(refs, &rlen);
@@ -817,6 +851,7 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
     for (size_t i = 0; i < rlen && nr < n; i++) if (rbuf[i] == '\n') { rbuf[i] = 0; if (nr < n) rlines[nr++] = rbuf + i + 1; }
 
     int P = a->cfg.prefix_len;
+    SudokuSize gz = sudoku_run_size(a, size_flag, P);
     int l0len = a->cfg.levels[0];
     int nl0 = 0;
     double *l0p = load_allow(&a->ws, "inference.level0_unigram", &nl0);
@@ -827,6 +862,11 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
     double cell = 0;
     int *prefix = (int *)malloc((size_t)B * P * sizeof(int));
     int *l0 = (int *)malloc((size_t)B * l0len * sizeof(int));
+    FILE *jf = NULL;
+    if (jpath) {
+        jf = fopen(jpath, "w");
+        if (!jf) { fprintf(stderr, "eval-sudoku: cannot open %s\n", jpath); return 1; }
+    }
     for (int s = 0; s < n; s += B) {
         int bb = n - s < B ? n - s : B;
         for (int b = 0; b < bb; b++) {
@@ -834,26 +874,49 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
             for (int i = got; i < P; i++) prefix[b * P + i] = 0;
         }
         if (l0p) sample_l0(l0p, nl0, bb, l0len, &rng, l0);
+        double bt0 = stream_now_ms();
         int *codes = ncp_generate(a->ncp, l0p ? l0 : NULL, prefix, bb, 0.0, 0, 1.0, 0.0,
                                   0.0, 0.0, 0.0, 0, 0.0, allow, seed + s);
+        double bt1 = stream_now_ms();
+        double bms = (bt1 - bt0) / (bb > 0 ? bb : 1);
         char **hyps = (char **)malloc(bb * sizeof(char *));
         decode_boards(a, codes, bb, hyps);
         for (int b = 0; b < bb; b++) {
             char *hyp = hyps[b];
-            int *rid = (int *)malloc(1024 * sizeof(int));
-            int nrid = parse_ids(rlines[s + b], rid, 1024);
+            int *rid = (int *)malloc(4096 * sizeof(int));
+            int nrid = parse_ids(rlines[s + b], rid, 4096);
             char *ref = (char *)malloc(8192);
             tok_decode(a->tok, rid, nrid, ref, 8192, 0);
             free(rid);
-            if (strcmp(hyp, ref) == 0) exact++;
-            char hc[128], rc[128];
+            int is_exact = (strcmp(hyp, ref) == 0);
+            if (is_exact) exact++;
+            char hc[SUDOKU_MAX_CELLS + 1], rc[SUDOKU_MAX_CELLS + 1];
             sudoku_cells(hyp, hc);
             sudoku_cells(ref, rc);
             int same = 0;
-            for (int i = 0; i < 81 && hc[i] && rc[i]; i++) if (hc[i] == rc[i]) same++;
-            cell += same / 81.0;
-            if (sudoku_valid(hc)) validn++;
+            for (int i = 0; i < gz.ncells && hc[i] && rc[i]; i++) if (hc[i] == rc[i]) same++;
+            cell += same / (double)gz.ncells;
+            int is_valid = sudoku_valid_sz(hc, gz.n);
+            if (is_valid) validn++;
+            /* clue preservation against this puzzle's own prefix row */
+            char pcl[SUDOKU_MAX_TEXT + 2];
+            int cok = 1;
+            {
+                int br[SUDOKU_MAX_N], bc[SUDOKU_MAX_N], bb2[SUDOKU_MAX_N];
+                int nr2 = 0, nc2 = 0, nb2 = 0;
+                if (prefix_clues_sz(prefix + b * P, P, pcl, sizeof(pcl)))
+                    cok = stream_check_clues_sz(hc, pcl, gz.n, gz.box,
+                                                br, &nr2, bc, &nc2, bb2, &nb2);
+            }
             if (s == 0 && b < 2) printf("eg hyp: %s\nref: %s\n", hyp, ref);
+            if (jf) {
+                fprintf(jf, "{\"idx\":%d,\"size\":%d,\"exact\":%s,\"valid\":%s,"
+                            "\"clue_ok\":%s,\"cell_frac\":%.4f,\"ms\":%.1f,"
+                            "\"board\":\"%s\"}\n",
+                        s + b, gz.n, is_exact ? "true" : "false",
+                        is_valid ? "true" : "false", cok ? "true" : "false",
+                        same / (double)gz.ncells, bms, hc);
+            }
             free(hyp); free(ref);
         }
         free(hyps);
@@ -862,6 +925,7 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
     }
     printf("solved %d/%d (%.2f%%) cell %.4f valid %d/%d (%.2f%%)\n",
            exact, n, 100.0 * exact / n, cell / n, validn, n, 100.0 * validn / n);
+    if (jf) fclose(jf);
     free(prefix); free(l0); free(ilines); free(rlines); free(ibuf); free(rbuf);
     free(l0p); free(allow);
     return 0;
@@ -874,62 +938,71 @@ static double stream_now_ms(void) {
 }
 
 /* full-board validity + offending units (rows/cols/boxes with a repeat).
- * cells: 81 chars of '1'..'9'. Returns 1 when valid. */
+ * cells: ncells symbols for the grid size. Returns 1 when valid. */
 /* clue preservation: every given digit must survive in the board.
  * Conflicting cells get their row/col/box flagged (deduped) so the UI
  * highlights them; returns 0 on any clash. */
-static int stream_check_clues(const char *cells, const char *clues,
-                              int *br, int *nb_r,
-                              int *bc, int *nb_c,
-                              int *bb, int *nb_b) {
+static int stream_check_clues_sz(const char *cells, const char *clues,
+                                 int n, int box,
+                                 int *br, int *nb_r,
+                                 int *bc, int *nb_c,
+                                 int *bb, int *nb_b) {
+    SudokuSize z = sudoku_size_default();
+    if (sudoku_size_for(n, &z)) return 0;
+    (void)box;
     int ok = 1, f, k;
     if (!clues || !clues[0]) return 1;
-    for (int i = 0; i < 81; i++) {
+    for (int i = 0; i < z.ncells; i++) {
         int r, c, b;
         if (clues[i] == '.' || clues[i] == 0) continue;
         if (cells[i] == clues[i]) continue;
         ok = 0;
-        r = i / 9; c = i % 9; b = (r / 3) * 3 + c / 3;
+        r = i / n; c = i % n; b = (r / z.box) * z.box + c / z.box;
         f = 0; for (k = 0; k < *nb_r; k++) if (br[k] == r) f = 1;
-        if (!f && *nb_r < 9) br[(*nb_r)++] = r;
+        if (!f && *nb_r < SUDOKU_MAX_N) br[(*nb_r)++] = r;
         f = 0; for (k = 0; k < *nb_c; k++) if (bc[k] == c) f = 1;
-        if (!f && *nb_c < 9) bc[(*nb_c)++] = c;
+        if (!f && *nb_c < SUDOKU_MAX_N) bc[(*nb_c)++] = c;
         f = 0; for (k = 0; k < *nb_b; k++) if (bb[k] == b) f = 1;
-        if (!f && *nb_b < 9) bb[(*nb_b)++] = b;
+        if (!f && *nb_b < SUDOKU_MAX_N) bb[(*nb_b)++] = b;
     }
     return ok;
 }
 
-static int stream_bad_units(const char *cells, int *br, int *nb_r,
-                            int *bc, int *nb_c, int *bb, int *nb_b) {
+static int stream_bad_units_sz(const char *cells, int n, int box,
+                               int *br, int *nb_r,
+                               int *bc, int *nb_c,
+                               int *bb, int *nb_b) {
+    SudokuSize z = sudoku_size_default();
+    if (sudoku_size_for(n, &z)) return 0;
+    (void)box;
     int ok = 1;
     *nb_r = *nb_c = *nb_b = 0;
-    for (int r = 0; r < 9; r++) {
-        int seen[10] = {0}, dup = 0;
-        for (int c = 0; c < 9; c++) {
-            int d = cells[r * 9 + c] - '0';
-            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+    for (int r = 0; r < n; r++) {
+        int seen[36] = {0}, dup = 0;
+        for (int c = 0; c < n; c++) {
+            int d = sudoku_char_val(cells[r * n + c], n);
+            if (d < 1 || seen[d]) { dup = 1; break; }
             seen[d] = 1;
         }
         if (dup) { br[(*nb_r)++] = r; ok = 0; }
     }
-    for (int c = 0; c < 9; c++) {
-        int seen[10] = {0}, dup = 0;
-        for (int r = 0; r < 9; r++) {
-            int d = cells[r * 9 + c] - '0';
-            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+    for (int c = 0; c < n; c++) {
+        int seen[36] = {0}, dup = 0;
+        for (int r = 0; r < n; r++) {
+            int d = sudoku_char_val(cells[r * n + c], n);
+            if (d < 1 || seen[d]) { dup = 1; break; }
             seen[d] = 1;
         }
         if (dup) { bc[(*nb_c)++] = c; ok = 0; }
     }
-    for (int br0 = 0; br0 < 3; br0++) for (int bc0 = 0; bc0 < 3; bc0++) {
-        int seen[10] = {0}, dup = 0;
-        for (int r = 0; r < 3 && !dup; r++) for (int c = 0; c < 3; c++) {
-            int d = cells[(br0 * 3 + r) * 9 + bc0 * 3 + c] - '0';
-            if (d < 1 || d > 9 || seen[d]) { dup = 1; break; }
+    for (int br0 = 0; br0 < z.box; br0++) for (int bc0 = 0; bc0 < z.box; bc0++) {
+        int seen[36] = {0}, dup = 0;
+        for (int r = 0; r < z.box && !dup; r++) for (int c = 0; c < z.box; c++) {
+            int d = sudoku_char_val(cells[(br0 * z.box + r) * n + bc0 * z.box + c], n);
+            if (d < 1 || seen[d]) { dup = 1; break; }
             seen[d] = 1;
         }
-        if (dup) { bb[(*nb_b)++] = br0 * 3 + bc0; ok = 0; }
+        if (dup) { bb[(*nb_b)++] = br0 * z.box + bc0; ok = 0; }
     }
     return ok;
 }
@@ -940,19 +1013,24 @@ static void stream_json_ints(FILE *f, const int *xs, int n) {
     fputc(']', f);
 }
 
-/* clues from a sudoku prefix row (91 ids, 11/10 framing). Returns 1 with
- * 81 chars in out ('1'-'9' or '.'), 0 when the framing does not match. */
-static int prefix_clues(const int *prefix, int P, char *out) {
-    if (P != 91 || prefix[0] != 11 || prefix[P - 1] != 11) return 0;
-    for (int r = 0; r < 9; r++) {
-        if (r < 8 && prefix[10 + r * 10] != 10) return 0;
-        for (int c = 0; c < 9; c++) {
-            int id = prefix[1 + r * 10 + c];
-            if (id < 0 || id > 9) return 0;
-            out[r * 9 + c] = id ? (char)('0' + id) : '.';
+/* clues from a sudoku prefix row. Historical 9x9 framing: 91 ids,
+ * 11 | 81 cells + 8x10 separators | 11. Generalized: P = n^2 + (n-1) + 2
+ * with wrap id n+2 and separator id n+1. Returns 1 with ncells chars in
+ * out (symbols '1'-'9','A'-.. or '.'), 0 when the framing does not match. */
+static int prefix_clues_sz(const int *prefix, int P, char *out, size_t cap) {
+    SudokuSize z = sudoku_size_default();
+    if (sudoku_size_from_prefix(P, &z)) return 0;
+    if (cap < (size_t)z.ncells + 1) return 0;
+    if (prefix[0] != z.wrap_id || prefix[P - 1] != z.wrap_id) return 0;
+    for (int r = 0; r < z.n; r++) {
+        if (r < z.n - 1 && prefix[1 + r * (z.n + 1) + z.n] != z.sep_id) return 0;
+        for (int c = 0; c < z.n; c++) {
+            int id = prefix[1 + r * (z.n + 1) + c];
+            if (id < 0 || id > z.n) return 0;
+            out[r * z.n + c] = id ? sudoku_val_char(id) : '.';
         }
     }
-    out[81] = 0;
+    out[z.ncells] = 0;
     return 1;
 }
 
@@ -965,9 +1043,10 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
     const char *prefix_s = opt(&argc, &argv, "--prefix");
     const char *ss = opt(&argc, &argv, "--seed");
     const char *outp = opt(&argc, &argv, "--out");
+    const char *szs = opt(&argc, &argv, "--size");
     int step = 0;
     for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--step")) step = 1;
-    if (!prefix_s) { fprintf(stderr, "sudoku-stream needs --prefix IDS (91 ids)\n"); return 2; }
+    if (!prefix_s) { fprintf(stderr, "sudoku-stream needs --prefix IDS (N ids)\n"); return 2; }
     int P = a->cfg.prefix_len;
     int *prefix = (int *)malloc((size_t)P * sizeof(int));
     int np = parse_ids(prefix_s, prefix, P);
@@ -976,9 +1055,10 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
         free(prefix);
         return 2;
     }
-    char clues[82];
-    if (!prefix_clues(prefix, P, clues)) {
-        fprintf(stderr, "sudoku-stream: bad prefix framing/ids (want 11 | cells | 10 ...)\n");
+    SudokuSize gz = sudoku_run_size(a, szs ? atoi(szs) : 0, P);
+    char clues[SUDOKU_MAX_TEXT + 2];
+    if (!prefix_clues_sz(prefix, P, clues, sizeof(clues))) {
+        fprintf(stderr, "sudoku-stream: bad prefix framing/ids (want wrap | cells | sep ...)\n");
         free(prefix);
         return 2;
     }
@@ -1052,15 +1132,15 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
     double elapsed = stream_now_ms() - t0;
     if (!rc) {
         char *txt = decode_board(a, all);
-        char board[128];
+        char board[SUDOKU_MAX_CELLS + 1];
         sudoku_cells(txt, board);
         free(txt); free(all);
         int valid = 0;
-        int br[9], bc[9], bb[9], nr = 0, nc = 0, nb = 0;
-        if (strlen(board) == 81) {
-            valid = stream_bad_units(board, br, &nr, bc, &nc, bb, &nb);
+        int br[SUDOKU_MAX_N], bc[SUDOKU_MAX_N], bb[SUDOKU_MAX_N], nr = 0, nc = 0, nb = 0;
+        if ((int)strlen(board) == gz.ncells) {
+            valid = stream_bad_units_sz(board, gz.n, gz.box, br, &nr, bc, &nc, bb, &nb);
             if (valid)
-                valid = stream_check_clues(board, clues, br, &nr, bc, &nc, bb, &nb);
+                valid = stream_check_clues_sz(board, clues, gz.n, gz.box, br, &nr, bc, &nc, bb, &nb);
         }
         printf("{\"type\":\"done\",\"board\":\"%s\",\"clues\":\"%s\",\"elapsed_ms\":%.1f,"
                "\"valid\":%s,\"bad_rows\":",
@@ -1089,27 +1169,54 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv) {
     return rc;
 }
 
-/* sudoku-check: validity query for an 81-char board (no model involved). */
+/* sudoku-check: validity query for an ncells-symbol board (no model involved). */
 static int cmd_sudoku_check(int argc, char **argv) {
     const char *b = opt(&argc, &argv, "--board");
-    if (!b || strlen(b) != 81) {
-        fprintf(stderr, "sudoku-check needs --board with 81 chars of 1-9\n");
+    const char *cl = opt(&argc, &argv, "--clues");
+    const char *sn = opt(&argc, &argv, "--size");
+    SudokuSize z = sudoku_size_default();
+    if (sn) {
+        if (sudoku_size_for(atoi(sn), &z)) {
+            fprintf(stderr, "sudoku-check: bad --size (want 9, 16 or 25)\n");
+            return 2;
+        }
+    } else z = sudoku_size_default();
+    if (!b || (int)strlen(b) != z.ncells) {
+        fprintf(stderr, "sudoku-check needs --board with %d chars%s\n",
+                z.ncells, z.n == 9 ? " of 1-9" : " of 1-9,A-..");
         return 2;
     }
-    for (int i = 0; i < 81; i++) {
-        if (b[i] < '1' || b[i] > '9') {
-            fprintf(stderr, "sudoku-check: bad char at %d (want 1-9)\n", i);
+    for (int i = 0; i < z.ncells; i++) {
+        if (sudoku_char_val(b[i], z.n) < 1) {
+            fprintf(stderr, "sudoku-check: bad char at %d\n", i);
             return 2;
         }
     }
-    int br[9], bc[9], bb[9], nr, nc, nb;
-    int valid = stream_bad_units(b, br, &nr, bc, &nc, bb, &nb);
+    if (cl && (int)strlen(cl) != z.ncells) {
+        fprintf(stderr, "sudoku-check: --clues needs %d chars ('.' for empty)\n", z.ncells);
+        return 2;
+    }
+    if (cl) {
+        for (int i = 0; i < z.ncells; i++) {
+            if ((cl[i] == '.' || cl[i] == 0)) continue;
+            if (sudoku_char_val(cl[i], z.n) < 1) {
+                fprintf(stderr, "sudoku-check: bad clue char at %d\n", i);
+                return 2;
+            }
+        }
+    }
+    int br[SUDOKU_MAX_N], bc[SUDOKU_MAX_N], bb[SUDOKU_MAX_N], nr, nc, nb;
+    int valid = stream_bad_units_sz(b, z.n, z.box, br, &nr, bc, &nc, bb, &nb);
+    int cok = 1;
+    if (valid && cl)
+        cok = stream_check_clues_sz(b, cl, z.n, z.box, br, &nr, bc, &nc, bb, &nb);
     printf("{\"valid\":%s,\"bad_rows\":", valid ? "true" : "false");
     stream_json_ints(stdout, br, nr);
     printf(",\"bad_cols\":");
     stream_json_ints(stdout, bc, nc);
     printf(",\"bad_boxes\":");
     stream_json_ints(stdout, bb, nb);
+    if (cl) printf(",\"clue_ok\":%s", cok ? "true" : "false");
     printf("}\n");
     return 0;
 }
