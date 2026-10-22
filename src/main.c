@@ -32,6 +32,10 @@ static void usage(const char *a) {
         "             --prefix P.nctrain --sol S.nctrain --out train.nctrain\n"
         "             [--max-rows N] (frontier: VQ-encode solution rows,\n"
         "             prepend frozen prefix rows; codes are argmin, no grad)\n"
+        "  %s vq-recon --conf M.conf --weights M.ncm\n"
+        "             --sol S.nctrain --out recon.txt [--max-rows N]\n"
+        "             (diagnostic: solution ids -> VQ codes -> decoded text;\n"
+        "             reports id-level reconstruction match)\n"
         "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
         "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
         "             [--top-k n] [--top-p f] [--seed n]\n"
@@ -57,7 +61,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -166,6 +170,9 @@ static int cmd_sudoku_check(int argc, char **argv);
 static int cmd_vq_encode(const NCMConfig *c, const char *weights,
                          const char *pref_path, const char *sol_path,
                          const char *out_path, int max_rows);
+static int cmd_vq_recon(const NCMConfig *c, const char *weights,
+                        const char *sol_path, const char *out_path,
+                        int max_rows);
 static double stream_now_ms(void);
 static void sudoku_cells(const char *s, char *out);
 static int sudoku_valid_sz(const char *cells, int n);
@@ -348,6 +355,83 @@ static int cmd_vq_encode(const NCMConfig *c, const char *weights,
     return 0;
 }
 
+/* vq-recon: diagnostic roundtrip solution ids -> VQ codes -> decoded text.
+ * Writes one ncells-symbol line per row plus a summary with the id-level
+ * reconstruction match fraction (cells and separators). A low match means
+ * the VQ itself is the bottleneck, independent of any NCP training. */
+static int cmd_vq_recon(const NCMConfig *c, const char *weights,
+                        const char *sol_path, const char *out_path,
+                        int max_rows) {
+    WeightStore ws = {NULL, 0};
+    if (weights_load(&ws, weights)) return 1;
+    arena_init(1ULL << 30);
+    VQVAEState *vqvae = vqvae_load(c, &ws);
+    VQState *vq = vqvae_vq(vqvae);
+    TrainData *ds = train_data_load(sol_path, 0);
+    if (!ds) { fprintf(stderr, "vq-recon: cannot open %s\n", sol_path); return 1; }
+    int T = c->vq_context_length, D = c->vq_embed_dim, V = c->vq_in_vocab;
+    if (ds->row_len != T) {
+        fprintf(stderr, "vq-recon: row_len %d != T %d\n", ds->row_len, T);
+        return 1;
+    }
+    /* grid width from the text length T = n*n + (n-1) */
+    int n = 0;
+    { int cand[3] = {9, 16, 25}; for (int i = 0; i < 3; i++)
+        if (cand[i] * cand[i] + cand[i] - 1 == T) n = cand[i]; }
+    if (!n) { fprintf(stderr, "vq-recon: no grid size for T=%d\n", T); return 1; }
+    int nc = n * n;
+    int nrows = ds->n_rows;
+    if (max_rows > 0 && max_rows < nrows) nrows = max_rows;
+    FILE *f = fopen(out_path, "w");
+    if (!f) { fprintf(stderr, "vq-recon: cannot open %s\n", out_path); return 1; }
+    int B = 32;
+    int *sbuf = (int *)malloc((size_t)B * T * sizeof(int));
+    long total_ids = 0, match_ids = 0;
+    for (int s = 0; s < nrows; s += B) {
+        int bb = nrows - s < B ? nrows - s : B;
+        for (int b = 0; b < bb; b++)
+            memcpy(sbuf + b * T, ds->rows + (s + b) * ds->row_len, T * sizeof(int));
+        float *z = arena_alloc((size_t)bb * T * D);
+        vqvae_encode_z(vqvae, sbuf, z, bb);
+        int total = vq_total_codes(vq);
+        int *codes = (int *)malloc((size_t)bb * total * sizeof(int));
+        vq_z_to_idx(vq, z, bb, codes);
+        float **zhats = (float **)malloc(vq_nlevels(vq) * sizeof(float *));
+        for (int i = 0; i < vq_nlevels(vq); i++)
+            zhats[i] = arena_alloc((size_t)bb * T * D);
+        vq_idx_to_zhats(vq, codes, bb, zhats);
+        float *logits = arena_alloc((size_t)bb * T * V);
+        vqvae_decode(vqvae, zhats[vq_nlevels(vq) - 1], logits, bb);
+        float *hl = (float *)malloc((size_t)bb * T * V * sizeof(float));
+        mem_d2h(hl, logits, (size_t)bb * T * V * sizeof(float));
+        for (int b = 0; b < bb; b++) {
+            char line[SUDOKU_MAX_CELLS + 1];
+            int p = 0;
+            for (int t = 0; t < T; t++) {
+                int best = 0;
+                for (int v = 1; v < V; v++)
+                    if (hl[((size_t)b * T + t) * V + v] > hl[((size_t)b * T + t) * V + best]) best = v;
+                int want = sbuf[b * T + t];
+                total_ids++;
+                if (best == want) match_ids++;
+                /* separator slots are framing, not board content */
+                if ((t + 1) % (n + 1) == 0) continue;
+                if (p < nc) line[p++] = best ? sudoku_val_char(best) : '.';
+            }
+            line[p] = 0;
+            fprintf(f, "%s\n", line);
+        }
+        free(hl); free(codes); free(zhats);
+        arena_reset();
+        if ((s / B) % 10 == 0) { printf("  %d/%d\n", s + bb, nrows); fflush(stdout); }
+    }
+    fclose(f);
+    printf("[vq-recon] %d rows id_match %.4f\n", nrows, (double)match_ids / (total_ids > 0 ? total_ids : 1));
+    free(sbuf);
+    train_data_free(ds);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     /* Threading: NCM_THREADS if set, else 8 workers. Applies to forward
      * kernels and the parallelized training backward. */
@@ -365,7 +449,7 @@ int main(int argc, char **argv) {
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
     if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -488,6 +572,18 @@ int main(int argc, char **argv) {
         NCMConfig cfg;
         if (config_load(&cfg, conf)) return 1;
         return cmd_vq_encode(&cfg, weights, pref, sol, out, mr ? atoi(mr) : 0);
+    }
+    if (strcmp(argv[1], "vq-recon") == 0) {
+        const char *sol = opt(&argc, &argv, "--sol");
+        const char *out = opt(&argc, &argv, "--out");
+        const char *mr = opt(&argc, &argv, "--max-rows");
+        if (!sol || !out || !conf || !weights) {
+            fprintf(stderr, "vq-recon needs --conf --weights --sol S.nctrain --out recon.txt [--max-rows N]\n");
+            return 2;
+        }
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return cmd_vq_recon(&cfg, weights, sol, out, mr ? atoi(mr) : 0);
     }
     if (strcmp(argv[1], "train") == 0) {
         const char *data = opt(&argc, &argv, "--data");
