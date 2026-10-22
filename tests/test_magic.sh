@@ -7,6 +7,9 @@ BIN="${1:-$REPO/cncm}"
 PASS=0; FAIL=0
 pass() { PASS=$((PASS+1)); echo "PASS $1"; }
 fail() { FAIL=$((FAIL+1)); echo "FAIL $1"; }
+# Scratch space honors $TMPDIR (persistent) with /tmp fallback.
+TMPD="${TMPDIR:-/tmp}"
+mkdir -p "$TMPD/opencode"
 
 LOSHU=816357492
 "$BIN" magic-check --board "$LOSHU" 2>/dev/null | grep -q '"valid":true,"magic_sum":15' \
@@ -69,10 +72,10 @@ if [ -f "$REPO/weights/magic-3/ckpts/ckpt-final.nckpt" ]; then
     --asset-dir "$REPO/weights/magic-3" \
     --inputs "$REPO/weights/magic-3/data/held/prefix.txt" \
     --refs "$REPO/weights/magic-3/data/held/solutions.txt" \
-    --n 4 --seed 7 --size 3 --jsonl /tmp/opencode/magic_smoke.jsonl >/dev/null 2>&1 \
+    --n 4 --seed 7 --size 3 --jsonl $TMPD/opencode/magic_smoke.jsonl >/dev/null 2>&1 \
   && python3 -c "
 import json
-rows=[json.loads(l) for l in open('/tmp/opencode/magic_smoke.jsonl') if l.strip()]
+rows=[json.loads(l) for l in open('$TMPD/opencode/magic_smoke.jsonl') if l.strip()]
 assert len(rows)==4
 for r in rows:
     assert set(r)>= {'idx','size','exact','valid','clue_ok','cell_frac','ms','board'}

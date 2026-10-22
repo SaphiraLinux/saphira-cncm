@@ -97,7 +97,10 @@ static int file_size(const char *p) {
 int main(void) {
     arena_init(1ULL << 20);
     char err[512];
-    const char *F = "/tmp/opencode/ckpt_unit.nckpt";
+    /* scratch honors $TMPDIR (persistent) with /tmp fallback */
+    static char F[1024];
+    const char *td = getenv("TMPDIR");
+    snprintf(F, sizeof(F), "%s/opencode/ckpt_unit.nckpt", td ? td : "/tmp");
 
     /* ---- round trip ---- */
     WeightStore ws = {0};

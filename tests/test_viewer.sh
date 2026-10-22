@@ -12,6 +12,9 @@
 # Usage: test_viewer.sh --bin ./cncm
 set -u
 BIN="./cncm"
+# Scratch space honors $TMPDIR (persistent) with /tmp fallback.
+TMPD="${TMPDIR:-/tmp}"
+mkdir -p "$TMPD/opencode"
 while [ $# -gt 0 ]; do case "$1" in
   --bin) BIN="$2"; shift 2;;
   *) echo "unknown arg $1"; exit 2;;
@@ -34,7 +37,7 @@ if [ ! -f "$W0" ] || [ ! -f "$DATA" ]; then
   exit 0
 fi
 
-WORK="$(mktemp -d /tmp/opencode/viewertest.XXXXXX)"
+WORK="$(mktemp -d $TMPD/opencode/viewertest.XXXXXX)"
 echo "work=$WORK bin=$BIN"
 export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy
 

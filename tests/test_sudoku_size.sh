@@ -10,6 +10,9 @@ FIX="$REPO/tests/fixtures"
 PASS=0; FAIL=0
 pass() { PASS=$((PASS+1)); echo "PASS $1"; }
 fail() { FAIL=$((FAIL+1)); echo "FAIL $1"; }
+# Scratch space honors $TMPDIR (persistent) with /tmp fallback.
+TMPD="${TMPDIR:-/tmp}"
+mkdir -p "$TMPD/opencode"
 
 # ---------- 1. python 16x16 generator selftest (stdlib only) ----------
 python3 "$REPO/tools/sudoku16.py" --selftest >/dev/null 2>&1 \
@@ -17,9 +20,9 @@ python3 "$REPO/tools/sudoku16.py" --selftest >/dev/null 2>&1 \
 
 # ---------- 2. export dry-run: 2 rows, P=273, wrap framing ----------
 python3 "$REPO/tools/export_train.py" --task sudoku-16 --n 2 --seed 16 \
-  --out - > /tmp/opencode/size_rows.txt 2>/dev/null \
+  --out - > $TMPD/opencode/size_rows.txt 2>/dev/null \
   && python3 -c "
-rows=[l.strip() for l in open('/tmp/opencode/size_rows.txt') if l.strip()]
+rows=[l.strip() for l in open('$TMPD/opencode/size_rows.txt') if l.strip()]
 assert len(rows)==2, rows
 for r in rows:
     ids=list(map(int,r.split(',')))
@@ -95,10 +98,10 @@ if [ -f "$REPO/weights/sudoku-easy/model.ncm" ]; then
     --asset-dir "$REPO/weights/sudoku-easy" \
     --inputs "$REPO/weights/sudoku-easy/inputs.txt" \
     --refs "$REPO/weights/sudoku-easy/refs.txt" --n 2 --seed 7 \
-    --jsonl /tmp/opencode/size_cpu.jsonl >/dev/null 2>&1 \
+    --jsonl $TMPD/opencode/size_cpu.jsonl >/dev/null 2>&1 \
     && python3 -c "
 import json
-rows=[json.loads(l) for l in open('/tmp/opencode/size_cpu.jsonl') if l.strip()]
+rows=[json.loads(l) for l in open('$TMPD/opencode/size_cpu.jsonl') if l.strip()]
 assert len(rows)==2, len(rows)
 for r in rows:
     assert set(r)>= {'idx','size','exact','valid','clue_ok','cell_frac','ms','board'}, r.keys()
@@ -117,11 +120,11 @@ if [ -x "$CBIN" ] && nvidia-smi -L >/dev/null 2>&1 && [ -f "$REPO/weights/sudoku
     --asset-dir "$REPO/weights/sudoku-easy" \
     --inputs "$REPO/weights/sudoku-easy/inputs.txt" \
     --refs "$REPO/weights/sudoku-easy/refs.txt" --n 2 --seed 7 \
-    --jsonl /tmp/opencode/size_cuda.jsonl >/dev/null 2>&1 \
+    --jsonl $TMPD/opencode/size_cuda.jsonl >/dev/null 2>&1 \
     && python3 -c "
 import json
-c=[json.loads(l)['board'] for l in open('/tmp/opencode/size_cpu.jsonl') if l.strip()]
-g=[json.loads(l)['board'] for l in open('/tmp/opencode/size_cuda.jsonl') if l.strip()]
+c=[json.loads(l)['board'] for l in open('$TMPD/opencode/size_cpu.jsonl') if l.strip()]
+g=[json.loads(l)['board'] for l in open('$TMPD/opencode/size_cuda.jsonl') if l.strip()]
 assert c==g, (c,g)
 print('parity ok')" >/dev/null 2>&1 \
     && pass "cuda/cpu parity n=2" || fail "cuda/cpu parity"

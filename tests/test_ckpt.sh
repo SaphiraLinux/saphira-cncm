@@ -16,6 +16,9 @@
 # CUDA leg:       ./tests/test_ckpt.sh --bin ./cncm-cuda --cuda-tol 1e-3
 set -u
 BIN="./cncm"; THREADS="${NCM_THREADS:-8}"; NSTEPS=4; QUICK=0; TOL=""
+# Scratch space honors $TMPDIR (persistent) with /tmp fallback.
+TMPD="${TMPDIR:-/tmp}"
+mkdir -p "$TMPD/opencode"
 KEEP=0
 while [ $# -gt 0 ]; do case "$1" in
   --bin) BIN="$2"; shift 2;;
@@ -48,7 +51,7 @@ if [ $((NSTEPS % 2)) -ne 0 ]; then echo "steps-n must be even"; exit 2; fi
 HALF=$((NSTEPS / 2))
 BIN="$REPO/$BIN"
 
-WORK="$(mktemp -d /tmp/opencode/ckptproof.XXXXXX)"
+WORK="$(mktemp -d $TMPD/opencode/ckptproof.XXXXXX)"
 echo "work=$WORK threads=$THREADS bin=$BIN steps=$NSTEPS"
 
 COMMON=(--conf "$CONF" --weights "$W0" --data "$DATA" --total "$NSTEPS" --tokenizer-id "$TOK")

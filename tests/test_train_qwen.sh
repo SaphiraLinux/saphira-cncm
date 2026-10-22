@@ -10,6 +10,9 @@
 # Usage: test_train_qwen.sh --bin ./cncm
 set -u
 BIN="./cncm"
+# Scratch space honors $TMPDIR (persistent) with /tmp fallback.
+TMPD="${TMPDIR:-/tmp}"
+mkdir -p "$TMPD/opencode"
 while [ $# -gt 0 ]; do case "$1" in
   --bin) BIN="$2"; shift 2;;
   *) echo "unknown arg $1"; exit 2;;
@@ -33,7 +36,7 @@ if [ ! -x "$REPO/tools/mkqwenrows" ]; then
   echo "SKIP: tools/mkqwenrows not built (make tools/mkqwenrows)"; exit 0
 fi
 
-WORK="$(mktemp -d /tmp/opencode/qwentest.XXXXXX)"
+WORK="$(mktemp -d $TMPD/opencode/qwentest.XXXXXX)"
 echo "work=$WORK bin=$BIN"
 # arena must hold the 2GB device grad map + activations even at T=16.
 # Qwen training always runs host-side AdamW (see TRAINING.md: the 4GB
