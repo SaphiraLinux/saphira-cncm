@@ -1,0 +1,450 @@
+[train-vq] 4096 rows x 271, steps=400
+  [train-vq] step 0 loss=0.4666 gnorm=0.137
+[vq-usage] step 0 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.87 dom=0.11 | L09 len=101 used=16/16 H=3.87 dom=0.10 | L10 len=157 used=16/16 H=3.81 dom=0.10 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 0 loss 0.4666 (saved ckpt-vq-step0.ncm)
+  [train-vq] step 1 loss=0.4569 gnorm=0.181
+  [train-vq] step 2 loss=0.4520 gnorm=0.156
+  [train-vq] step 3 loss=0.4642 gnorm=0.147
+  [train-vq] step 4 loss=0.4649 gnorm=0.160
+  [train-vq] step 5 loss=0.4745 gnorm=0.152
+  [train-vq] step 6 loss=0.4651 gnorm=0.188
+  [train-vq] step 7 loss=0.4710 gnorm=0.127
+  [train-vq] step 8 loss=0.4503 gnorm=0.202
+  [train-vq] step 9 loss=0.4728 gnorm=0.132
+  [train-vq] step 10 loss=0.4746 gnorm=0.198
+[train-vq] step 10 loss 0.4746 (saved ckpt-vq-step10.ncm)
+  [train-vq] step 11 loss=0.4729 gnorm=0.165
+  [train-vq] step 12 loss=0.4600 gnorm=0.126
+  [train-vq] step 13 loss=0.4675 gnorm=0.143
+  [train-vq] step 14 loss=0.4625 gnorm=0.240
+  [train-vq] step 15 loss=0.4619 gnorm=0.167
+  [train-vq] step 16 loss=0.4637 gnorm=0.198
+  [train-vq] step 17 loss=0.4731 gnorm=0.128
+  [train-vq] step 18 loss=0.4512 gnorm=0.171
+  [train-vq] step 19 loss=0.4642 gnorm=0.158
+  [train-vq] step 20 loss=0.4612 gnorm=0.149
+[train-vq] step 20 loss 0.4612 (saved ckpt-vq-step20.ncm)
+  [train-vq] step 21 loss=0.4757 gnorm=0.168
+  [train-vq] step 22 loss=0.4684 gnorm=0.162
+  [train-vq] step 23 loss=0.4614 gnorm=0.146
+  [train-vq] step 24 loss=0.4707 gnorm=0.216
+  [train-vq] step 25 loss=0.4585 gnorm=0.159
+  [train-vq] step 26 loss=0.4573 gnorm=0.157
+  [train-vq] step 27 loss=0.4544 gnorm=0.189
+  [train-vq] step 28 loss=0.4767 gnorm=0.157
+  [train-vq] step 29 loss=0.4526 gnorm=0.179
+  [train-vq] step 30 loss=0.4649 gnorm=0.196
+[train-vq] step 30 loss 0.4649 (saved ckpt-vq-step30.ncm)
+  [train-vq] step 31 loss=0.4555 gnorm=0.194
+  [train-vq] step 32 loss=0.4617 gnorm=0.158
+  [train-vq] step 33 loss=0.4552 gnorm=0.152
+  [train-vq] step 34 loss=0.4605 gnorm=0.143
+  [train-vq] step 35 loss=0.4818 gnorm=0.207
+  [train-vq] step 36 loss=0.4504 gnorm=0.130
+  [train-vq] step 37 loss=0.4553 gnorm=0.143
+  [train-vq] step 38 loss=0.4546 gnorm=0.182
+  [train-vq] step 39 loss=0.4798 gnorm=0.190
+  [train-vq] step 40 loss=0.4642 gnorm=0.139
+[train-vq] step 40 loss 0.4642 (saved ckpt-vq-step40.ncm)
+  [train-vq] step 41 loss=0.4573 gnorm=0.123
+  [train-vq] step 42 loss=0.4749 gnorm=0.158
+  [train-vq] step 43 loss=0.4540 gnorm=0.193
+  [train-vq] step 44 loss=0.4498 gnorm=0.138
+  [train-vq] step 45 loss=0.4609 gnorm=0.190
+  [train-vq] step 46 loss=0.4642 gnorm=0.192
+  [train-vq] step 47 loss=0.4574 gnorm=0.147
+  [train-vq] step 48 loss=0.4565 gnorm=0.126
+  [train-vq] step 49 loss=0.4642 gnorm=0.155
+  [train-vq] step 50 loss=0.4664 gnorm=0.182
+[vq-usage] step 50 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.84 dom=0.12 | L09 len=101 used=16/16 H=3.86 dom=0.10 | L10 len=157 used=16/16 H=3.81 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 50 loss 0.4664 (saved ckpt-vq-step50.ncm)
+  [train-vq] step 51 loss=0.4480 gnorm=0.137
+  [train-vq] step 52 loss=0.4500 gnorm=0.166
+  [train-vq] step 53 loss=0.4509 gnorm=0.133
+  [train-vq] step 54 loss=0.4484 gnorm=0.132
+  [train-vq] step 55 loss=0.4458 gnorm=0.137
+  [train-vq] step 56 loss=0.4518 gnorm=0.132
+  [train-vq] step 57 loss=0.4723 gnorm=0.189
+  [train-vq] step 58 loss=0.4683 gnorm=0.158
+  [train-vq] step 59 loss=0.4443 gnorm=0.171
+  [train-vq] step 60 loss=0.4562 gnorm=0.132
+[train-vq] step 60 loss 0.4562 (saved ckpt-vq-step60.ncm)
+  [train-vq] step 61 loss=0.4492 gnorm=0.156
+  [train-vq] step 62 loss=0.4835 gnorm=0.255
+  [train-vq] step 63 loss=0.4322 gnorm=0.118
+  [train-vq] step 64 loss=0.4508 gnorm=0.141
+  [train-vq] step 65 loss=0.4572 gnorm=0.154
+  [train-vq] step 66 loss=0.4521 gnorm=0.114
+  [train-vq] step 67 loss=0.4403 gnorm=0.159
+  [train-vq] step 68 loss=0.4545 gnorm=0.142
+  [train-vq] step 69 loss=0.4779 gnorm=0.302
+  [train-vq] step 70 loss=0.4405 gnorm=0.112
+[train-vq] step 70 loss 0.4405 (saved ckpt-vq-step70.ncm)
+  [train-vq] step 71 loss=0.4559 gnorm=0.199
+  [train-vq] step 72 loss=0.4574 gnorm=0.169
+  [train-vq] step 73 loss=0.4424 gnorm=0.134
+  [train-vq] step 74 loss=0.4498 gnorm=0.213
+  [train-vq] step 75 loss=0.4436 gnorm=0.212
+  [train-vq] step 76 loss=0.4554 gnorm=0.199
+  [train-vq] step 77 loss=0.4432 gnorm=0.144
+  [train-vq] step 78 loss=0.4697 gnorm=0.267
+  [train-vq] step 79 loss=0.4366 gnorm=0.128
+  [train-vq] step 80 loss=0.4615 gnorm=0.263
+[train-vq] step 80 loss 0.4615 (saved ckpt-vq-step80.ncm)
+  [train-vq] step 81 loss=0.4514 gnorm=0.186
+  [train-vq] step 82 loss=0.4488 gnorm=0.186
+  [train-vq] step 83 loss=0.4477 gnorm=0.155
+  [train-vq] step 84 loss=0.4452 gnorm=0.166
+  [train-vq] step 85 loss=0.4549 gnorm=0.155
+  [train-vq] step 86 loss=0.4303 gnorm=0.130
+  [train-vq] step 87 loss=0.4640 gnorm=0.165
+  [train-vq] step 88 loss=0.4487 gnorm=0.157
+  [train-vq] step 89 loss=0.4547 gnorm=0.141
+  [train-vq] step 90 loss=0.4795 gnorm=0.155
+[train-vq] step 90 loss 0.4795 (saved ckpt-vq-step90.ncm)
+  [train-vq] step 91 loss=0.4586 gnorm=0.158
+  [train-vq] step 92 loss=0.4572 gnorm=0.128
+  [train-vq] step 93 loss=0.4354 gnorm=0.147
+  [train-vq] step 94 loss=0.4318 gnorm=0.153
+  [train-vq] step 95 loss=0.4592 gnorm=0.173
+  [train-vq] step 96 loss=0.4770 gnorm=0.259
+  [train-vq] step 97 loss=0.4331 gnorm=0.136
+  [train-vq] step 98 loss=0.4433 gnorm=0.129
+  [train-vq] step 99 loss=0.4562 gnorm=0.143
+  [train-vq] step 100 loss=0.4486 gnorm=0.130
+[vq-usage] step 100 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.86 dom=0.10 | L10 len=157 used=16/16 H=3.81 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 100 loss 0.4486 (saved ckpt-vq-step100.ncm)
+  [train-vq] step 101 loss=0.4432 gnorm=0.145
+  [train-vq] step 102 loss=0.4321 gnorm=0.259
+  [train-vq] step 103 loss=0.4477 gnorm=0.130
+  [train-vq] step 104 loss=0.4299 gnorm=0.165
+  [train-vq] step 105 loss=0.4249 gnorm=0.129
+  [train-vq] step 106 loss=0.4731 gnorm=0.247
+  [train-vq] step 107 loss=0.4511 gnorm=0.205
+  [train-vq] step 108 loss=0.4502 gnorm=0.180
+  [train-vq] step 109 loss=0.4380 gnorm=0.193
+  [train-vq] step 110 loss=0.4413 gnorm=0.146
+[train-vq] step 110 loss 0.4413 (saved ckpt-vq-step110.ncm)
+  [train-vq] step 111 loss=0.4402 gnorm=0.180
+  [train-vq] step 112 loss=0.4315 gnorm=0.209
+  [train-vq] step 113 loss=0.4387 gnorm=0.150
+  [train-vq] step 114 loss=0.4306 gnorm=0.193
+  [train-vq] step 115 loss=0.4460 gnorm=0.233
+  [train-vq] step 116 loss=0.4507 gnorm=0.197
+  [train-vq] step 117 loss=0.4635 gnorm=0.225
+  [train-vq] step 118 loss=0.4397 gnorm=0.242
+  [train-vq] step 119 loss=0.4245 gnorm=0.159
+  [train-vq] step 120 loss=0.4326 gnorm=0.133
+[train-vq] step 120 loss 0.4326 (saved ckpt-vq-step120.ncm)
+  [train-vq] step 121 loss=0.4675 gnorm=0.160
+  [train-vq] step 122 loss=0.4329 gnorm=0.154
+  [train-vq] step 123 loss=0.4290 gnorm=0.202
+  [train-vq] step 124 loss=0.4483 gnorm=0.229
+  [train-vq] step 125 loss=0.4304 gnorm=0.124
+  [train-vq] step 126 loss=0.4687 gnorm=0.147
+  [train-vq] step 127 loss=0.4584 gnorm=0.247
+  [train-vq] step 128 loss=0.4321 gnorm=0.254
+  [train-vq] step 129 loss=0.4691 gnorm=0.172
+  [train-vq] step 130 loss=0.4186 gnorm=0.122
+[train-vq] step 130 loss 0.4186 (saved ckpt-vq-step130.ncm)
+  [train-vq] step 131 loss=0.4348 gnorm=0.264
+  [train-vq] step 132 loss=0.4315 gnorm=0.194
+  [train-vq] step 133 loss=0.4543 gnorm=0.218
+  [train-vq] step 134 loss=0.4407 gnorm=0.144
+  [train-vq] step 135 loss=0.4573 gnorm=0.211
+  [train-vq] step 136 loss=0.4167 gnorm=0.189
+  [train-vq] step 137 loss=0.4431 gnorm=0.135
+  [train-vq] step 138 loss=0.4459 gnorm=0.171
+  [train-vq] step 139 loss=0.4437 gnorm=0.150
+  [train-vq] step 140 loss=0.4433 gnorm=0.138
+[train-vq] step 140 loss 0.4433 (saved ckpt-vq-step140.ncm)
+  [train-vq] step 141 loss=0.4594 gnorm=0.145
+  [train-vq] step 142 loss=0.4444 gnorm=0.190
+  [train-vq] step 143 loss=0.4078 gnorm=0.174
+  [train-vq] step 144 loss=0.4225 gnorm=0.158
+  [train-vq] step 145 loss=0.4305 gnorm=0.153
+  [train-vq] step 146 loss=0.4509 gnorm=0.167
+  [train-vq] step 147 loss=0.4239 gnorm=0.108
+  [train-vq] step 148 loss=0.4247 gnorm=0.151
+  [train-vq] step 149 loss=0.4328 gnorm=0.158
+  [train-vq] step 150 loss=0.4274 gnorm=0.153
+[vq-usage] step 150 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.86 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 150 loss 0.4274 (saved ckpt-vq-step150.ncm)
+  [train-vq] step 151 loss=0.4362 gnorm=0.173
+  [train-vq] step 152 loss=0.4315 gnorm=0.154
+  [train-vq] step 153 loss=0.4502 gnorm=0.161
+  [train-vq] step 154 loss=0.4252 gnorm=0.199
+  [train-vq] step 155 loss=0.4419 gnorm=0.197
+  [train-vq] step 156 loss=0.4577 gnorm=0.180
+  [train-vq] step 157 loss=0.4342 gnorm=0.124
+  [train-vq] step 158 loss=0.4718 gnorm=0.177
+  [train-vq] step 159 loss=0.4257 gnorm=0.254
+  [train-vq] step 160 loss=0.4419 gnorm=0.230
+[train-vq] step 160 loss 0.4419 (saved ckpt-vq-step160.ncm)
+  [train-vq] step 161 loss=0.4262 gnorm=0.189
+  [train-vq] step 162 loss=0.4589 gnorm=0.156
+  [train-vq] step 163 loss=0.4617 gnorm=0.212
+  [train-vq] step 164 loss=0.4227 gnorm=0.138
+  [train-vq] step 165 loss=0.4119 gnorm=0.194
+  [train-vq] step 166 loss=0.4545 gnorm=0.146
+  [train-vq] step 167 loss=0.4372 gnorm=0.180
+  [train-vq] step 168 loss=0.4326 gnorm=0.167
+  [train-vq] step 169 loss=0.4540 gnorm=0.307
+  [train-vq] step 170 loss=0.4408 gnorm=0.175
+[train-vq] step 170 loss 0.4408 (saved ckpt-vq-step170.ncm)
+  [train-vq] step 171 loss=0.4572 gnorm=0.185
+  [train-vq] step 172 loss=0.4422 gnorm=0.230
+  [train-vq] step 173 loss=0.4562 gnorm=0.180
+  [train-vq] step 174 loss=0.4110 gnorm=0.137
+  [train-vq] step 175 loss=0.4555 gnorm=0.184
+  [train-vq] step 176 loss=0.4278 gnorm=0.217
+  [train-vq] step 177 loss=0.4316 gnorm=0.188
+  [train-vq] step 178 loss=0.4310 gnorm=0.162
+  [train-vq] step 179 loss=0.4571 gnorm=0.186
+  [train-vq] step 180 loss=0.4236 gnorm=0.154
+[train-vq] step 180 loss 0.4236 (saved ckpt-vq-step180.ncm)
+  [train-vq] step 181 loss=0.4555 gnorm=0.195
+  [train-vq] step 182 loss=0.4309 gnorm=0.142
+  [train-vq] step 183 loss=0.4364 gnorm=0.125
+  [train-vq] step 184 loss=0.4090 gnorm=0.139
+  [train-vq] step 185 loss=0.4393 gnorm=0.209
+  [train-vq] step 186 loss=0.4548 gnorm=0.225
+  [train-vq] step 187 loss=0.4153 gnorm=0.184
+  [train-vq] step 188 loss=0.4231 gnorm=0.127
+  [train-vq] step 189 loss=0.4418 gnorm=0.146
+  [train-vq] step 190 loss=0.4655 gnorm=0.174
+[train-vq] step 190 loss 0.4655 (saved ckpt-vq-step190.ncm)
+  [train-vq] step 191 loss=0.4224 gnorm=0.171
+  [train-vq] step 192 loss=0.4342 gnorm=0.244
+  [train-vq] step 193 loss=0.4402 gnorm=0.179
+  [train-vq] step 194 loss=0.4275 gnorm=0.217
+  [train-vq] step 195 loss=0.4331 gnorm=0.152
+  [train-vq] step 196 loss=0.4377 gnorm=0.185
+  [train-vq] step 197 loss=0.4434 gnorm=0.187
+  [train-vq] step 198 loss=0.4399 gnorm=0.181
+  [train-vq] step 199 loss=0.4230 gnorm=0.150
+  [train-vq] step 200 loss=0.4275 gnorm=0.174
+[vq-usage] step 200 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.85 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 200 loss 0.4275 (saved ckpt-vq-step200.ncm)
+  [train-vq] step 201 loss=0.4250 gnorm=0.115
+  [train-vq] step 202 loss=0.4141 gnorm=0.121
+  [train-vq] step 203 loss=0.4259 gnorm=0.158
+  [train-vq] step 204 loss=0.4455 gnorm=0.189
+  [train-vq] step 205 loss=0.4365 gnorm=0.131
+  [train-vq] step 206 loss=0.4280 gnorm=0.121
+  [train-vq] step 207 loss=0.4519 gnorm=0.171
+  [train-vq] step 208 loss=0.4366 gnorm=0.138
+  [train-vq] step 209 loss=0.4330 gnorm=0.128
+  [train-vq] step 210 loss=0.4295 gnorm=0.144
+[train-vq] step 210 loss 0.4295 (saved ckpt-vq-step210.ncm)
+  [train-vq] step 211 loss=0.4540 gnorm=0.156
+  [train-vq] step 212 loss=0.4373 gnorm=0.145
+  [train-vq] step 213 loss=0.4562 gnorm=0.162
+  [train-vq] step 214 loss=0.4345 gnorm=0.160
+  [train-vq] step 215 loss=0.4342 gnorm=0.237
+  [train-vq] step 216 loss=0.4446 gnorm=0.199
+  [train-vq] step 217 loss=0.4670 gnorm=0.165
+  [train-vq] step 218 loss=0.4257 gnorm=0.198
+  [train-vq] step 219 loss=0.4262 gnorm=0.116
+  [train-vq] step 220 loss=0.4363 gnorm=0.136
+[train-vq] step 220 loss 0.4363 (saved ckpt-vq-step220.ncm)
+  [train-vq] step 221 loss=0.4269 gnorm=0.175
+  [train-vq] step 222 loss=0.4344 gnorm=0.164
+  [train-vq] step 223 loss=0.4591 gnorm=0.274
+  [train-vq] step 224 loss=0.4280 gnorm=0.182
+  [train-vq] step 225 loss=0.4458 gnorm=0.224
+  [train-vq] step 226 loss=0.4279 gnorm=0.133
+  [train-vq] step 227 loss=0.4236 gnorm=0.251
+  [train-vq] step 228 loss=0.4295 gnorm=0.142
+  [train-vq] step 229 loss=0.4294 gnorm=0.206
+  [train-vq] step 230 loss=0.4391 gnorm=0.218
+[train-vq] step 230 loss 0.4391 (saved ckpt-vq-step230.ncm)
+  [train-vq] step 231 loss=0.4307 gnorm=0.184
+  [train-vq] step 232 loss=0.4282 gnorm=0.139
+  [train-vq] step 233 loss=0.4387 gnorm=0.232
+  [train-vq] step 234 loss=0.4313 gnorm=0.131
+  [train-vq] step 235 loss=0.4149 gnorm=0.133
+  [train-vq] step 236 loss=0.4621 gnorm=0.163
+  [train-vq] step 237 loss=0.4259 gnorm=0.148
+  [train-vq] step 238 loss=0.4135 gnorm=0.180
+  [train-vq] step 239 loss=0.4390 gnorm=0.127
+  [train-vq] step 240 loss=0.4259 gnorm=0.159
+[train-vq] step 240 loss 0.4259 (saved ckpt-vq-step240.ncm)
+  [train-vq] step 241 loss=0.4541 gnorm=0.219
+  [train-vq] step 242 loss=0.4244 gnorm=0.199
+  [train-vq] step 243 loss=0.4162 gnorm=0.174
+  [train-vq] step 244 loss=0.4315 gnorm=0.169
+  [train-vq] step 245 loss=0.4379 gnorm=0.192
+  [train-vq] step 246 loss=0.4315 gnorm=0.155
+  [train-vq] step 247 loss=0.4435 gnorm=0.179
+  [train-vq] step 248 loss=0.4460 gnorm=0.176
+  [train-vq] step 249 loss=0.4288 gnorm=0.205
+  [train-vq] step 250 loss=0.4418 gnorm=0.186
+[vq-usage] step 250 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.84 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 250 loss 0.4418 (saved ckpt-vq-step250.ncm)
+  [train-vq] step 251 loss=0.4442 gnorm=0.132
+  [train-vq] step 252 loss=0.4635 gnorm=0.175
+  [train-vq] step 253 loss=0.4342 gnorm=0.133
+  [train-vq] step 254 loss=0.4269 gnorm=0.184
+  [train-vq] step 255 loss=0.4413 gnorm=0.160
+  [train-vq] step 256 loss=0.4184 gnorm=0.145
+  [train-vq] step 257 loss=0.4233 gnorm=0.183
+  [train-vq] step 258 loss=0.4338 gnorm=0.160
+  [train-vq] step 259 loss=0.4497 gnorm=0.132
+  [train-vq] step 260 loss=0.4204 gnorm=0.133
+[train-vq] step 260 loss 0.4204 (saved ckpt-vq-step260.ncm)
+  [train-vq] step 261 loss=0.4442 gnorm=0.201
+  [train-vq] step 262 loss=0.4395 gnorm=0.204
+  [train-vq] step 263 loss=0.4395 gnorm=0.130
+  [train-vq] step 264 loss=0.4199 gnorm=0.126
+  [train-vq] step 265 loss=0.4425 gnorm=0.135
+  [train-vq] step 266 loss=0.4488 gnorm=0.218
+  [train-vq] step 267 loss=0.4203 gnorm=0.134
+  [train-vq] step 268 loss=0.4407 gnorm=0.157
+  [train-vq] step 269 loss=0.4463 gnorm=0.141
+  [train-vq] step 270 loss=0.4355 gnorm=0.161
+[train-vq] step 270 loss 0.4355 (saved ckpt-vq-step270.ncm)
+  [train-vq] step 271 loss=0.4269 gnorm=0.169
+  [train-vq] step 272 loss=0.4112 gnorm=0.145
+  [train-vq] step 273 loss=0.4375 gnorm=0.185
+  [train-vq] step 274 loss=0.4412 gnorm=0.132
+  [train-vq] step 275 loss=0.4332 gnorm=0.143
+  [train-vq] step 276 loss=0.4369 gnorm=0.146
+  [train-vq] step 277 loss=0.4386 gnorm=0.205
+  [train-vq] step 278 loss=0.4375 gnorm=0.137
+  [train-vq] step 279 loss=0.4325 gnorm=0.158
+  [train-vq] step 280 loss=0.4234 gnorm=0.137
+[train-vq] step 280 loss 0.4234 (saved ckpt-vq-step280.ncm)
+  [train-vq] step 281 loss=0.4321 gnorm=0.281
+  [train-vq] step 282 loss=0.4236 gnorm=0.140
+  [train-vq] step 283 loss=0.4328 gnorm=0.234
+  [train-vq] step 284 loss=0.4217 gnorm=0.179
+  [train-vq] step 285 loss=0.4384 gnorm=0.188
+  [train-vq] step 286 loss=0.4322 gnorm=0.121
+  [train-vq] step 287 loss=0.4393 gnorm=0.142
+  [train-vq] step 288 loss=0.4689 gnorm=0.153
+  [train-vq] step 289 loss=0.4233 gnorm=0.150
+  [train-vq] step 290 loss=0.4438 gnorm=0.166
+[train-vq] step 290 loss 0.4438 (saved ckpt-vq-step290.ncm)
+  [train-vq] step 291 loss=0.4218 gnorm=0.185
+  [train-vq] step 292 loss=0.4453 gnorm=0.148
+  [train-vq] step 293 loss=0.4378 gnorm=0.130
+  [train-vq] step 294 loss=0.4249 gnorm=0.176
+  [train-vq] step 295 loss=0.4377 gnorm=0.164
+  [train-vq] step 296 loss=0.4095 gnorm=0.119
+  [train-vq] step 297 loss=0.4445 gnorm=0.139
+  [train-vq] step 298 loss=0.4452 gnorm=0.159
+  [train-vq] step 299 loss=0.4193 gnorm=0.120
+  [train-vq] step 300 loss=0.4337 gnorm=0.171
+[vq-usage] step 300 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.84 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 300 loss 0.4337 (saved ckpt-vq-step300.ncm)
+  [train-vq] step 301 loss=0.4201 gnorm=0.125
+  [train-vq] step 302 loss=0.4271 gnorm=0.144
+  [train-vq] step 303 loss=0.4433 gnorm=0.163
+  [train-vq] step 304 loss=0.4270 gnorm=0.181
+  [train-vq] step 305 loss=0.4546 gnorm=0.163
+  [train-vq] step 306 loss=0.4401 gnorm=0.222
+  [train-vq] step 307 loss=0.4496 gnorm=0.168
+  [train-vq] step 308 loss=0.4154 gnorm=0.138
+  [train-vq] step 309 loss=0.4382 gnorm=0.134
+  [train-vq] step 310 loss=0.4337 gnorm=0.141
+[train-vq] step 310 loss 0.4337 (saved ckpt-vq-step310.ncm)
+  [train-vq] step 311 loss=0.4347 gnorm=0.140
+  [train-vq] step 312 loss=0.4300 gnorm=0.118
+  [train-vq] step 313 loss=0.4507 gnorm=0.151
+  [train-vq] step 314 loss=0.4404 gnorm=0.196
+  [train-vq] step 315 loss=0.4323 gnorm=0.118
+  [train-vq] step 316 loss=0.4367 gnorm=0.149
+  [train-vq] step 317 loss=0.4265 gnorm=0.127
+  [train-vq] step 318 loss=0.4258 gnorm=0.118
+  [train-vq] step 319 loss=0.4348 gnorm=0.125
+  [train-vq] step 320 loss=0.4384 gnorm=0.133
+[train-vq] step 320 loss 0.4384 (saved ckpt-vq-step320.ncm)
+  [train-vq] step 321 loss=0.4432 gnorm=0.142
+  [train-vq] step 322 loss=0.4372 gnorm=0.120
+  [train-vq] step 323 loss=0.4204 gnorm=0.128
+  [train-vq] step 324 loss=0.4238 gnorm=0.135
+  [train-vq] step 325 loss=0.4295 gnorm=0.135
+  [train-vq] step 326 loss=0.4046 gnorm=0.110
+  [train-vq] step 327 loss=0.4260 gnorm=0.133
+  [train-vq] step 328 loss=0.4286 gnorm=0.135
+  [train-vq] step 329 loss=0.4403 gnorm=0.154
+  [train-vq] step 330 loss=0.4392 gnorm=0.169
+[train-vq] step 330 loss 0.4392 (saved ckpt-vq-step330.ncm)
+  [train-vq] step 331 loss=0.4270 gnorm=0.161
+  [train-vq] step 332 loss=0.4582 gnorm=0.168
+  [train-vq] step 333 loss=0.4143 gnorm=0.137
+  [train-vq] step 334 loss=0.4254 gnorm=0.148
+  [train-vq] step 335 loss=0.4547 gnorm=0.173
+  [train-vq] step 336 loss=0.4456 gnorm=0.202
+  [train-vq] step 337 loss=0.4588 gnorm=0.164
+  [train-vq] step 338 loss=0.4286 gnorm=0.157
+  [train-vq] step 339 loss=0.4371 gnorm=0.134
+  [train-vq] step 340 loss=0.4610 gnorm=0.162
+[train-vq] step 340 loss 0.4610 (saved ckpt-vq-step340.ncm)
+  [train-vq] step 341 loss=0.4216 gnorm=0.148
+  [train-vq] step 342 loss=0.4296 gnorm=0.162
+  [train-vq] step 343 loss=0.4512 gnorm=0.194
+  [train-vq] step 344 loss=0.4334 gnorm=0.134
+  [train-vq] step 345 loss=0.4347 gnorm=0.125
+  [train-vq] step 346 loss=0.4050 gnorm=0.167
+  [train-vq] step 347 loss=0.4356 gnorm=0.134
+  [train-vq] step 348 loss=0.4664 gnorm=0.230
+  [train-vq] step 349 loss=0.4434 gnorm=0.153
+  [train-vq] step 350 loss=0.4388 gnorm=0.155
+[vq-usage] step 350 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.83 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12
+[train-vq] step 350 loss 0.4388 (saved ckpt-vq-step350.ncm)
+  [train-vq] step 351 loss=0.4624 gnorm=0.172
+  [train-vq] step 352 loss=0.4438 gnorm=0.156
+  [train-vq] step 353 loss=0.4318 gnorm=0.175
+  [train-vq] step 354 loss=0.4406 gnorm=0.174
+  [train-vq] step 355 loss=0.4434 gnorm=0.175
+  [train-vq] step 356 loss=0.4396 gnorm=0.154
+  [train-vq] step 357 loss=0.4415 gnorm=0.135
+  [train-vq] step 358 loss=0.4143 gnorm=0.142
+  [train-vq] step 359 loss=0.4234 gnorm=0.188
+  [train-vq] step 360 loss=0.4460 gnorm=0.224
+[train-vq] step 360 loss 0.4460 (saved ckpt-vq-step360.ncm)
+  [train-vq] step 361 loss=0.4286 gnorm=0.215
+  [train-vq] step 362 loss=0.4088 gnorm=0.102
+  [train-vq] step 363 loss=0.4317 gnorm=0.169
+  [train-vq] step 364 loss=0.4284 gnorm=0.124
+  [train-vq] step 365 loss=0.4302 gnorm=0.124
+  [train-vq] step 366 loss=0.4346 gnorm=0.196
+  [train-vq] step 367 loss=0.4325 gnorm=0.135
+  [train-vq] step 368 loss=0.4066 gnorm=0.114
+  [train-vq] step 369 loss=0.4243 gnorm=0.139
+  [train-vq] step 370 loss=0.4184 gnorm=0.115
+[train-vq] step 370 loss 0.4184 (saved ckpt-vq-step370.ncm)
+  [train-vq] step 371 loss=0.4298 gnorm=0.120
+  [train-vq] step 372 loss=0.4298 gnorm=0.130
+  [train-vq] step 373 loss=0.4494 gnorm=0.135
+  [train-vq] step 374 loss=0.4506 gnorm=0.142
+  [train-vq] step 375 loss=0.4582 gnorm=0.172
+  [train-vq] step 376 loss=0.4478 gnorm=0.148
+  [train-vq] step 377 loss=0.4403 gnorm=0.155
+  [train-vq] step 378 loss=0.4215 gnorm=0.121
+  [train-vq] step 379 loss=0.4362 gnorm=0.162
+  [train-vq] step 380 loss=0.4287 gnorm=0.131
+[train-vq] step 380 loss 0.4287 (saved ckpt-vq-step380.ncm)
+  [train-vq] step 381 loss=0.4182 gnorm=0.160
+  [train-vq] step 382 loss=0.4379 gnorm=0.128
+  [train-vq] step 383 loss=0.4478 gnorm=0.144
+  [train-vq] step 384 loss=0.4466 gnorm=0.297
+  [train-vq] step 385 loss=0.4434 gnorm=0.212
+  [train-vq] step 386 loss=0.4284 gnorm=0.131
+  [train-vq] step 387 loss=0.4234 gnorm=0.119
+  [train-vq] step 388 loss=0.4333 gnorm=0.149
+  [train-vq] step 389 loss=0.4386 gnorm=0.146
+  [train-vq] step 390 loss=0.4236 gnorm=0.106
+[train-vq] step 390 loss 0.4236 (saved ckpt-vq-step390.ncm)
+  [train-vq] step 391 loss=0.4331 gnorm=0.160
+  [train-vq] step 392 loss=0.4311 gnorm=0.142
+  [train-vq] step 393 loss=0.4186 gnorm=0.147
+  [train-vq] step 394 loss=0.4262 gnorm=0.153
+  [train-vq] step 395 loss=0.4249 gnorm=0.149
+  [train-vq] step 396 loss=0.4216 gnorm=0.133
+  [train-vq] step 397 loss=0.4261 gnorm=0.147
+  [train-vq] step 398 loss=0.4265 gnorm=0.118
+  [train-vq] step 399 loss=0.4253 gnorm=0.128
+[vq-usage] step 399 rows=512 | L00 len=1 used=1/16 H=0.00 dom=1.00 | L01 len=2 used=2/16 H=1.00 dom=0.50 | L02 len=4 used=1/16 H=0.00 dom=1.00 | L03 len=7 used=2/16 H=0.99 dom=0.57 | L04 len=11 used=6/16 H=2.05 dom=0.55 | L05 len=17 used=13/16 H=3.57 dom=0.18 | L06 len=27 used=13/16 H=3.56 dom=0.15 | L07 len=42 used=16/16 H=3.84 dom=0.14 | L08 len=65 used=16/16 H=3.85 dom=0.12 | L09 len=101 used=16/16 H=3.81 dom=0.10 | L10 len=157 used=16/16 H=3.82 dom=0.11 | L11 len=271 used=16/16 H=3.87 dom=0.12

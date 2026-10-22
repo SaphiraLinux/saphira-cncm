@@ -32,6 +32,32 @@ human-readable traces.
   (chance 6.25%) — mode collapse persists after 4x training
   (loss 0.55 -> 0.44). `ncp16_held_eval.svg` plots it.
 
+## VQ revival experiment (codebook utilisation as primary metric)
+
+Question: can CNCM recover its 16x16 representation with more VQ
+training, or is the architecture/hyperparameters the problem?
+
+- Control: `weights/sudoku-16/vq-final-step200-control.ncm` (byte copy
+  of the VQ before revival). NCP checkpoints untouched.
+- Run: warm start from vq-final (fresh optimizer, same lr/schedule
+  shape), +400 steps on CUDA (`results/logs/vq_revival400.log`).
+  Final weights: `weights/sudoku-16/vq-revived-600.ncm` (git-ignored).
+- Telemetry: `train_vq` now prints `[vq-usage]` per-level occupancy,
+  entropy (bits) and dominant-code share every 50 steps over a fixed
+  512-row probe subset (read-only; no tape/grad/RNG impact).
+- Result: loss 0.467 -> 0.425; coarse occupancy **frozen at every
+  probe** (L0-L4 used 1,2,1,2,6 of 16, entropy 0.00-2.05, dominant
+  shares 0.50-1.00) vs the mature 9x9 baseline of 14-16/16.
+  Held-out recon: 96.04% -> 96.58% id match, valid 0/64 -> 0/64.
+  Held code usage identical before/after.
+  `vq16_occupancy.svg` plots 9x9 vs revived occupancy per level;
+  `vq16_recon_baseline64.txt` / `vq16_recon_revived64.txt` are the
+  64-board recon outputs.
+- Verdict: more steps do not revive dead coarse codebooks under the
+  current EMA/commitment setup. The fix must be hyperparameter or
+  architectural (EMA schedule, commitment weight, dead-code reset,
+  different ladder), not more steps.
+
 ## Provenance note (2026-10-22)
 
 The homer reboot wiped `/tmp`, taking the detailed pre-reboot logs

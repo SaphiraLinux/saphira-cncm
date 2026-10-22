@@ -401,6 +401,72 @@ void vqtrainer_free(VQTrainer *t) {
     free(t);
 }
 
+/* Codebook telemetry: encode the first nprobe train rows (deterministic
+ * subset, host ids), argmin codes, and report per-level occupancy
+ * (distinct codes), entropy in bits, and dominant-code share.
+ * Read-only w.r.t. training: no tape, no grad, no RNG use. The caller
+ * must only invoke this between steps (arena is reset at each step's
+ * start anyway); this function resets the arena before returning. */
+static void vq_probe_usage(VQVAEState *vqvae, TrainData *d, int nprobe,
+                           int step, int T, int D) {
+    VQState *vq = vqvae_vq(vqvae);
+    int nl = vq_nlevels(vq);
+    int *V = (int *)malloc((size_t)nl * sizeof(int));
+    int *off = (int *)malloc((size_t)(nl + 1) * sizeof(int));
+    int total = 0;
+    for (int l = 0; l < nl; l++) {
+        V[l] = vq_level_V(vq, l);
+        off[l] = total;
+        total += vq_level_len(vq, l);
+    }
+    off[nl] = total;
+    int **cnt = (int **)malloc((size_t)nl * sizeof(int *));
+    for (int l = 0; l < nl; l++)
+        cnt[l] = (int *)calloc((size_t)V[l], sizeof(int));
+    if (nprobe > d->n_rows) nprobe = d->n_rows;
+    int B = 32;
+    int *sbuf = (int *)malloc((size_t)B * T * sizeof(int));
+    for (int s = 0; s < nprobe; s += B) {
+        int bb = nprobe - s < B ? nprobe - s : B;
+        for (int b = 0; b < bb; b++)
+            memcpy(sbuf + b * T, d->rows + (s + b) * d->row_len, T * sizeof(int));
+        float *z = arena_alloc((size_t)bb * T * D);
+        vqvae_encode_z(vqvae, sbuf, z, bb);
+        int *codes = (int *)malloc((size_t)bb * total * sizeof(int));
+        vq_z_to_idx(vq, z, bb, codes);
+        for (int b = 0; b < bb; b++)
+            for (int l = 0; l < nl; l++)
+                for (int t = 0; t < off[l + 1] - off[l]; t++) {
+                    int id = codes[(size_t)b * total + off[l] + t];
+                    if (id >= 0 && id < V[l]) cnt[l][id]++;
+                }
+        free(codes);
+        arena_reset();
+    }
+    printf("[vq-usage] step %d rows=%d", step, nprobe);
+    for (int l = 0; l < nl; l++) {
+        long tot = 0;
+        int used = 0, mx = 0;
+        for (int v = 0; v < V[l]; v++) {
+            tot += cnt[l][v];
+            if (cnt[l][v]) used++;
+            if (cnt[l][v] > mx) mx = cnt[l][v];
+        }
+        double H = 0;
+        for (int v = 0; v < V[l]; v++)
+            if (cnt[l][v]) {
+                double p = (double)cnt[l][v] / (tot > 0 ? tot : 1);
+                H -= p * (log(p) / log(2.0));
+            }
+        printf(" | L%02d len=%d used=%d/%d H=%.2f dom=%.2f",
+               l, off[l + 1] - off[l], used, V[l], H, tot > 0 ? (double)mx / tot : 0);
+        free(cnt[l]);
+    }
+    printf("\n");
+    fflush(stdout);
+    free(cnt); free(V); free(off); free(sbuf);
+}
+
 /* driver: token-id rows [B][T] -> recon + commitment, AdamW, EMA, checkpoint */
 int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data_path, int max_steps) {
     NCMConfig c = *c_;
@@ -419,6 +485,7 @@ int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data
         return 1;
     }
     int T = c.vq_context_length;
+    int D = c.vq_embed_dim;
     printf("[train-vq] %d rows x %d, steps=%d\n", d->n_rows, d->row_len, max_steps);
     int B = 4;
     unsigned long long rng = 0x12345;
@@ -455,6 +522,9 @@ int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data
         }
         adamw_step(t->opt, t->lr, t->warmup, t->total);
         adamw_zero_grad(t->opt);
+        /* codebook telemetry (read-only probe, deterministic subset) */
+        if (step % 50 == 0 || (max_steps > 0 && step == max_steps - 1))
+            vq_probe_usage(vqvae, d, 512, step, T, D);
         /* Weight-only snapshots (optimizer/EMA/RNG state not stored):
          * fine for warm-starting, NOT exact-resume checkpoints. */
         if (step % 10 == 0) {

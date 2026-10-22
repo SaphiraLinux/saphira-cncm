@@ -382,7 +382,7 @@ static int cmd_vq_recon(const NCMConfig *c, const char *weights,
                         int max_rows) {
     WeightStore ws = {NULL, 0};
     if (weights_load(&ws, weights)) return 1;
-    arena_init(1ULL << 30);
+    arena_init(1ULL << 31);
     VQVAEState *vqvae = vqvae_load(c, &ws);
     VQState *vq = vqvae_vq(vqvae);
     TrainData *ds = train_data_load(sol_path, 0);
