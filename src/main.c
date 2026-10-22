@@ -28,6 +28,10 @@ static void usage(const char *a) {
         "  %s sudoku-check --board DIGITS [--size 9|16|25] [--clues CELLS]\n"
         "             (9: 81 of 1-9; 16: 256 of 1-9,A-G; 25: 625 of 1-9,A-P;\n"
         "              prints validity JSON, plus clue_ok when --clues given)\n"
+        "  %s vq-encode --conf M.conf --weights M.ncm\n"
+        "             --prefix P.nctrain --sol S.nctrain --out train.nctrain\n"
+        "             [--max-rows N] (frontier: VQ-encode solution rows,\n"
+        "             prepend frozen prefix rows; codes are argmin, no grad)\n"
         "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
         "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
         "             [--top-k n] [--top-p f] [--seed n]\n"
@@ -53,7 +57,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -159,6 +163,9 @@ static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
 static int cmd_sudoku_stream(App *a, int argc, char **argv);
 static int cmd_sudoku_check(int argc, char **argv);
+static int cmd_vq_encode(const NCMConfig *c, const char *weights,
+                         const char *pref_path, const char *sol_path,
+                         const char *out_path, int max_rows);
 static double stream_now_ms(void);
 static void sudoku_cells(const char *s, char *out);
 static int sudoku_valid_sz(const char *cells, int n);
@@ -282,6 +289,65 @@ static int cmd_infer(App *a, const char *ids_csv) {
     return 0;
 }
 
+/* vq-encode: VQ-encode solution-id rows and prepend frozen prefix rows.
+ * Reads prefix P.nctrain (row_len == prefix_len) and solution S.nctrain
+ * (row_len == vq_context_length), encodes each solution row with the
+ * trained VQ (argmin codes, no grad), writes [P | codes] rows. Used to
+ * build NCP training data once the VQ-VAE is trained. */
+static int cmd_vq_encode(const NCMConfig *c, const char *weights,
+                         const char *pref_path, const char *sol_path,
+                         const char *out_path, int max_rows) {
+    WeightStore ws = {NULL, 0};
+    if (weights_load(&ws, weights)) return 1;
+    arena_init(1ULL << 30);
+    VQVAEState *vqvae = vqvae_load(c, &ws);
+    VQState *vq = vqvae_vq(vqvae);
+    TrainData *dp = train_data_load(pref_path, 0);
+    TrainData *ds = train_data_load(sol_path, 0);
+    if (!dp || !ds) { fprintf(stderr, "vq-encode: cannot load inputs\n"); return 1; }
+    int P = c->prefix_len, T = c->vq_context_length, D = c->vq_embed_dim;
+    if (dp->row_len != P || ds->row_len != T || dp->n_rows != ds->n_rows) {
+        fprintf(stderr, "vq-encode: shape mismatch pref(%d x %d) sol(%d x %d), want P=%d T=%d\n",
+                dp->n_rows, dp->row_len, ds->n_rows, ds->row_len, P, T);
+        return 1;
+    }
+    int n = dp->n_rows;
+    if (max_rows > 0 && max_rows < n) n = max_rows;
+    int total = vq_total_codes(vq);
+    int rl = P + total;
+    FILE *f = fopen(out_path, "wb");
+    if (!f) { fprintf(stderr, "vq-encode: cannot open %s\n", out_path); return 1; }
+    fwrite("NCMT", 1, 4, f);
+    uint64_t nq = (uint64_t)n, rlq = (uint64_t)rl;
+    fwrite(&nq, 8, 1, f);
+    fwrite(&rlq, 8, 1, f);
+    int B = 32;
+    int *sbuf = (int *)malloc((size_t)B * T * sizeof(int));
+    int *row = (int *)malloc((size_t)rl * sizeof(int));
+    for (int s = 0; s < n; s += B) {
+        int bb = n - s < B ? n - s : B;
+        for (int b = 0; b < bb; b++)
+            memcpy(sbuf + b * T, ds->rows + (s + b) * ds->row_len, T * sizeof(int));
+        float *z = arena_alloc((size_t)bb * T * D);
+        vqvae_encode_z(vqvae, sbuf, z, bb);
+        int *codes = (int *)malloc((size_t)bb * total * sizeof(int));
+        vq_z_to_idx(vq, z, bb, codes);
+        for (int b = 0; b < bb; b++) {
+            memcpy(row, dp->rows + (s + b) * dp->row_len, P * sizeof(int));
+            memcpy(row + P, codes + (size_t)b * total, total * sizeof(int));
+            fwrite(row, sizeof(int), rl, f);
+        }
+        free(codes);
+        arena_reset();
+        if ((s / B) % 10 == 0) { printf("  %d/%d\n", s + bb, n); fflush(stdout); }
+    }
+    fclose(f);
+    printf("[vq-encode] %d rows x %d -> %s\n", n, rl, out_path);
+    free(sbuf); free(row);
+    train_data_free(dp); train_data_free(ds);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     /* Threading: NCM_THREADS if set, else 8 workers. Applies to forward
      * kernels and the parallelized training backward. */
@@ -299,7 +365,7 @@ int main(int argc, char **argv) {
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
     if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -409,6 +475,19 @@ int main(int argc, char **argv) {
         if (config_load(&cfg, conf)) return 1;
         extern int train_vq_run(const NCMConfig *c, const char *weights, const char *data, int steps);
         return train_vq_run(&cfg, weights, data, steps ? atoi(steps) : 200);
+    }
+    if (strcmp(argv[1], "vq-encode") == 0) {
+        const char *pref = opt(&argc, &argv, "--prefix");
+        const char *sol = opt(&argc, &argv, "--sol");
+        const char *out = opt(&argc, &argv, "--out");
+        const char *mr = opt(&argc, &argv, "--max-rows");
+        if (!pref || !sol || !out || !conf || !weights) {
+            fprintf(stderr, "vq-encode needs --conf --weights --prefix P.nctrain --sol S.nctrain --out train.nctrain [--max-rows N]\n");
+            return 2;
+        }
+        NCMConfig cfg;
+        if (config_load(&cfg, conf)) return 1;
+        return cmd_vq_encode(&cfg, weights, pref, sol, out, mr ? atoi(mr) : 0);
     }
     if (strcmp(argv[1], "train") == 0) {
         const char *data = opt(&argc, &argv, "--data");

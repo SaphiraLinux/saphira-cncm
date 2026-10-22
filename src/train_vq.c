@@ -341,10 +341,12 @@ double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B) {
     int T = c->vq_context_length, D = c->vq_embed_dim, V = c->vq_in_vocab;
     tape_clear(tp);
     arena_reset();
-    int *bids = (int *)arena_alloc((size_t)B * T);
-    mem_h2d(bids, ids, (size_t)B * T * sizeof(int));
+    /* NOTE: taped index consumers (t_embed, t_gather_rows, t_ce) take HOST
+     * pointers and stage to the backend themselves. Passing a device
+     * buffer here segfaults on CUDA (host memcpy from device memory)
+     * while silently working on CPU — so keep ids on the host. */
     /* encoder (recorded) */
-    float *z = train_encode(tp, ws, c, bids, B, T, D);
+    float *z = train_encode(tp, ws, c, ids, B, T, D);
     /* quantize (no grad): codes host + zhat backend */
     int total = vq_total_codes(vq);
     (void)total;
