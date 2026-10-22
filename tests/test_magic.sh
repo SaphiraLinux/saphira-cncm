@@ -25,7 +25,7 @@ LOSHU=816357492
   && pass "bad length exits 2" || fail "bad length"
 "$BIN" magic-check --board 81635749X >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "bad char exits 2" || fail "bad char"
-"$BIN" magic-check --size 7 --board "$LOSHU" >/dev/null 2>&1; [ $? -eq 2 ] \
+"$BIN" magic-check --size 2 --board "$LOSHU" >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "bad size exits 2" || fail "bad size"
 # clues
 "$BIN" magic-check --board "$LOSHU" --clues 8..357492 2>/dev/null | grep -q '"clue_ok":true' \
@@ -35,9 +35,32 @@ LOSHU=816357492
 # size-6 plumbing: 36-char board runs (non-magic, must be invalid, exit 0)
 "$BIN" magic-check --size 6 --board 123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0 2>/dev/null | grep -q '"valid":false,"magic_sum":111' \
   && pass "6x6 plumbing sum 111" || fail "6x6 plumbing"
+# Durer 4x4 (Jupiter) and the Sagrada connection: Sagrada is the same
+# square turned 180 degrees with 4 entries reduced by 1 (sum 33), so it
+# is correctly invalid as a *normal* magic square
+DURER=G23D5BA8976C4EF1
+"$BIN" magic-check --size 4 --board "$DURER" 2>/dev/null | grep -q '"valid":true,"magic_sum":34' \
+  && pass "4x4 Durer valid sum 34" || fail "Durer"
+"$BIN" magic-check --size 4 --board 1EE4B769D2FC8A53 2>/dev/null | grep -q '"valid":false' \
+  && pass "4x4 Sagrada invalid (normal)" || fail "Sagrada"
+# Siamese 5x5 golden (Mars, sum 65)
+"$BIN" magic-check --size 5 --board HO18FN57EG46DKMACJL3BIP29 2>/dev/null | grep -q '"valid":true,"magic_sum":65' \
+  && pass "5x5 Siamese valid sum 65" || fail "Siamese 5x5"
+# 7x7 spot check via generated board (symbols a-z range)
+B7="$(python3 -c "import sys; sys.path.insert(0,'$REPO/tools'); import magic; print(magic.board_str(magic.siamese(7)))")"
+"$BIN" magic-check --size 7 --board "$B7" 2>/dev/null | grep -q '"valid":true,"magic_sum":175' \
+  && pass "7x7 Siamese valid sum 175" || fail "Siamese 7x7"
+# Ramanujan family: historical square + parametric check
+RAMA=22,12,18,87,88,17,9,25,10,24,89,16,19,86,23,11
+"$BIN" magic-check --family ramanujan --size 4 --board "$RAMA" 2>/dev/null | grep -q '"valid":true,"magic_sum":139' \
+  && pass "ramanujan 22/12/18/87 valid sum 139" || fail "Ramanujan historical"
+"$BIN" magic-check --family ramanujan --size 4 --board 1,2,3,4,5,2,-1,4,0,3,6,1,4,3,2,1 2>/dev/null | grep -q '"valid":true,"magic_sum":10' \
+  && pass "ramanujan (1,2,3,4) valid sum 10" || fail "Ramanujan parametric"
+"$BIN" magic-check --family ramanujan --size 4 --board 22,12,18,87,88,17,9,25,10,24,89,16,19,86,23,12 2>/dev/null | grep -q '"valid":false.*"c3"' \
+  && pass "ramanujan corruption flags c3" || fail "Ramanujan corruption"
 # python generator selftest
-python3 "$REPO/tools/magic3.py" --selftest >/dev/null 2>&1 \
-  && pass "magic3 generator selftest" || fail "magic3 selftest"
+python3 "$REPO/tools/magic.py" --selftest >/dev/null 2>&1 \
+  && pass "magic generator selftest (3-9, ramanujan)" || fail "magic selftest"
 
 # eval-magic smoke on trained weights (if present): schema + determinism
 if [ -f "$REPO/weights/magic-3/ckpts/ckpt-final.nckpt" ]; then

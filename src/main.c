@@ -36,9 +36,17 @@ static void usage(const char *a) {
         "             --sol S.nctrain --out recon.txt [--max-rows N]\n"
         "             (diagnostic: solution ids -> VQ codes -> decoded text;\n"
         "             reports id-level reconstruction match)\n"
-        "  %s magic-check --board DIGITS [--size 3|6] [--clues CELLS]\n"
-        "             (normal magic square: 1..n^2 exactly once, every\n"
-        "              row/col/diag sums to n(n^2+1)/2; 6 uses 1-9,A-Z,0=36)\n"
+        "  %s arith-check --op OP ... (deterministic number-theory checks,\n"
+        "             no model involved)\n"
+        "             cubesum --a A --b B --n N : A^3+B^3 == N ?\n"
+        "             taxicab --a A --b B --c C --d D : A^3+B^3 == C^3+D^3 ?\n"
+        "             divisible --n N --by D,... : N divisible by each D ?\n"
+        "  %s magic-check --board DIGITS [--size 3..9] [--family normal|ramanujan]\n"
+        "             [--clues CELLS] (normal magic square: 1..n^2 exactly\n"
+        "              once, every row/col/diag sums to n(n^2+1)/2;\n"
+        "              ramanujan (--size 4): birthday squares, rows/cols/\n"
+        "              diags + corners + center match; --board also takes\n"
+        "              CSV ints, --clues takes symbols or CSV)\n"
         "  %s eval-magic --conf M.conf --weights M.ncm --asset-dir D\n"
         "             --inputs prefix.txt --refs solutions.txt [--n N]\n"
         "             [--size 3|6] [--seed n] [--jsonl out.jsonl]\n"
@@ -67,7 +75,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -175,7 +183,9 @@ static int cmd_sudoku_stream(App *a, int argc, char **argv);
 static int cmd_sudoku_check(int argc, char **argv);
 static int cmd_magic_check(int argc, char **argv);
 static int cmd_eval_magic(App *a, int argc, char **argv);
+static int cmd_arith_check(int argc, char **argv);
 static int magic_char_val(char c);
+static char magic_cell_sym(int v);
 static int cmd_vq_encode(const NCMConfig *c, const char *weights,
                          const char *pref_path, const char *sol_path,
                          const char *out_path, int max_rows);
@@ -456,8 +466,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -484,6 +494,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "magic-check") == 0) {
         return cmd_magic_check(argc, argv);
+    }
+    if (strcmp(argv[1], "arith-check") == 0) {
+        return cmd_arith_check(argc, argv);
     }
     if (strcmp(argv[1], "eval-magic") == 0) {
         app_load(&a, conf, weights, adir);
@@ -1126,7 +1139,7 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
  * ncells symbol chars ('.' for holes) in out. */
 static int magic_prefix_clues(const int *prefix, int P, char *out, size_t cap) {
     int n = 0;
-    { int cand[2] = {3, 6}; for (int i = 0; i < 2; i++) {
+    { int cand[7] = {3, 4, 5, 6, 7, 8, 9}; for (int i = 0; i < 7; i++) {
         int nc = cand[i] * cand[i];
         if (P == nc + (cand[i] - 1) + 2) n = cand[i];
     } }
@@ -1139,8 +1152,7 @@ static int magic_prefix_clues(const int *prefix, int P, char *out, size_t cap) {
         for (int c = 0; c < n; c++) {
             int id = prefix[1 + r * (n + 1) + c];
             if (id < 0 || id > nc) return 0;
-            /* cell symbols mirror magic-check: 1-9, A-Z, 36 -> '0' */
-            out[r * n + c] = id ? (id == 36 ? '0' : sudoku_val_char(id)) : '.';
+            out[r * n + c] = id ? magic_cell_sym(id) : '.';
             if (id && !out[r * n + c]) return 0;
         }
     }
@@ -1195,8 +1207,8 @@ static int cmd_eval_magic(App *a, int argc, char **argv) {
     const char *jpath = opt(&argc, &argv, "--jsonl");
     if (!inp || !refs) { fprintf(stderr, "need --inputs and --refs\n"); return 2; }
     int size_flag = szs ? atoi(szs) : 3;
-    if (size_flag != 3 && size_flag != 6) {
-        fprintf(stderr, "eval-magic: bad --size (want 3 or 6)\n");
+    if (size_flag < 3 || size_flag > 9) {
+        fprintf(stderr, "eval-magic: bad --size (want 3..9)\n");
         return 2;
     }
     int n = size_flag, nc = n * n;
@@ -1576,82 +1588,158 @@ static int cmd_sudoku_check(int argc, char **argv) {
     return 0;
 }
 
-/* magic square symbol: 1-9 -> '1'-'9', 10-35 -> 'A'-'Z', 36 -> '0'. */
+/* magic square symbol table (mirrors tools/magic.py):
+ * 1-9 -> '1'-'9', 10-35 -> 'A'-'Z', 36 -> '0',
+ * 37-62 -> 'a'-'z', 63-81 -> EXTRA. */
+static const char MAGIC_EXTRA[] = "!@#$%^&*()-_=+[]{}|";
+
 static int magic_char_val(char c) {
     if (c >= '1' && c <= '9') return c - '0';
     if (c >= 'A' && c <= 'Z') return 10 + (c - 'A');
     if (c == '0') return 36;
+    if (c >= 'a' && c <= 'z') return 37 + (c - 'a');
+    const char *p = strchr(MAGIC_EXTRA, c);
+    if (p) return 63 + (int)(p - MAGIC_EXTRA);
     return -1;
 }
 
-/* magic-check: normal magic square query (no model involved).
- * n=3: 9 chars; n=6: 36 chars. Requires 1..n^2 exactly once and every
- * row/col/diag summing to n(n^2+1)/2. --clues adds clue_ok. */
+static char magic_cell_sym(int v) {
+    if (v >= 1 && v <= 9) return (char)('0' + v);
+    if (v >= 10 && v <= 35) return (char)('A' + (v - 10));
+    if (v == 36) return '0';
+    if (v >= 37 && v <= 62) return (char)('a' + (v - 37));
+    if (v >= 63 && v <= 81) return MAGIC_EXTRA[v - 63];
+    return 0;
+}
+
+/* magic-check: magic square query (no model involved).
+ * normal family: 1..n^2 exactly once, every row/col/diag sums to
+ *   n(n^2+1)/2. --size 3..9.
+ * ramanujan family (--size 4 only): parametric birthday squares, no
+ *   permutation requirement; rows/cols/diags + corners + center 2x2
+ *   must match the first-row sum. --board accepts symbols or CSV ints
+ *   (CSV also covers negative/large values). --clues adds clue_ok. */
 static int cmd_magic_check(int argc, char **argv) {
     const char *b = opt(&argc, &argv, "--board");
     const char *cl = opt(&argc, &argv, "--clues");
     const char *sn = opt(&argc, &argv, "--size");
+    const char *fm = opt(&argc, &argv, "--family");
+    int is_rama = fm && !strcmp(fm, "ramanujan");
     int n = sn ? atoi(sn) : 3;
-    if (n != 3 && n != 6) {
-        fprintf(stderr, "magic-check: bad --size (want 3 or 6)\n");
+    if (is_rama && n != 4) {
+        fprintf(stderr, "magic-check: ramanujan family needs --size 4\n");
+        return 2;
+    }
+    if (!is_rama && (n < 3 || n > 9)) {
+        fprintf(stderr, "magic-check: bad --size (want 3..9)\n");
         return 2;
     }
     int nc = n * n, want = n * (nc + 1) / 2;
-    if (!b || (int)strlen(b) != nc) {
-        fprintf(stderr, "magic-check needs --board with %d chars\n", nc);
-        return 2;
-    }
-    int v[36];
-    for (int i = 0; i < nc; i++) {
-        v[i] = magic_char_val(b[i]);
-        if (v[i] < 1 || v[i] > nc) {
-            fprintf(stderr, "magic-check: bad char at %d\n", i);
+    if (!b) { fprintf(stderr, "magic-check needs --board\n"); return 2; }
+    int v[81];
+    int is_csv = strchr(b, ',') != NULL;
+    if (is_csv) {
+        int nn = parse_ids(b, v, nc + 1);
+        if (nn != nc) {
+            fprintf(stderr, "magic-check: want %d CSV ids, got %d\n", nc, nn);
             return 2;
         }
+        if (!is_rama) {
+            for (int i = 0; i < nc; i++)
+                if (v[i] < 1 || v[i] > nc) {
+                    fprintf(stderr, "magic-check: bad value at %d\n", i);
+                    return 2;
+                }
+        }
+    } else {
+        if ((int)strlen(b) != nc) {
+            fprintf(stderr, "magic-check needs --board with %d chars\n", nc);
+            return 2;
+        }
+        for (int i = 0; i < nc; i++) {
+            v[i] = magic_char_val(b[i]);
+            if (v[i] < 1 || v[i] > nc) {
+                fprintf(stderr, "magic-check: bad char at %d\n", i);
+                return 2;
+            }
+        }
     }
-    if (cl && (int)strlen(cl) != nc) {
+    if (cl && !strchr(cl, ',') && (int)strlen(cl) != nc) {
         fprintf(stderr, "magic-check: --clues needs %d chars ('.' for empty)\n", nc);
         return 2;
     }
-    /* permutation 1..nc */
-    int seen[37] = {0}, perm = 1;
-    for (int i = 0; i < nc; i++) {
-        if (seen[v[i]]) { perm = 0; break; }
-        seen[v[i]] = 1;
-    }
-    char bad[256];
+    char bad[512];
     int nb = 0;
     bad[0] = 0;
-    if (!perm) {
-        nb += snprintf(bad + nb, sizeof(bad) - nb, "\"perm\"");
+    if (is_rama) {
+        int S = v[0] + v[1] + v[2] + v[3];
+        want = S;
+        for (int r = 0; r < 4; r++) {
+            int s = v[r * 4] + v[r * 4 + 1] + v[r * 4 + 2] + v[r * 4 + 3];
+            if (s != S) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"r%d\"", nb ? "," : "", r);
+        }
+        for (int c = 0; c < 4; c++) {
+            int s = v[c] + v[4 + c] + v[8 + c] + v[12 + c];
+            if (s != S) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"c%d\"", nb ? "," : "", c);
+        }
+        if (v[0] + v[5] + v[10] + v[15] != S)
+            nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d0\"", nb ? "," : "");
+        if (v[3] + v[6] + v[9] + v[12] != S)
+            nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d1\"", nb ? "," : "");
+        if (v[0] + v[3] + v[12] + v[15] != S)
+            nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"corn\"", nb ? "," : "");
+        if (v[5] + v[6] + v[9] + v[10] != S)
+            nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"ctr\"", nb ? "," : "");
     } else {
-        for (int r = 0; r < n; r++) {
-            int s = 0;
-            for (int c = 0; c < n; c++) s += v[r * n + c];
-            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"r%d\"", nb ? "," : "", r);
+        /* permutation 1..nc */
+        int seen[82] = {0}, perm = 1;
+        for (int i = 0; i < nc; i++) {
+            if (seen[v[i]]) { perm = 0; break; }
+            seen[v[i]] = 1;
         }
-        for (int c = 0; c < n; c++) {
-            int s = 0;
-            for (int r = 0; r < n; r++) s += v[r * n + c];
-            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"c%d\"", nb ? "," : "", c);
-        }
-        {
-            int s = 0;
-            for (int i = 0; i < n; i++) s += v[i * n + i];
-            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d0\"", nb ? "," : "");
-        }
-        {
-            int s = 0;
-            for (int i = 0; i < n; i++) s += v[i * n + (n - 1 - i)];
-            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d1\"", nb ? "," : "");
+        if (!perm) {
+            nb += snprintf(bad + nb, sizeof(bad) - nb, "\"perm\"");
+        } else {
+            for (int r = 0; r < n; r++) {
+                int s = 0;
+                for (int c = 0; c < n; c++) s += v[r * n + c];
+                if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"r%d\"", nb ? "," : "", r);
+            }
+            for (int c = 0; c < n; c++) {
+                int s = 0;
+                for (int r = 0; r < n; r++) s += v[r * n + c];
+                if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"c%d\"", nb ? "," : "", c);
+            }
+            {
+                int s = 0;
+                for (int i = 0; i < n; i++) s += v[i * n + i];
+                if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d0\"", nb ? "," : "");
+            }
+            {
+                int s = 0;
+                for (int i = 0; i < n; i++) s += v[i * n + (n - 1 - i)];
+                if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d1\"", nb ? "," : "");
+            }
         }
     }
     int valid = (nb == 0);
     int cok = 1;
     if (cl) {
-        for (int i = 0; i < nc; i++) {
-            if (cl[i] == '.' || cl[i] == 0) continue;
-            if (magic_char_val(cl[i]) != v[i]) { cok = 0; break; }
+        if (strchr(cl, ',')) {
+            /* CSV clues: entries must equal the board except hole
+             * markers (0 or the emitted RAMA_HOLE sentinel). */
+            int cv[82], nn = parse_ids(cl, cv, nc + 1);
+            cok = (nn == nc);
+            if (cok) for (int i = 0; i < nc; i++) {
+                if (cv[i] == v[i]) continue;
+                if (cv[i] == 0 || cv[i] == -1073741824) continue;
+                cok = 0; break;
+            }
+        } else {
+            for (int i = 0; i < nc; i++) {
+                if (cl[i] == '.' || cl[i] == 0) continue;
+                if (magic_char_val(cl[i]) != v[i]) { cok = 0; break; }
+            }
         }
     }
     printf("{\"valid\":%s,\"magic_sum\":%d,\"bad_lines\":[%s]",
@@ -1659,4 +1747,79 @@ static int cmd_magic_check(int argc, char **argv) {
     if (cl) printf(",\"clue_ok\":%s", cok ? "true" : "false");
     printf("}\n");
     return 0;
+}
+
+/* arith-check: deterministic number-theory checks (no model involved).
+ * cubesum: verify A^3 + B^3 == N (64-bit, |A|,|B| <= 10^6).
+ * taxicab: verify A^3+B^3 == C^3+D^3 with {A,B} != {C,D} as multisets.
+ * divisible: verify N divisible by every D in --by CSV. */
+static long long cubesum3(long long a, long long b) {
+    return a * a * a + b * b * b;
+}
+
+static int cmd_arith_check(int argc, char **argv) {
+    const char *op = opt(&argc, &argv, "--op");
+    if (!op) { fprintf(stderr, "arith-check needs --op cubesum|taxicab|divisible\n"); return 2; }
+    if (!strcmp(op, "cubesum")) {
+        const char *sa = opt(&argc, &argv, "--a");
+        const char *sb = opt(&argc, &argv, "--b");
+        const char *sn = opt(&argc, &argv, "--n");
+        if (!sa || !sb || !sn) { fprintf(stderr, "cubesum needs --a --b --n\n"); return 2; }
+        long long a = atoll(sa), b = atoll(sb), n = atoll(sn);
+        if (llabs(a) > 1000000 || llabs(b) > 1000000) {
+            fprintf(stderr, "cubesum: |a|,|b| <= 1000000\n");
+            return 2;
+        }
+        long long s = cubesum3(a, b);
+        printf("{\"op\":\"cubesum\",\"a\":%lld,\"b\":%lld,\"sum\":%lld,\"n\":%lld,\"valid\":%s}\n",
+               a, b, s, n, s == n ? "true" : "false");
+        return 0;
+    }
+    if (!strcmp(op, "taxicab")) {
+        const char *sa = opt(&argc, &argv, "--a");
+        const char *sb = opt(&argc, &argv, "--b");
+        const char *sc = opt(&argc, &argv, "--c");
+        const char *sd = opt(&argc, &argv, "--d");
+        if (!sa || !sb || !sc || !sd) { fprintf(stderr, "taxicab needs --a --b --c --d\n"); return 2; }
+        long long a = atoll(sa), b = atoll(sb), c = atoll(sc), d = atoll(sd);
+        if (llabs(a) > 1000000 || llabs(b) > 1000000 || llabs(c) > 1000000 || llabs(d) > 1000000) {
+            fprintf(stderr, "taxicab: values bounded by 1000000 in magnitude\n");
+            return 2;
+        }
+        long long s1 = cubesum3(a, b), s2 = cubesum3(c, d);
+        int distinct = !((a == c && b == d) || (a == d && b == c));
+        int ok = (s1 == s2) && distinct;
+        printf("{\"op\":\"taxicab\",\"sum\":%lld,\"pair1\":[%lld,%lld],\"pair2\":[%lld,%lld],\"distinct\":%s,\"valid\":%s}\n",
+               s1, a, b, c, d, distinct ? "true" : "false", ok ? "true" : "false");
+        return 0;
+    }
+    if (!strcmp(op, "divisible")) {
+        const char *sn = opt(&argc, &argv, "--n");
+        const char *sb = opt(&argc, &argv, "--by");
+        if (!sn || !sb) { fprintf(stderr, "divisible needs --n and --by D,...\n"); return 2; }
+        long long n = atoll(sn);
+        int ds[64], nd = 0;
+        {
+            const char *p = sb;
+            while (*p && nd < 64) {
+                while (*p == ' ' || *p == ',') p++;
+                if (!*p) break;
+                ds[nd++] = atoi(p);
+                while (*p && *p != ',') p++;
+            }
+        }
+        if (!nd) { fprintf(stderr, "divisible: empty --by list\n"); return 2; }
+        int bad[64], nbad = 0;
+        for (int i = 0; i < nd; i++) {
+            if (ds[i] == 0 || (n % ds[i] != 0)) bad[nbad++] = ds[i];
+        }
+        printf("{\"op\":\"divisible\",\"n\":%lld,\"by\":[", n);
+        for (int i = 0; i < nd; i++) printf("%s%d", i ? "," : "", ds[i]);
+        printf("],\"valid\":%s,\"failures\":[", nbad ? "false" : "true");
+        for (int i = 0; i < nbad; i++) printf("%s%d", i ? "," : "", bad[i]);
+        printf("]}\n");
+        return 0;
+    }
+    fprintf(stderr, "arith-check: bad --op (want cubesum|taxicab|divisible)\n");
+    return 2;
 }

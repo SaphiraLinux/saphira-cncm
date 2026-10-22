@@ -121,6 +121,39 @@ def loshu():
     return [8, 1, 6, 3, 5, 7, 4, 9, 2]
 
 
+def ramanujan(a, b, c, d):
+    """Ramanujan's parametric 4x4 birthday square.
+
+    First row (a, b, c, d) is free (e.g. day, month, century, year);
+    the rest is forced. Every row/col/diag, the four corners and the
+    central 2x2 sum to a+b+c+d. Verified against the historical
+    (22,12,18,87) square (greedy transcription errors in circulation
+    use 21/11 for the last two cells; the correct values are 23/11).
+    Repeated values are allowed: no permutation requirement.
+    """
+    return [a, b, c, d,
+            d + 1, c - 1, b - 3, a + 3,
+            b - 2, a + 2, d + 2, c - 2,
+            c + 1, d - 1, a + 1, b - 1]
+
+
+def ramanujan_valid(grid):
+    """12-constraint check: rows, cols, diags, corners, center 2x2."""
+    if len(grid) != 16:
+        return False
+    S = sum(grid[0:4])
+    lines = []
+    for r in range(4):
+        lines.append(sum(grid[r * 4:(r + 1) * 4]))
+    for c in range(4):
+        lines.append(sum(grid[r * 4 + c] for r in range(4)))
+    lines.append(sum(grid[i * 5] for i in range(4)))
+    lines.append(sum(grid[i * 4 + 3 - i] for i in range(4)))
+    lines.append(grid[0] + grid[3] + grid[12] + grid[15])
+    lines.append(sum(grid[5:7]) + sum(grid[9:11]))
+    return all(v == S for v in lines)
+
+
 DURER = [16, 2, 3, 13, 5, 11, 10, 8, 9, 7, 6, 12, 4, 14, 15, 1]
 
 
@@ -230,7 +263,9 @@ def dfs4(limit=880, time_budget=120):
         if time.time() - start > time_budget:
             return True
         if pos == 16:
-            # full check
+            # full check (corner order completes the dihedral break)
+            if not (grid[0] < grid[15] and grid[3] < grid[12]):
+                return False
             if all(row_ok(r) for r in range(4)):
                 cols = all(sum(grid[r * 4 + c] for r in range(4)) == S for c in range(4))
                 d0 = sum(grid[i * 5] for i in range(4)) == S
@@ -242,12 +277,10 @@ def dfs4(limit=880, time_budget=120):
                         found.append(list(grid))
             return len(found) >= limit
         r, c = pos // 4, pos % 4
-        # symmetry break on corners
-        if pos == 3 and not (grid[0] < grid[3]):
+        # symmetry break on corners (checked after the cell is placed)
+        if pos == 4 and not (grid[0] < grid[3]):
             return False
-        if pos == 12 and not (grid[0] < grid[12]):
-            return False
-        if pos == 15 and not (grid[0] < grid[15] and grid[3] < grid[12]):
+        if pos == 13 and not (grid[0] < grid[12]):
             return False
         # row pruning
         if c == 3:
@@ -315,23 +348,33 @@ def base_set(order, rng=None, tries=0):
     if order in (5, 7, 9):
         out = [siamese(order)]
         r = rng or random.Random(order)
-        out += linear_family(order, r, tries or 20000)
+        out += linear_family(order, r, tries or (80000 if order == 9 else 20000))
         for t in list(out):
             out += dihedral(t, order)
             out.append(complement(t, order))
         return dedupe(out)
     if order == 6:
-        out = lux6()
+        rng = rng or random.Random(6)
+        inners = dedupe(dihedral(DURER, 4))[:8]
+        out = []
+        for inner in inners:
+            for _ in range(40):
+                g = border6(inner, rng)
+                if g:
+                    out.append(g)
         for t in list(out):
             out += dihedral(t, 6)
             out.append(complement(t, 6))
         return dedupe(out)
     if order == 8:
+        rng = rng or random.Random(8)
+        inners = base_set(6, random.Random(8))[:12]
         out = []
-        for s in range(64):
-            g = doubly_even(8, seed=s)
-            if validate(g, 8):
-                out.append(g)
+        for inner in inners:
+            for _ in range(30):
+                g = border_nm(inner, 6, 8, rng)
+                if g:
+                    out.append(g)
         for t in list(out):
             out += dihedral(t, 8)
             out.append(complement(t, 8))
@@ -339,46 +382,58 @@ def base_set(order, rng=None, tries=0):
     raise ValueError(order)
 
 
-def border6(inner4, rng, maxtries=5000):
-    """Border a shifted 4x4 (numbers 11..26, line sum 74) to normal 6x6.
+def border_nm(inner_m, m, n, rng, maxtries=200000):
+    """Border an m×m normal magic square to a normal n×m... (n = m+2).
 
-    The 10 border pair-slots (4 horizontal, 4 vertical, 2 diagonal) must
-    each hold a complementary pair (summing to 37); rows 1-4, cols 1-4
-    and both diagonals then sum correctly by construction. Row 0 and
-    col 0 are checked explicitly; random sampling hits them quickly.
+    Inner values are shifted into the middle range; the border holds the
+    remaining low/high numbers as complementary pairs (summing to n^2+1).
+    Each border pair-slot (m horizontal, m vertical, 2 diagonal) gets one
+    complementary pair, which satisfies every inner line and both
+    diagonals by construction; row 0 and col 0 are checked explicitly
+    and hit quickly under random sampling.
     """
-    inner = [v + 10 for v in inner4]  # 1..16 -> 11..26, sums 34 -> 74
-    pairs = [(i, 37 - i) for i in range(1, 19) if i < 37 - i]
+    L = (n * n - m * m) // 2
+    assert L * 2 == n * n - m * m
+    inner = [v + L for v in inner_m]
+    S = n * (n * n + 1) // 2
+    P = n * n + 1
+    pairs = [(i, P - i) for i in range(1, L + 1)]
+    o = (n - m) // 2
     for _ in range(maxtries):
         rng.shuffle(pairs)
-        (h1, h2, h3, h4), (v1, v2, v3, v4), (d1, d2) = \
-            pairs[0:4], pairs[4:8], pairs[8:10]
-        # orientations: bit i chooses low/high for slot i
-        o = rng.randrange(1 << 10)
-        H = [[p[0], p[1]] if (o >> i) & 1 else [p[1], p[0]]
-             for i, p in enumerate([h1, h2, h3, h4])]
-        V = [[p[0], p[1]] if (o >> (4 + i)) & 1 else [p[1], p[0]]
-             for i, p in enumerate([v1, v2, v3, v4])]
-        D = [[p[0], p[1]] if (o >> (8 + i)) & 1 else [p[1], p[0]]
-             for i, p in enumerate([d1, d2])]
-        # row 0: C1 T1 T2 T3 T4 C2 ; col 0: C1 L1..L4 C3
-        r0 = D[0][0] + sum(V[j][0] for j in range(4)) + D[1][0]
-        c0 = D[0][0] + sum(H[i][0] for i in range(4)) + D[1][1]
-        if r0 != 111 or c0 != 111:
+        H, V, D = pairs[0:m], pairs[m:2 * m], pairs[2 * m:2 * m + 2]
+        b = 2 * m + 2
+        oo = rng.randrange(1 << b)
+        H = [[p[0], p[1]] if (oo >> i) & 1 else [p[1], p[0]]
+             for i, p in enumerate(H)]
+        V = [[p[0], p[1]] if (oo >> (m + i)) & 1 else [p[1], p[0]]
+             for i, p in enumerate(V)]
+        D = [[p[0], p[1]] if (oo >> (2 * m + i)) & 1 else [p[1], p[0]]
+             for i, p in enumerate(D)]
+        r0 = D[0][0] + sum(V[j][0] for j in range(m)) + D[1][0]
+        c0 = D[0][0] + sum(H[i][0] for i in range(m)) + D[1][1]
+        if r0 != S or c0 != S:
             continue
-        g = [0] * 36
-        g[0], g[5], g[30], g[35] = D[0][0], D[1][0], D[1][1], D[0][1]
-        for j in range(4):
-            g[1 + j] = V[j][0]
-            g[31 + j] = V[j][1]
-            g[6 + 6 * j] = H[j][0]
-            g[11 + 6 * j] = H[j][1]
-        for r in range(4):
-            for c in range(4):
-                g[(r + 1) * 6 + (c + 1)] = inner[r * 4 + c]
-        if validate(g, 6):
+        g = [0] * (n * n)
+        g[0], g[n - 1], g[(n - 1) * n], g[n * n - 1] = \
+            D[0][0], D[1][0], D[1][1], D[0][1]
+        for j in range(m):
+            g[o + j] = V[j][0]
+            g[(n - 1) * n + o + j] = V[j][1]
+        for i in range(m):
+            g[(o + i) * n] = H[i][0]
+            g[(o + i) * n + n - 1] = H[i][1]
+        for r in range(m):
+            for c in range(m):
+                g[(o + r) * n + (o + c)] = inner[r * m + c]
+        if validate(g, n):
             return g
     return None
+
+
+def border6(inner4, rng, maxtries=200000):
+    """4x4 -> 6x6 via the generic border (kept as a named entry point)."""
+    return border_nm(inner4, 4, 6, rng, maxtries)
 
 
 def dedupe(grids):
@@ -426,7 +481,63 @@ def holes_of(full, rng, holes):
     return pz
 
 
-def emit_data(order, outdir, train_n, held_n, seed, holes_frac=0.5):
+RAMA_HOLE = -(2 ** 30)
+
+
+def emit_ramanujan(outdir, train_n, held_n, seed):
+    """Sampled birthday squares: day 1-31, month 1-12, century 18-20,
+    year 0-99. Prefix rows are [a,b,c,d] + 16 cells (holes = RAMA_HOLE);
+    sol rows are the 16 solution cells. No wrap/sep framing needed since
+    the first four ids are the parameters. Disjoint by exact match."""
+    rng = random.Random(seed)
+    combos = [(a, b, c, d)
+              for a in range(1, 32) for b in range(1, 13)
+              for c in (18, 19, 20) for d in range(0, 100)]
+    rng.shuffle(combos)
+    assert len(combos) >= train_n + held_n
+    def rows_of(sel):
+        pz, sol, pre = [], [], []
+        for (a, b, c, d) in sel:
+            full = ramanujan(a, b, c, d)
+            assert ramanujan_valid(full)
+            idx = list(range(16))
+            rng.shuffle(idx)
+            nh = rng.choice((5, 6, 7))
+            p = list(full)
+            for i in idx[:nh]:
+                p[i] = RAMA_HOLE
+            pz.append(p)
+            sol.append(full)
+            pre.append([a, b, c, d] + p)
+        return pz, sol, pre
+    tr = rows_of(combos[:train_n])
+    he = rows_of(combos[train_n:train_n + held_n])
+    st = set(tuple(r) for r in tr[2])
+    ov = [i for i, r in enumerate(he[2]) if tuple(r) in st]
+    print("ramanujan: train=%d held=%d overlap=%d" % (len(tr[0]), len(he[0]), len(ov)))
+    assert not ov
+    for name, data in (("train", tr), ("held", he)):
+        d = os.path.join(outdir, name)
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "prefix.txt"), "w") as f:
+            f.write("\n".join(",".join(map(str, r)) for r in data[2]) + "\n")
+        with open(os.path.join(d, "solutions.txt"), "w") as f:
+            f.write("\n".join(",".join(map(str, r)) for r in data[1]) + "\n")
+    with open(os.path.join(outdir, "PROVENANCE.txt"), "w") as f:
+        f.write("ramanujan 4x4: sampled birthdays day 1-31 month 1-12\n")
+        f.write("century {18,19,20} year 0-99; holes 5-7; HOLE=%d\n" % RAMA_HOLE)
+        f.write("train=%d held=%d seed=%d (disjoint full rows)\n"
+                % (train_n, held_n, seed))
+        f.write("NOTE: values can repeat and go negative; no permutation\n")
+        f.write("requirement. VQ/training encoding (offset+hole map) is\n")
+        f.write("future work; generator+validator are the contract.\n")
+
+
+def emit_data(order, outdir, train_n, held_n, seed, holes_frac=0.5,
+              family="normal"):
+    if family == "ramanujan":
+        assert order == 4
+        return emit_ramanujan(outdir, train_n, held_n, seed)
     sols = base_set(order, random.Random(seed))
     rng = random.Random(seed)
     n = order
@@ -491,11 +602,20 @@ def selftest():
     assert validate(siamese(5), 5) and validate(siamese(7), 7)
     assert validate(siamese(9), 9)
     assert validate(doubly_even(8, seed=0), 8)
-    assert validate(lux6()[0], 6)
+    b6 = border6(DURER, random.Random(6))
+    assert b6 and validate(b6, 6)
     # Sagrada Familia square: right sums, wrong set -> correctly invalid
     sagrada = [1, 14, 14, 4, 11, 7, 6, 9, 13, 2, 15, 12, 8, 10, 5, 3]
     assert sum(sagrada[0:4]) == 33 and not validate(sagrada, 4)
-    print("magic selftest OK: sums, symbols roundtrip 1..81, 3/4/5/6/7/8/9 constructors")
+    # Ramanujan family: historical square + 2000 random parametrisations
+    hist = [22, 12, 18, 87, 88, 17, 9, 25, 10, 24, 89, 16, 19, 86, 23, 11]
+    assert ramanujan(22, 12, 18, 87) == hist
+    assert ramanujan_valid(hist)
+    rr = random.Random(7)
+    for _ in range(2000):
+        aa, bb, cc, dd = [rr.randint(-50, 200) for _ in range(4)]
+        assert ramanujan_valid(ramanujan(aa, bb, cc, dd))
+    print("magic selftest OK: sums, symbols roundtrip 1..81, 3/4/5/6/7/8/9 constructors, ramanujan family")
 
 
 def main():
@@ -507,12 +627,21 @@ def main():
     ap.add_argument("--train-n", type=int, default=1024)
     ap.add_argument("--held-n", type=int, default=128)
     ap.add_argument("--seed", type=int, default=3)
+    ap.add_argument("--family", default="normal",
+                    help="normal | ramanujan (ramanujan implies order 4)")
     a = ap.parse_args()
     if a.selftest:
         selftest()
         return 0
     if a.census:
         census()
+        return 0
+    if a.family == "ramanujan":
+        if a.emit_data:
+            emit_data(4, a.emit_data, a.train_n, a.held_n, a.seed,
+                      family="ramanujan")
+        else:
+            print("ramanujan family: use --emit-data DIR (birthdays sampled)")
         return 0
     sols = base_set(a.order, random.Random(a.seed))
     print("order=%d distinct solutions=%d" % (a.order, len(sols)))
