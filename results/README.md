@@ -41,7 +41,8 @@ training, or is the architecture/hyperparameters the problem?
   of the VQ before revival). NCP checkpoints untouched.
 - Run: warm start from vq-final (fresh optimizer, same lr/schedule
   shape), +400 steps on CUDA (`results/logs/vq_revival400.log`).
-  Final weights: `weights/sudoku-16/vq-revived-600.ncm` (git-ignored).
+  Final weights of that run: `weights/sudoku-16/vq-cont600-nosurgery.ncm`
+  (git-ignored; renamed from vq-revived-600.ncm for clarity).
 - Telemetry: `train_vq` now prints `[vq-usage]` per-level occupancy,
   entropy (bits) and dominant-code share every 50 steps over a fixed
   512-row probe subset (read-only; no tape/grad/RNG impact).
@@ -57,6 +58,32 @@ training, or is the architecture/hyperparameters the problem?
   current EMA/commitment setup. The fix must be hyperparameter or
   architectural (EMA schedule, commitment weight, dead-code reset,
   different ladder), not more steps.
+
+## Dead-code surgery + retention experiment
+
+`vq-revive` (new `cncm` command) + `vq_revive_dead` (new `vq.c` API):
+encode a 1024-row window, count per-level usage, reseed zero-use codes
+with actual encoder outputs at the matching level (distinct frames),
+reset EMA counts/accumulators with an exact smoothing write-back so
+continued training inherits a consistent state. Deterministic given
+seed; writes a NEW weights file, inputs untouched
+(`vq-revived.ncm`; control copy verified byte-identical).
+
+- Surgery on the 200-step VQ revived **74 codes** (L0-L4: 15,14,15,14,10).
+- Immediately after, held-out usage (512 unseen puzzles):
+  L0-L4 = 1,14,7,15,16 of 16 (was 1,2,1,2,6). Revived codes ARE used.
+- After +200 continued steps (fresh optimizer, same lr):
+  held-out L0-L4 = 1,2,4,10,11. L1 eroded 14->2; L0 never informative
+  (same winning code before/after). L2-L4 retain gains.
+- Recon (64 held boards): baseline 95.81% cell match, post-surgery
+  95.68%, post-continued 96.46%; valid boards 0/64 throughout.
+- `vq16_revival_stages.svg` compares L0-L4 across stages;
+  `vq16_recon_{baseline64,revived64,cont200}.txt` are the boards.
+- Verdict: revival is mechanically possible and revived codes get used,
+  but current training dynamics re-collapse L0/L1. Combined with the
+  no-surgery control (600 steps: coarse usage byte-identical to 200),
+  the evidence now favors quantiser-mechanism work over more steps.
+  NCP was deliberately not retrained.
 
 ## Provenance note (2026-10-22)
 
