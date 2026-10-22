@@ -36,6 +36,12 @@ static void usage(const char *a) {
         "             --sol S.nctrain --out recon.txt [--max-rows N]\n"
         "             (diagnostic: solution ids -> VQ codes -> decoded text;\n"
         "             reports id-level reconstruction match)\n"
+        "  %s magic-check --board DIGITS [--size 3|6] [--clues CELLS]\n"
+        "             (normal magic square: 1..n^2 exactly once, every\n"
+        "              row/col/diag sums to n(n^2+1)/2; 6 uses 1-9,A-Z,0=36)\n"
+        "  %s eval-magic --conf M.conf --weights M.ncm --asset-dir D\n"
+        "             --inputs prefix.txt --refs solutions.txt [--n N]\n"
+        "             [--size 3|6] [--seed n] [--jsonl out.jsonl]\n"
         "  %s gpt2-gen --conf M.conf --weights M.ncm --asset-dir D\n"
         "             (--prompt TEXT | --ids CSV) [--n N] [--temp f]\n"
         "             [--top-k n] [--top-p f] [--seed n]\n"
@@ -61,7 +67,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -167,14 +173,16 @@ static int cmd_gen(App *a, int argc, char **argv);
 static int cmd_eval_sudoku(App *a, int argc, char **argv);
 static int cmd_sudoku_stream(App *a, int argc, char **argv);
 static int cmd_sudoku_check(int argc, char **argv);
+static int cmd_magic_check(int argc, char **argv);
+static int cmd_eval_magic(App *a, int argc, char **argv);
+static int magic_char_val(char c);
 static int cmd_vq_encode(const NCMConfig *c, const char *weights,
                          const char *pref_path, const char *sol_path,
                          const char *out_path, int max_rows);
 static int cmd_vq_recon(const NCMConfig *c, const char *weights,
                         const char *sol_path, const char *out_path,
                         int max_rows);
-static double stream_now_ms(void);
-static void sudoku_cells(const char *s, char *out);
+static double stream_now_ms(void);static void sudoku_cells(const char *s, char *out);
 static int sudoku_valid_sz(const char *cells, int n);
 static int stream_bad_units_sz(const char *cells, int n, int box,
                                int *br, int *nb_r,
@@ -376,7 +384,7 @@ static int cmd_vq_recon(const NCMConfig *c, const char *weights,
     }
     /* grid width from the text length T = n*n + (n-1) */
     int n = 0;
-    { int cand[3] = {9, 16, 25}; for (int i = 0; i < 3; i++)
+    { int cand[4] = {3, 9, 16, 25}; for (int i = 0; i < 4; i++)
         if (cand[i] * cand[i] + cand[i] - 1 == T) n = cand[i]; }
     if (!n) { fprintf(stderr, "vq-recon: no grid size for T=%d\n", T); return 1; }
     int nc = n * n;
@@ -448,8 +456,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -473,6 +481,13 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "sudoku-check") == 0) {
         return cmd_sudoku_check(argc, argv);
+    }
+    if (strcmp(argv[1], "magic-check") == 0) {
+        return cmd_magic_check(argc, argv);
+    }
+    if (strcmp(argv[1], "eval-magic") == 0) {
+        app_load(&a, conf, weights, adir);
+        return cmd_eval_magic(&a, argc, argv);
     }
     if (strcmp(argv[1], "gpt2-gen") == 0) {
         const char *prompt = opt(&argc, &argv, "--prompt");
@@ -1106,6 +1121,171 @@ static int cmd_eval_sudoku(App *a, int argc, char **argv) {
     return 0;
 }
 
+/* magic framing: [wrap] rows joined by [sep] [wrap], wrap = n*n+2,
+ * sep = n*n+1 (3x3: 11/10, same ids as 9x9 Sudoku). Returns 1 with
+ * ncells symbol chars ('.' for holes) in out. */
+static int magic_prefix_clues(const int *prefix, int P, char *out, size_t cap) {
+    int n = 0;
+    { int cand[2] = {3, 6}; for (int i = 0; i < 2; i++) {
+        int nc = cand[i] * cand[i];
+        if (P == nc + (cand[i] - 1) + 2) n = cand[i];
+    } }
+    if (!n) return 0;
+    int nc = n * n, sep = nc + 1, wrap = nc + 2;
+    if ((size_t)nc + 1 > cap) return 0;
+    if (prefix[0] != wrap || prefix[P - 1] != wrap) return 0;
+    for (int r = 0; r < n; r++) {
+        if (r < n - 1 && prefix[1 + r * (n + 1) + n] != sep) return 0;
+        for (int c = 0; c < n; c++) {
+            int id = prefix[1 + r * (n + 1) + c];
+            if (id < 0 || id > nc) return 0;
+            /* cell symbols mirror magic-check: 1-9, A-Z, 36 -> '0' */
+            out[r * n + c] = id ? (id == 36 ? '0' : sudoku_val_char(id)) : '.';
+            if (id && !out[r * n + c]) return 0;
+        }
+    }
+    out[nc] = 0;
+    return n;
+}
+
+/* 1 when cells (ncells symbols) is a normal magic square of width n. */
+static int magic_valid_sz(const char *cells, int n) {
+    int nc = n * n, want = n * (nc + 1) / 2;
+    if ((int)strlen(cells) != nc) return 0;
+    int seen[37] = {0};
+    for (int i = 0; i < nc; i++) {
+        int v = magic_char_val(cells[i]);
+        if (v < 1 || v > nc || seen[v]) return 0;
+        seen[v] = 1;
+    }
+    int v_[36];
+    for (int i = 0; i < nc; i++) v_[i] = magic_char_val(cells[i]);
+    for (int r = 0; r < n; r++) {
+        int s = 0;
+        for (int c = 0; c < n; c++) s += v_[r * n + c];
+        if (s != want) return 0;
+    }
+    for (int c = 0; c < n; c++) {
+        int s = 0;
+        for (int r = 0; r < n; r++) s += v_[r * n + c];
+        if (s != want) return 0;
+    }
+    {
+        int s = 0;
+        for (int i = 0; i < n; i++) s += v_[i * n + i];
+        if (s != want) return 0;
+    }
+    {
+        int s = 0;
+        for (int i = 0; i < n; i++) s += v_[i * n + (n - 1 - i)];
+        if (s != want) return 0;
+    }
+    return 1;
+}
+
+/* eval-magic: solve held-out magic puzzles, score vs solution text.
+ * --inputs: prefix id rows; --refs: solution symbol lines (no separators).
+ * JSONL per puzzle: idx,size,exact,valid,clue_ok,cell_frac,ms,board. */
+static int cmd_eval_magic(App *a, int argc, char **argv) {
+    const char *inp = opt(&argc, &argv, "--inputs");
+    const char *refs = opt(&argc, &argv, "--refs");
+    const char *sn = opt(&argc, &argv, "--n");
+    const char *ss = opt(&argc, &argv, "--seed");
+    const char *szs = opt(&argc, &argv, "--size");
+    const char *jpath = opt(&argc, &argv, "--jsonl");
+    if (!inp || !refs) { fprintf(stderr, "need --inputs and --refs\n"); return 2; }
+    int size_flag = szs ? atoi(szs) : 3;
+    if (size_flag != 3 && size_flag != 6) {
+        fprintf(stderr, "eval-magic: bad --size (want 3 or 6)\n");
+        return 2;
+    }
+    int n = size_flag, nc = n * n;
+    int nmax = sn ? atoi(sn) : 256;
+    unsigned long long seed = ss ? strtoull(ss, NULL, 10) : 0;
+    size_t ilen, rlen;
+    char *ibuf = slurp(inp, &ilen);
+    char *rbuf = slurp(refs, &rlen);
+    int nn = 0;
+    for (size_t i = 0; i < ilen; i++) if (ibuf[i] == '\n') nn++;
+    if (nn > nmax) nn = nmax;
+    char **ilines = (char **)malloc(nn * sizeof(char *));
+    char **rlines = (char **)malloc(nn * sizeof(char *));
+    ilines[0] = ibuf; rlines[0] = rbuf;
+    int ni = 1, nr = 1;
+    for (size_t i = 0; i < ilen && ni < nn; i++) if (ibuf[i] == '\n') { ibuf[i] = 0; if (ni < nn) ilines[ni++] = ibuf + i + 1; }
+    for (size_t i = 0; i < rlen && nr < nn; i++) if (rbuf[i] == '\n') { rbuf[i] = 0; if (nr < nn) rlines[nr++] = rbuf + i + 1; }
+
+    int P = a->cfg.prefix_len;
+    int l0len = a->cfg.levels[0];
+    int nl0 = 0;
+    double *l0p = load_allow(&a->ws, "inference.level0_unigram", &nl0);
+    int na = 0;
+    double *allow = load_allow(&a->ws, "inference.token_unigram", &na);
+    unsigned long long rng = seed ? seed : 0x9E3779B97F4A7C15ULL;
+    int B = 32, exact = 0, validn = 0;
+    double cell = 0;
+    int *prefix = (int *)malloc((size_t)B * P * sizeof(int));
+    int *l0 = (int *)malloc((size_t)B * l0len * sizeof(int));
+    FILE *jf = NULL;
+    if (jpath) {
+        jf = fopen(jpath, "w");
+        if (!jf) { fprintf(stderr, "eval-magic: cannot open %s\n", jpath); return 1; }
+    }
+    for (int s = 0; s < nn; s += B) {
+        int bb = nn - s < B ? nn - s : B;
+        for (int b = 0; b < bb; b++) {
+            int got = parse_ids(ilines[s + b], prefix + b * P, P);
+            for (int i = got; i < P; i++) prefix[b * P + i] = 0;
+        }
+        if (l0p) sample_l0(l0p, nl0, bb, l0len, &rng, l0);
+        double bt0 = stream_now_ms();
+        int *codes = ncp_generate(a->ncp, l0p ? l0 : NULL, prefix, bb, 0.0, 0, 1.0, 0.0,
+                                  0.0, 0.0, 0.0, 0, 0.0, allow, seed + s);
+        double bt1 = stream_now_ms();
+        double bms = (bt1 - bt0) / (bb > 0 ? bb : 1);
+        char **hyps = (char **)malloc(bb * sizeof(char *));
+        decode_boards(a, codes, bb, hyps);
+        for (int b = 0; b < bb; b++) {
+            char *hyp = hyps[b];
+            char hc[SUDOKU_MAX_CELLS + 1];
+            sudoku_cells(hyp, hc);
+            const char *ref = rlines[s + b];
+            int is_exact = (strcmp(hc, ref) == 0);
+            if (is_exact) exact++;
+            int same = 0;
+            for (int i = 0; i < nc && hc[i] && ref[i]; i++) if (hc[i] == ref[i]) same++;
+            cell += same / (double)nc;
+            int is_valid = magic_valid_sz(hc, n);
+            if (is_valid) validn++;
+            char pcl[SUDOKU_MAX_CELLS + 1];
+            int cok = 1;
+            if (magic_prefix_clues(prefix + b * P, P, pcl, sizeof(pcl))) {
+                for (int i = 0; i < nc; i++)
+                    if (pcl[i] != '.' && pcl[i] != hc[i]) { cok = 0; break; }
+            }
+            if (s == 0 && b < 2) printf("eg hyp: %s\nref: %s\n", hc, ref);
+            if (jf) {
+                fprintf(jf, "{\"idx\":%d,\"size\":%d,\"exact\":%s,\"valid\":%s,"
+                            "\"clue_ok\":%s,\"cell_frac\":%.4f,\"ms\":%.1f,"
+                            "\"board\":\"%s\"}\n",
+                        s + b, n, is_exact ? "true" : "false",
+                        is_valid ? "true" : "false", cok ? "true" : "false",
+                        same / (double)nc, bms, hc);
+            }
+            free(hyp);
+        }
+        free(hyps);
+        free(codes);
+        if ((s / B) % 10 == 0) { printf("  %d/%d\n", s + bb, nn); fflush(stdout); }
+    }
+    printf("solved %d/%d (%.2f%%) cell %.4f valid %d/%d (%.2f%%)\n",
+           exact, nn, 100.0 * exact / nn, cell / nn, validn, nn, 100.0 * validn / nn);
+    if (jf) fclose(jf);
+    free(prefix); free(l0); free(ilines); free(rlines); free(ibuf); free(rbuf);
+    free(l0p); free(allow);
+    return 0;
+}
+
 static double stream_now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1391,6 +1571,91 @@ static int cmd_sudoku_check(int argc, char **argv) {
     stream_json_ints(stdout, bc, nc);
     printf(",\"bad_boxes\":");
     stream_json_ints(stdout, bb, nb);
+    if (cl) printf(",\"clue_ok\":%s", cok ? "true" : "false");
+    printf("}\n");
+    return 0;
+}
+
+/* magic square symbol: 1-9 -> '1'-'9', 10-35 -> 'A'-'Z', 36 -> '0'. */
+static int magic_char_val(char c) {
+    if (c >= '1' && c <= '9') return c - '0';
+    if (c >= 'A' && c <= 'Z') return 10 + (c - 'A');
+    if (c == '0') return 36;
+    return -1;
+}
+
+/* magic-check: normal magic square query (no model involved).
+ * n=3: 9 chars; n=6: 36 chars. Requires 1..n^2 exactly once and every
+ * row/col/diag summing to n(n^2+1)/2. --clues adds clue_ok. */
+static int cmd_magic_check(int argc, char **argv) {
+    const char *b = opt(&argc, &argv, "--board");
+    const char *cl = opt(&argc, &argv, "--clues");
+    const char *sn = opt(&argc, &argv, "--size");
+    int n = sn ? atoi(sn) : 3;
+    if (n != 3 && n != 6) {
+        fprintf(stderr, "magic-check: bad --size (want 3 or 6)\n");
+        return 2;
+    }
+    int nc = n * n, want = n * (nc + 1) / 2;
+    if (!b || (int)strlen(b) != nc) {
+        fprintf(stderr, "magic-check needs --board with %d chars\n", nc);
+        return 2;
+    }
+    int v[36];
+    for (int i = 0; i < nc; i++) {
+        v[i] = magic_char_val(b[i]);
+        if (v[i] < 1 || v[i] > nc) {
+            fprintf(stderr, "magic-check: bad char at %d\n", i);
+            return 2;
+        }
+    }
+    if (cl && (int)strlen(cl) != nc) {
+        fprintf(stderr, "magic-check: --clues needs %d chars ('.' for empty)\n", nc);
+        return 2;
+    }
+    /* permutation 1..nc */
+    int seen[37] = {0}, perm = 1;
+    for (int i = 0; i < nc; i++) {
+        if (seen[v[i]]) { perm = 0; break; }
+        seen[v[i]] = 1;
+    }
+    char bad[256];
+    int nb = 0;
+    bad[0] = 0;
+    if (!perm) {
+        nb += snprintf(bad + nb, sizeof(bad) - nb, "\"perm\"");
+    } else {
+        for (int r = 0; r < n; r++) {
+            int s = 0;
+            for (int c = 0; c < n; c++) s += v[r * n + c];
+            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"r%d\"", nb ? "," : "", r);
+        }
+        for (int c = 0; c < n; c++) {
+            int s = 0;
+            for (int r = 0; r < n; r++) s += v[r * n + c];
+            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"c%d\"", nb ? "," : "", c);
+        }
+        {
+            int s = 0;
+            for (int i = 0; i < n; i++) s += v[i * n + i];
+            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d0\"", nb ? "," : "");
+        }
+        {
+            int s = 0;
+            for (int i = 0; i < n; i++) s += v[i * n + (n - 1 - i)];
+            if (s != want) nb += snprintf(bad + nb, sizeof(bad) - nb, "%s\"d1\"", nb ? "," : "");
+        }
+    }
+    int valid = (nb == 0);
+    int cok = 1;
+    if (cl) {
+        for (int i = 0; i < nc; i++) {
+            if (cl[i] == '.' || cl[i] == 0) continue;
+            if (magic_char_val(cl[i]) != v[i]) { cok = 0; break; }
+        }
+    }
+    printf("{\"valid\":%s,\"magic_sum\":%d,\"bad_lines\":[%s]",
+           valid ? "true" : "false", want, bad);
     if (cl) printf(",\"clue_ok\":%s", cok ? "true" : "false");
     printf("}\n");
     return 0;
