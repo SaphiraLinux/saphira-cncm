@@ -105,6 +105,8 @@ typedef struct {
     /* quantizer / vqvae */
     int  vq_embed_dim, vq_in_vocab, vq_context_length, vq_n_layers;
     int  vq_compression;
+    int  vq_soft_levels;  /* coarse levels using sampled-softmax assign (0 = argmin everywhere) */
+    double vq_soft_tau;   /* temperature multiplier on per-row mean distance (0 = argmin) */
     int  levels[NCM_MAX_LEVELS];
     int  n_qlevels;
     int  vq_vocab[NCM_MAX_LEVELS];
@@ -206,6 +208,11 @@ void     vq_free(VQState *vq);
 int      vq_total_codes(const VQState *vq);
 /* z:[B,L,D] -> idx:[B,sum(levels)] (argmin path) */
 void vq_z_to_idx(VQState *vq, const float *z, int B, int *idx);
+/* Soft variant: levels below soft_levels sample from a temperature-scaled
+ * softmax (adaptive per-row tau = soft_tau * mean distance) using *rng.
+ * soft_levels<=0, soft_tau<=0 or rng==NULL behaves exactly like argmin. */
+void vq_z_to_idx_soft(VQState *vq, const float *z, int B, int *idx,
+                       int soft_levels, double soft_tau, unsigned long long *rng);
 /* idx -> cumulative z_hats; zhats[lvl] is [B][L][D] at full length L */
 void vq_idx_to_zhats(VQState *vq, const int *idx, int B, float **zhats);
 /* autoregressive step input; mirrors get_next_autoregressive_input */
@@ -233,7 +240,7 @@ int vq_Ddim(const VQState *vq);
 typedef struct VQTrainer VQTrainer;
 VQTrainer *vqtrainer_new(VQVAEState *vqvae, WeightStore *ws, NCMConfig *c,
                          double lr, double wd, double warmup, double total);
-double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B);
+double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B, unsigned long long *srng);
 void vqtrainer_free(VQTrainer *t);
 void vqtrainer_free(VQTrainer *t);
 void vqvae_encode_z(VQVAEState *v, const int *ids, float *z, int B); /* [B][T][D] */

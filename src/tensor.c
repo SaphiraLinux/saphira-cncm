@@ -213,6 +213,8 @@ int config_load(NCMConfig *c, const char *path) {
         else if KEY("vq.context_length") c->vq_context_length = atoi(v);
         else if KEY("vq.n_layers") c->vq_n_layers = atoi(v);
         else if KEY("vq.compression") c->vq_compression = atoi(v);
+        else if KEY("vq.soft_levels") c->vq_soft_levels = atoi(v);
+        else if KEY("vq.soft_tau") c->vq_soft_tau = atof(v);
         else if KEY("vq.levels") parse_int_list(v, c->levels, NCM_MAX_LEVELS, &c->n_qlevels);
         else if KEY("vq.vocab") { int n = 0, tmp[NCM_MAX_LEVELS]; parse_int_list(v, tmp, NCM_MAX_LEVELS, &n); for (int i = 0; i < n; i++) c->vq_vocab[i] = tmp[i]; }
         else if KEY("vq.qr_enabled") c->quant_resi_enabled = atoi(v);

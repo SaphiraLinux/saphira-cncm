@@ -43,6 +43,12 @@ static void usage(const char *a) {
         "             reports per-level occupancy before/after)\n"
         "  %s arith-check --op OP ... (deterministic number-theory checks,\n"
         "             no model involved)\n"
+        "  %s crossword-check --board R1|R2|.. [--clues PAT] [--minlen N] [--strict]\n"
+        "             (letters A-Z, # blocks; maximal runs are slots;\n"
+        "              valid when slots exist and all reach minlen\n"
+        "              (default 2); reports unchecked (one direction)\n"
+        "              and stray (isolated) letters plus clue_ok;\n"
+        "              --strict also requires none of those)\n"
         "             cubesum --a A --b B --n N : A^3+B^3 == N ?\n"
         "             taxicab --a A --b B --c C --d D : A^3+B^3 == C^3+D^3 ?\n"
         "             divisible --n N --by D,... : N divisible by each D ?\n"
@@ -80,7 +86,7 @@ static void usage(const char *a) {
         "  %s ckpt-info --weights F.nckpt\n"
         "  %s bwd-parity --conf M.conf --weights M.ncm --data D.nctrain\n"
         "             [--tol f] (CUDA build only)\n"
-        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+        "  %s bwdops [--tol f] (CUDA build only, no weights needed)\n", a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
     exit(2);
 }
 
@@ -189,6 +195,7 @@ static int cmd_sudoku_check(int argc, char **argv);
 static int cmd_magic_check(int argc, char **argv);
 static int cmd_eval_magic(App *a, int argc, char **argv);
 static int cmd_arith_check(int argc, char **argv);
+static int cmd_crossword_check(int argc, char **argv);
 static int magic_char_val(char c);
 static char magic_cell_sym(int v);
 static int cmd_vq_encode(const NCMConfig *c, const char *weights,
@@ -508,8 +515,8 @@ int main(int argc, char **argv) {
     const char *weights = opt(&argc, &argv, "--weights");
     const char *adir = opt(&argc, &argv, "--asset-dir");
     /* ckpt-info inspects a checkpoint file; it needs no model config. */
-    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && strcmp(argv[1], "vq-revive") != 0) usage(argv[0]);
-    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "vq-revive") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && !adir) usage(argv[0]);
+    if ((!conf || !weights) && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && strcmp(argv[1], "crossword-check") != 0 && strcmp(argv[1], "vq-revive") != 0) usage(argv[0]);
+    if (strcmp(argv[1], "train") != 0 && strcmp(argv[1], "train-qwen") != 0 && strcmp(argv[1], "gradcheck") != 0 && strcmp(argv[1], "train-vq") != 0 && strcmp(argv[1], "vq-encode") != 0 && strcmp(argv[1], "vq-recon") != 0 && strcmp(argv[1], "vq-revive") != 0 && strcmp(argv[1], "ckpt-info") != 0 && strcmp(argv[1], "bwd-parity") != 0 && strcmp(argv[1], "bwdops") != 0 && strcmp(argv[1], "sudoku-check") != 0 && strcmp(argv[1], "magic-check") != 0 && strcmp(argv[1], "arith-check") != 0 && strcmp(argv[1], "crossword-check") != 0 && !adir) usage(argv[0]);
 
     App a;
     memset(&a, 0, sizeof(a));
@@ -539,6 +546,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "arith-check") == 0) {
         return cmd_arith_check(argc, argv);
+    }
+    if (strcmp(argv[1], "crossword-check") == 0) {
+        return cmd_crossword_check(argc, argv);
     }
     if (strcmp(argv[1], "eval-magic") == 0) {
         app_load(&a, conf, weights, adir);
@@ -1878,4 +1888,162 @@ static int cmd_arith_check(int argc, char **argv) {
     }
     fprintf(stderr, "arith-check: bad --op (want cubesum|taxicab|divisible)\n");
     return 2;
+}
+
+/* crossword-check: structural crossword validation (no model, no wordlist).
+ * Board rows separated by '|': A-Z letters, '#' blocks. Every maximal
+ * horizontal/vertical letter run is a slot; valid when every slot reaches
+ * --minlen (default 2). Reports slots, unchecked letters (in <2 runs or
+ * single-direction only... precisely: letters not in any slot), and
+ * clue_ok when --clues is given ('.' = empty). With --strict, unchecked
+ * letters also fail validation. Max 15x15. */
+#define XW_MAX 15
+static int cmd_crossword_check(int argc, char **argv) {
+    const char *b = opt(&argc, &argv, "--board");
+    const char *cl = opt(&argc, &argv, "--clues");
+    const char *sm = opt(&argc, &argv, "--minlen");
+    int strict = 0;
+    for (int i = 1; i < argc; i++) if (!strcmp(argv[i], "--strict")) strict = 1;
+    if (!b) { fprintf(stderr, "crossword-check needs --board R1|R2|..\n"); return 2; }
+    int minlen = sm ? atoi(sm) : 2;
+    if (minlen < 1) minlen = 1;
+    /* split rows */
+    char rows[XW_MAX][XW_MAX + 1];
+    int R = 0, C = -1;
+    {
+        const char *p = b;
+        char cur[XW_MAX + 1];
+        int cn = 0;
+        for (;;) {
+            char c = *p;
+            if (c == '|' || c == 0) {
+                if (R >= XW_MAX) { fprintf(stderr, "crossword-check: too many rows (max %d)\n", XW_MAX); return 2; }
+                cur[cn] = 0;
+                if (C < 0) C = cn;
+                if (cn != C || cn == 0 || cn > XW_MAX) {
+                    fprintf(stderr, "crossword-check: rows must be equal non-empty length <= %d\n", XW_MAX);
+                    return 2;
+                }
+                memcpy(rows[R], cur, (size_t)(cn + 1));
+                R++;
+                cn = 0;
+                if (!c) break;
+                p++;
+                continue;
+            }
+            if (cn >= XW_MAX) { fprintf(stderr, "crossword-check: row too long\n"); return 2; }
+            if (!((c >= 'A' && c <= 'Z') || c == '#')) {
+                fprintf(stderr, "crossword-check: bad char (want A-Z or #)\n");
+                return 2;
+            }
+            cur[cn++] = c;
+            p++;
+        }
+    }
+    if (R == 0) { fprintf(stderr, "crossword-check: empty board\n"); return 2; }
+    /* slots: maximal letter runs per row/col. Runs of length 1 are not
+     * slots (their cells may be stray); every run of length >= 2 is
+     * recorded, and runs shorter than minlen fail validation. */
+    char across[XW_MAX * XW_MAX][XW_MAX + 1];
+    int na = 0, short_a = 0;
+    char down[XW_MAX * XW_MAX][XW_MAX + 1];
+    int nd = 0, short_d = 0;
+    int in_across[XW_MAX][XW_MAX], in_down[XW_MAX][XW_MAX];
+    memset(in_across, 0, sizeof(in_across));
+    memset(in_down, 0, sizeof(in_down));
+    for (int r = 0; r < R; r++) {
+        int c = 0;
+        while (c < C) {
+            if (rows[r][c] == '#') { c++; continue; }
+            int c0 = c;
+            while (c < C && rows[r][c] != '#') c++;
+            int L = c - c0;
+            if (L == 1) continue;
+            for (int k = c0; k < c; k++) in_across[r][k] = 1;
+            memcpy(across[na], rows[r] + c0, (size_t)L);
+            across[na][L] = 0;
+            na++;
+            if (L < minlen) short_a++;
+        }
+    }
+    for (int c = 0; c < C; c++) {
+        int r = 0;
+        while (r < R) {
+            if (rows[r][c] == '#') { r++; continue; }
+            int r0 = r;
+            while (r < R && rows[r][c] != '#') r++;
+            int L = r - r0;
+            if (L == 1) continue;
+            for (int k = r0; k < r; k++) in_down[k][c] = 1;
+            for (int k = 0; k < L; k++) down[nd][k] = rows[r0 + k][c];
+            down[nd][L] = 0;
+            nd++;
+            if (L < minlen) short_d++;
+        }
+    }
+    /* unchecked = letter cells in no slot of length>=minlen... precisely:
+     * cells not covered by any recorded slot */
+    /* unchecked = letter in exactly one direction (not crossed);
+     * stray = letter in no slot (isolated singleton) */
+    int nunchecked = 0, nstray = 0;
+    int uncl[XW_MAX * XW_MAX][2], stray[XW_MAX * XW_MAX][2];
+    for (int r = 0; r < R; r++) for (int c = 0; c < C; c++) {
+        if (rows[r][c] == '#') continue;
+        int a = in_across[r][c], d = in_down[r][c];
+        if (a && d) continue;
+        if (!a && !d) { stray[nstray][0] = r; stray[nstray][1] = c; nstray++; }
+        else { uncl[nunchecked][0] = r; uncl[nunchecked][1] = c; nunchecked++; }
+    }
+    int valid = (na + nd > 0) && (short_a == 0 && short_d == 0) && (!strict || (nunchecked == 0 && nstray == 0));
+    int cok = 1;
+    if (cl) {
+        /* clues use same row|row shape; '.' = empty; '#' must match */
+        char crows[XW_MAX][XW_MAX + 1];
+        int cr = 0, cc = -1;
+        const char *p = cl;
+        char cur[XW_MAX + 1];
+        int cn = 0, badshape = 0;
+        for (;;) {
+            char ch = *p;
+            if (ch == '|' || ch == 0) {
+                cur[cn] = 0;
+                if (cc < 0) cc = cn;
+                if (cn != cc || cn != C) badshape = 1;
+                if (cr < XW_MAX) memcpy(crows[cr], cur, (size_t)(cn + 1));
+                cr++;
+                cn = 0;
+                if (!ch) break;
+                p++;
+                continue;
+            }
+            if (cn >= XW_MAX) { badshape = 1; break; }
+            if (!((ch >= 'A' && ch <= 'Z') || ch == '#' || ch == '.')) {
+                fprintf(stderr, "crossword-check: bad clue char\n");
+                return 2;
+            }
+            cur[cn++] = ch;
+            p++;
+        }
+        if (badshape || cr != R) {
+            fprintf(stderr, "crossword-check: --clues shape must match board\n");
+            return 2;
+        }
+        for (int r = 0; r < R && cok; r++) for (int c = 0; c < C; c++) {
+            char ch = crows[r][c];
+            if (ch == '.') continue;
+            if (ch != rows[r][c]) { cok = 0; break; }
+        }
+    }
+    printf("{\"valid\":%s,\"rows\":%d,\"cols\":%d,\"across\":[", valid ? "true" : "false", R, C);
+    for (int i = 0; i < na; i++) printf("%s\"%s\"", i ? "," : "", across[i]);
+    printf("],\"down\":[");
+    for (int i = 0; i < nd; i++) printf("%s\"%s\"", i ? "," : "", down[i]);
+    printf("],\"unchecked\":[");
+    for (int i = 0; i < nunchecked; i++) printf("%s[%d,%d]", i ? "," : "", uncl[i][0], uncl[i][1]);
+    printf("],\"stray\":[");
+    for (int i = 0; i < nstray; i++) printf("%s[%d,%d]", i ? "," : "", stray[i][0], stray[i][1]);
+    printf("]");
+    if (cl) printf(",\"clue_ok\":%s", cok ? "true" : "false");
+    printf("}\n");
+    return 0;
 }

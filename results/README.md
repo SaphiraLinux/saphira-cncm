@@ -32,7 +32,28 @@ human-readable traces.
   (chance 6.25%) — mode collapse persists after 4x training
   (loss 0.55 -> 0.44). `ncp16_held_eval.svg` plots it.
 
-## VQ revival experiment (codebook utilisation as primary metric)
+## Controlled replacement: soft sampling at L0-L1 (vq.soft_levels=2, vq.soft_tau=0.5)
+
+Same warm start (vq-final), 300 steps, argmin everywhere else, checkpoints
+compatible (no new tensors). Config in `results/vq_soft300.conf`.
+`vq_z_to_idx_soft` samples proportionally to softmax(-d/tau) with per-row
+adaptive tau; tau<=0 or level>=soft_levels reproduces exact argmin.
+
+- Train-probe L0: 1 -> 15/16 used (entropy 0.00 -> 2.09, dom 1.00 -> 0.65).
+  L1 stayed collapsed (2/16) in-argmin — soft sampling alone did not
+  populate it within 300 steps.
+- Held-out 512: L0-L4 used = 14,2,1,4,11 (was 1,2,1,2,6). L0 winner is
+  still code 8 (354/512) but 31% of inputs now route to 13 other codes
+  (was 0%). Recon 96.0% -> 96.6% cell match, first valid board (1/64).
+- No-surgery 600-step control: coarse usage byte-identical to the
+  200-step baseline, isolating the mechanism change as causal.
+- `vq16_soft_stages.svg` plots L0-L4 across stages; `vq16_recon_soft*.txt`
+  hold the 64-board reconstructions.
+- Verdict: PARTIAL revival. Soft assignment genuinely repopulates L0 and
+  holds it through continued training, but L1/L2 resist. Next levers:
+  longer run, per-level tau, or soft+surgery combined. NCP untouched.
+
+## VQ revival experiment (+400 steps, no surgery)
 
 Question: can CNCM recover its 16x16 representation with more VQ
 training, or is the architecture/hyperparameters the problem?

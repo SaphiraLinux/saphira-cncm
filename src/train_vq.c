@@ -334,7 +334,7 @@ static float *train_decode_logits(Tape *tp, WeightStore *ws, NCMConfig *c,
 }
 
 /* ---------------- VQ-VAE training step ---------------- */
-double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B) {
+double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B, unsigned long long *srng) {
     NCMConfig *c = t->c;
     WeightStore *ws = t->ws;
     VQState *vq = t->vq;
@@ -351,8 +351,9 @@ double train_vq_step(VQTrainer *t, Tape *tp, const int *ids, int B) {
     int total = vq_total_codes(vq);
     (void)total;
     int *codes = (int *)malloc((size_t)B * vq_total_codes(vq) * sizeof(int));
-    /* stage z to host for argmin? use backend vq_z_to_idx (unrecorded) */
-    vq_z_to_idx(vq, z, B, codes);
+    /* stage z to host for argmin? use backend vq_z_to_idx (unrecorded).
+     * Soft sampling (coarse levels only) when configured + rng given. */
+    vq_z_to_idx_soft(vq, z, B, codes, c->vq_soft_levels, c->vq_soft_tau, srng);
     float **zhats = (float **)malloc(vq_nlevels(vq) * sizeof(float *));
     for (int i = 0; i < vq_nlevels(vq); i++)
         zhats[i] = arena_alloc((size_t)B * vq_Ltotal(vq) * D);
@@ -496,7 +497,7 @@ int train_vq_run(const NCMConfig *c_, const char *weights_path, const char *data
             int r = (int)((rng >> 11) % (unsigned long long)d->n_rows);
             memcpy(buf + bb * T, d->rows + r * d->row_len, T * sizeof(int));
         }
-        double loss = train_vq_step(t, tp, buf, B);
+        double loss = train_vq_step(t, tp, buf, B, &rng);
         /* backward + step */
         PMap *pm = pmap_from_adam(t->opt);
         extern void tape_backward(Tape *t, PMap *pm, float seed);

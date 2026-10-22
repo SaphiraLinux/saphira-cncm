@@ -376,6 +376,17 @@ static void up_to_full(VQState *vq, const float *q, int B, int tlen,
 }
 
 void vq_z_to_idx(VQState *vq, const float *z, int B, int *idx) {
+    vq_z_to_idx_soft(vq, z, B, idx, 0, 0.0, NULL);
+}
+
+/* Same traversal as vq_z_to_idx, but levels below soft_levels draw from a
+ * temperature-scaled softmax over code distances instead of argmin.
+ * Temperature is adaptive per row: tau = soft_tau * mean(row dists), so
+ * the sampling shape is scale-free. soft_levels<=0, soft_tau<=0 or
+ * rng==NULL selects pure argmin (bit-identical to the legacy path).
+ * Used ONLY during training; inference/encode/recon/eval keep argmin. */
+void vq_z_to_idx_soft(VQState *vq, const float *z, int B, int *idx,
+                       int soft_levels, double soft_tau, unsigned long long *rng) {
     int D = vq->D, L = vq->L;
     float *z_rest = arena_alloc((size_t)B * L * D);
     float *z_hat = arena_alloc((size_t)B * L * D);
@@ -400,8 +411,34 @@ void vq_z_to_idx(VQState *vq, const float *z, int B, int *idx) {
         float *hd = b2h(dd, (size_t)B * tlen * V);
         int total = vq_total_codes(vq);
         for (int r = 0; r < B * tlen; r++) {
-            int bi = 0; float bv = hd[r * V];
-            for (int j = 1; j < V; j++) if (hd[r * V + j] < bv) { bv = hd[r * V + j]; bi = j; }
+            int bi = 0;
+            if (rng && lv < soft_levels && soft_tau > 0) {
+                /* adaptive temperature from this row's mean distance */
+                double m = 0;
+                for (int j = 0; j < V; j++) m += hd[r * V + j];
+                m /= V;
+                if (m > 0) {
+                    double T = soft_tau * m, acc = 0, draw, csum = 0;
+                    double bv = hd[r * V];
+                    for (int j = 1; j < V; j++) if (hd[r * V + j] < bv) bv = hd[r * V + j];
+                    for (int j = 0; j < V; j++) {
+                        double w = exp(-(hd[r * V + j] - bv) / T);
+                        acc += w;
+                    }
+                    *rng ^= *rng << 13; *rng ^= *rng >> 7; *rng ^= *rng << 17;
+                    draw = ((*rng >> 11) * (1.0 / 9007199254740992.0)) * acc;
+                    bi = V - 1;
+                    for (int j = 0; j < V; j++) {
+                        csum += exp(-(hd[r * V + j] - bv) / T);
+                        if (draw < csum) { bi = j; break; }
+                    }
+                    int b = r / tlen, t = r % tlen;
+                    idx[b * total + off + t] = bi;
+                    continue;
+                }
+            }
+            float bv2 = hd[r * V];
+            for (int j = 1; j < V; j++) if (hd[r * V + j] < bv2) { bv2 = hd[r * V + j]; bi = j; }
             int b = r / tlen, t = r % tlen;
             idx[b * total + off + t] = bi;
         }
