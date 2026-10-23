@@ -64,7 +64,20 @@ Tape *tape_new(void) {
 }
 
 static void tape_free_recs(Tape *t, int from) {
-    for (int i = from; i < t->n; i++) free(t->r[i].sv);
+    for (int i = from; i < t->n; i++) {
+        /* aux structs with OWNED members: the members must go first.
+         * free(sv) alone leaks them on every step (t_ce: host targets +
+         * weights; t_tied: staged codebook + norms). SdpaAux.P is
+         * arena-owned and wrappers (rope/split/conv/...) hold no members. */
+        if (t->r[i].op == TOP_CE) {
+            CeAux *st = (CeAux *)t->r[i].sv;
+            if (st) { free(st->tgt); free(st->w); }
+        } else if (t->r[i].op == TOP_TIED) {
+            TiedAux *st = (TiedAux *)t->r[i].sv;
+            if (st) { free(st->hE); free(st->Esq); }
+        }
+        free(t->r[i].sv);
+    }
 }
 
 void tape_free(Tape *t) { tape_free_recs(t, 0); free(t->r); free(t); }
@@ -452,6 +465,11 @@ void t_ce(Tape *t, const float *logits, const int *tgt, const float *wmask,
     }
     free(hl);
     mem_h2d(probs, hp, (size_t)rows * V * sizeof(float));
+    /* hp is dead after staging: both backward paths re-derive probabilities
+     * from the device copy (host via stage_h(st->probs), device directly).
+     * Freeing here — hp was previously orphaned, leaking rows*V floats
+     * (≈25 MiB at GPT-2 T=128) on EVERY training step, unbounded. */
+    free(hp);
     float lh = cnt > 0 ? (float)(nll / cnt) : 0.0f;
     mem_h2d(loss, &lh, sizeof(float));
     TopRec *r = emit(t, TOP_CE);
