@@ -76,6 +76,10 @@ def main():
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--new-tokens", type=int, default=24)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--samples", type=int, default=1,
+                    help="generations per prompt; SOLVED if any verifies "
+                         "(system metric: model + deterministic engine)")
+    ap.add_argument("--temp", type=float, default=0.0)
     args = ap.parse_args()
 
     prompts = [l.rstrip("\n") for l in open(args.prompts) if l.strip()]
@@ -93,38 +97,49 @@ def main():
             "muladd" if ("*" in p and "+" in p) else (
                 {"+": "add", "-": "sub", "*": "mul", "/": "div"}[
                     next(c for c in "+-*/" if c in p)]))
-        r = subprocess.run(
-            [args.bin, "gpt2-gen", "--conf", args.conf, "--weights", args.weights,
-             "--asset-dir", args.asset_dir, "--prompt", p,
-             "--n", str(args.new_tokens), "--temp", "0.0", "--seed", "1"],
-            capture_output=True, text=True, timeout=300)
-        text = (r.stdout or "") + (r.stderr or "")
-        # drop the "ids: ..." diagnostics line (gen prints ids + text)
-        genlines = [l for l in text.split("\n") if not l.startswith("ids:")]
-        # gpt2-gen prints only the continuation, not the prompt; match on
-        # prompt + generation so the trailing "Step:" anchors the step.
-        full = p + " " + "\n".join(genlines)
-        sm = STEP_RE.search(full)
-        am = ANS_RE.search(full)
-        asked = p.split("Solve:")[1].split("=")[0].strip() if "Solve:" in p else ""
         row = by_op.setdefault(op, {"n": 0, "solved": 0})
         row["n"] += 1
         stat["n"] += 1
-        if not (sm and am):
-            continue
-        stat["parsed"] += 1
-        try:
-            sv = arith(sm.group(1).strip())
-            step_ok = (sv == int(sm.group(2))) and (sm.group(1).strip() == asked)
-        except ValueError:
-            step_ok = False
-        a = int(am.group(1))
-        ans_ok = (a == ref)
-        cons = (a == int(sm.group(2)))
-        stat["step_valid"] += bool(step_ok)
-        stat["answer_ok"] += bool(ans_ok)
-        stat["consistent"] += bool(cons)
-        if step_ok and ans_ok and cons:
+        asked = p.split("Solve:")[1].split("=")[0].strip() if "Solve:" in p else ""
+        solved_here = False
+        parsed_here = False
+        for s in range(max(args.samples, 1)):
+            r = subprocess.run(
+                [args.bin, "gpt2-gen", "--conf", args.conf, "--weights", args.weights,
+                 "--asset-dir", args.asset_dir, "--prompt", p,
+                 "--n", str(args.new_tokens), "--temp", str(args.temp),
+                 "--seed", str(1 + s)],
+                capture_output=True, text=True, timeout=300)
+            text = (r.stdout or "") + (r.stderr or "")
+            # drop the "ids: ..." diagnostics line (gen prints ids + text)
+            genlines = [l for l in text.split("\n") if not l.startswith("ids:")]
+            # gpt2-gen prints only the continuation, not the prompt; match on
+            # prompt + generation so the trailing "Step:" anchors the step.
+            full = p + " " + "\n".join(genlines)
+            sm = STEP_RE.search(full)
+            am = ANS_RE.search(full)
+            if not (sm and am):
+                continue
+            parsed_here = True
+            if s == 0:
+                stat["parsed"] += 1
+            try:
+                sv = arith(sm.group(1).strip())
+                step_ok = (sv == int(sm.group(2))) and (sm.group(1).strip() == asked)
+            except ValueError:
+                step_ok = False
+            a = int(am.group(1))
+            ans_ok = (a == ref)
+            cons = (a == int(sm.group(2)))
+            if s == 0:
+                stat["step_valid"] += bool(step_ok)
+                stat["answer_ok"] += bool(ans_ok)
+                stat["consistent"] += bool(cons)
+            if step_ok and ans_ok and cons:
+                solved_here = True
+                break  # one verified sample suffices for the system metric
+        stat["parsed_multi"] = stat.get("parsed_multi", 0) + bool(parsed_here)
+        if solved_here:
             stat["solved"] += 1
             row["solved"] += 1
     n = max(stat["n"], 1)

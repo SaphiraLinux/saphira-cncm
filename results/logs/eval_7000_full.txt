@@ -1,0 +1,7 @@
+eval_math: n=100 solved=6 (6.0%) step_valid=6.0% answer_ok=6.0% consistent=100.0% parsed=100.0%
+  add       0/24  0.0%
+  chain     1/26  3.8%
+  div       1/9   11.1%
+  mul       2/13  15.4%
+  muladd    2/14  14.3%
+  sub       0/14  0.0%
