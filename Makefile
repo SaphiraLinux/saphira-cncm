@@ -8,7 +8,7 @@ BUILD   ?= cpu
 BIN     ?= cncm
 
 SRC := src/main.c src/tensor.c src/kernels.c src/vq.c src/vqvae.c \
-       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/qwen.c src/train.c src/train_tape.c src/train_vq.c src/train_qwen.c src/viewer.c src/ckpt.c
+       src/ncp.c src/tok.c src/tok_tables.c src/metrics.c src/gpt2.c src/qwen.c src/train.c src/train_tape.c src/train_vq.c src/train_qwen.c src/train_gpt2.c src/viewer.c src/ckpt.c
 
 ifeq ($(BUILD),cuda)
 ODIR   := build/cuda
@@ -75,6 +75,10 @@ test-train-qwen: cncm tools/mkqwenrows
 	./tests/test_train_qwen.sh --bin ./cncm
 test-train-qwen-cuda: cncm-cuda tools/mkqwenrows
 	./tests/test_train_qwen.sh --bin ./cncm-cuda
+test-train-gpt2: cncm tools/mkqwenrows
+	./tests/test_train_gpt2.sh --bin ./cncm
+test-train-gpt2-cuda: cncm-cuda tools/mkqwenrows
+	./tests/test_train_gpt2.sh --bin ./cncm-cuda
 
 tools/gpt2import: tools/gpt2import.c
 	$(CC) -O2 -std=c11 -Wall -Wextra -o $@ $<

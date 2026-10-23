@@ -1,0 +1,1000 @@
+Solve: 174 + 174 + 107 = ? / Step: 174 + 174 + 107 = 455 / Answer: 455
+Solve: 36 * 88 = ? / Step: 36 * 88 = 3168 / Answer: 3168
+Solve: 4 * 44 + 28 = ? / Step: 4 * 44 + 28 = 204 / Answer: 204
+Solve: 883 - 57 = ? / Step: 883 - 57 = 826 / Answer: 826
+Solve: 19 * 98 = ? / Step: 19 * 98 = 1862 / Answer: 1862
+Solve: 133 + 191 + 94 = ? / Step: 133 + 191 + 94 = 418 / Answer: 418
+Solve: 6 * 37 = ? / Step: 6 * 37 = 222 / Answer: 222
+Solve: 2444 / 94 = ? / Step: 2444 / 94 = 26 / Answer: 26
+Solve: 181 + 48 + 152 = ? / Step: 181 + 48 + 152 = 381 / Answer: 381
+Solve: 22 * 27 = ? / Step: 22 * 27 = 594 / Answer: 594
+Solve: 4 * 11 + 102 = ? / Step: 4 * 11 + 102 = 146 / Answer: 146
+Solve: 916 + 367 = ? / Step: 916 + 367 = 1283 / Answer: 1283
+Solve: 1100 / 20 = ? / Step: 1100 / 20 = 55 / Answer: 55
+Solve: 4 + 129 + 188 = ? / Step: 4 + 129 + 188 = 321 / Answer: 321
+Solve: 50 + 17 + 70 = ? / Step: 50 + 17 + 70 = 137 / Answer: 137
+Solve: 166 - 109 = ? / Step: 166 - 109 = 57 / Answer: 57
+Solve: 4 * 33 + 475 = ? / Step: 4 * 33 + 475 = 607 / Answer: 607
+Solve: 532 + 177 = ? / Step: 532 + 177 = 709 / Answer: 709
+Solve: 980 / 98 = ? / Step: 980 / 98 = 10 / Answer: 10
+Solve: 4 + 79 + 196 = ? / Step: 4 + 79 + 196 = 279 / Answer: 279
+Solve: 6 + 250 = ? / Step: 6 + 250 = 256 / Answer: 256
+Solve: 90 + 197 + 147 = ? / Step: 90 + 197 + 147 = 434 / Answer: 434
+Solve: 485 - 379 = ? / Step: 485 - 379 = 106 / Answer: 106
+Solve: 213 - 182 = ? / Step: 213 - 182 = 31 / Answer: 31
+Solve: 856 + 429 = ? / Step: 856 + 429 = 1285 / Answer: 1285
+Solve: 111 + 177 + 108 = ? / Step: 111 + 177 + 108 = 396 / Answer: 396
+Solve: 380 + 163 = ? / Step: 380 + 163 = 543 / Answer: 543
+Solve: 72 * 0 = ? / Step: 72 * 0 = 0 / Answer: 0
+Solve: 681 - 211 = ? / Step: 681 - 211 = 470 / Answer: 470
+Solve: 37 * 1 = ? / Step: 37 * 1 = 37 / Answer: 37
+Solve: 21 * 4 + 228 = ? / Step: 21 * 4 + 228 = 312 / Answer: 312
+Solve: 625 + 590 = ? / Step: 625 + 590 = 1215 / Answer: 1215
+Solve: 886 - 671 = ? / Step: 886 - 671 = 215 / Answer: 215
+Solve: 55 - 39 = ? / Step: 55 - 39 = 16 / Answer: 16
+Solve: 284 - 72 = ? / Step: 284 - 72 = 212 / Answer: 212
+Solve: 178 + 107 + 22 = ? / Step: 178 + 107 + 22 = 307 / Answer: 307
+Solve: 123 + 9 + 70 = ? / Step: 123 + 9 + 70 = 202 / Answer: 202
+Solve: 133 + 186 + 48 = ? / Step: 133 + 186 + 48 = 367 / Answer: 367
+Solve: 481 - 68 = ? / Step: 481 - 68 = 413 / Answer: 413
+Solve: 42 - 18 = ? / Step: 42 - 18 = 24 / Answer: 24
+Solve: 28 * 78 = ? / Step: 28 * 78 = 2184 / Answer: 2184
+Solve: 73 * 2 = ? / Step: 73 * 2 = 146 / Answer: 146
+Solve: 862 - 248 = ? / Step: 862 - 248 = 614 / Answer: 614
+Solve: 137 + 170 + 82 = ? / Step: 137 + 170 + 82 = 389 / Answer: 389
+Solve: 98 + 46 + 24 = ? / Step: 98 + 46 + 24 = 168 / Answer: 168
+Solve: 866 - 668 = ? / Step: 866 - 668 = 198 / Answer: 198
+Solve: 50 + 49 + 93 = ? / Step: 50 + 49 + 93 = 192 / Answer: 192
+Solve: 9 - 7 = ? / Step: 9 - 7 = 2 / Answer: 2
+Solve: 1932 / 46 = ? / Step: 1932 / 46 = 42 / Answer: 42
+Solve: 47 * 24 + 449 = ? / Step: 47 * 24 + 449 = 1577 / Answer: 1577
+Solve: 46 * 18 + 118 = ? / Step: 46 * 18 + 118 = 946 / Answer: 946
+Solve: 259 - 3 = ? / Step: 259 - 3 = 256 / Answer: 256
+Solve: 157 + 3 + 100 = ? / Step: 157 + 3 + 100 = 260 / Answer: 260
+Solve: 29 * 28 + 352 = ? / Step: 29 * 28 + 352 = 1164 / Answer: 1164
+Solve: 537 - 186 = ? / Step: 537 - 186 = 351 / Answer: 351
+Solve: 201 + 627 = ? / Step: 201 + 627 = 828 / Answer: 828
+Solve: 39 * 46 + 133 = ? / Step: 39 * 46 + 133 = 1927 / Answer: 1927
+Solve: 9 * 13 = ? / Step: 9 * 13 = 117 / Answer: 117
+Solve: 165 + 5 + 133 = ? / Step: 165 + 5 + 133 = 303 / Answer: 303
+Solve: 46 + 126 + 150 = ? / Step: 46 + 126 + 150 = 322 / Answer: 322
+Solve: 480 / 6 = ? / Step: 480 / 6 = 80 / Answer: 80
+Solve: 13 * 37 + 474 = ? / Step: 13 * 37 + 474 = 955 / Answer: 955
+Solve: 214 + 482 = ? / Step: 214 + 482 = 696 / Answer: 696
+Solve: 34 * 16 + 236 = ? / Step: 34 * 16 + 236 = 780 / Answer: 780
+Solve: 759 + 820 = ? / Step: 759 + 820 = 1579 / Answer: 1579
+Solve: 21 + 138 + 132 = ? / Step: 21 + 138 + 132 = 291 / Answer: 291
+Solve: 141 - 34 = ? / Step: 141 - 34 = 107 / Answer: 107
+Solve: 99 + 122 + 155 = ? / Step: 99 + 122 + 155 = 376 / Answer: 376
+Solve: 569 + 222 = ? / Step: 569 + 222 = 791 / Answer: 791
+Solve: 524 - 89 = ? / Step: 524 - 89 = 435 / Answer: 435
+Solve: 18 * 35 + 110 = ? / Step: 18 * 35 + 110 = 740 / Answer: 740
+Solve: 425 - 344 = ? / Step: 425 - 344 = 81 / Answer: 81
+Solve: 14 + 62 + 152 = ? / Step: 14 + 62 + 152 = 228 / Answer: 228
+Solve: 714 - 647 = ? / Step: 714 - 647 = 67 / Answer: 67
+Solve: 4752 / 66 = ? / Step: 4752 / 66 = 72 / Answer: 72
+Solve: 735 - 337 = ? / Step: 735 - 337 = 398 / Answer: 398
+Solve: 1518 / 66 = ? / Step: 1518 / 66 = 23 / Answer: 23
+Solve: 899 - 806 = ? / Step: 899 - 806 = 93 / Answer: 93
+Solve: 107 - 8 = ? / Step: 107 - 8 = 99 / Answer: 99
+Solve: 4828 / 71 = ? / Step: 4828 / 71 = 68 / Answer: 68
+Solve: 376 + 210 = ? / Step: 376 + 210 = 586 / Answer: 586
+Solve: 32 * 69 = ? / Step: 32 * 69 = 2208 / Answer: 2208
+Solve: 27 * 0 + 273 = ? / Step: 27 * 0 + 273 = 273 / Answer: 273
+Solve: 110 + 173 + 38 = ? / Step: 110 + 173 + 38 = 321 / Answer: 321
+Solve: 113 + 116 + 56 = ? / Step: 113 + 116 + 56 = 285 / Answer: 285
+Solve: 42 + 41 + 91 = ? / Step: 42 + 41 + 91 = 174 / Answer: 174
+Solve: 134 + 134 + 194 = ? / Step: 134 + 134 + 194 = 462 / Answer: 462
+Solve: 891 / 99 = ? / Step: 891 / 99 = 9 / Answer: 9
+Solve: 106 + 859 = ? / Step: 106 + 859 = 965 / Answer: 965
+Solve: 22 * 39 + 119 = ? / Step: 22 * 39 + 119 = 977 / Answer: 977
+Solve: 2 * 31 + 45 = ? / Step: 2 * 31 + 45 = 107 / Answer: 107
+Solve: 123 + 193 + 34 = ? / Step: 123 + 193 + 34 = 350 / Answer: 350
+Solve: 15 * 11 + 485 = ? / Step: 15 * 11 + 485 = 650 / Answer: 650
+Solve: 311 + 537 = ? / Step: 311 + 537 = 848 / Answer: 848
+Solve: 48 * 93 = ? / Step: 48 * 93 = 4464 / Answer: 4464
+Solve: 275 + 967 = ? / Step: 275 + 967 = 1242 / Answer: 1242
+Solve: 158 + 155 + 115 = ? / Step: 158 + 155 + 115 = 428 / Answer: 428
+Solve: 310 - 213 = ? / Step: 310 - 213 = 97 / Answer: 97
+Solve: 57 + 61 + 42 = ? / Step: 57 + 61 + 42 = 160 / Answer: 160
+Solve: 652 - 141 = ? / Step: 652 - 141 = 511 / Answer: 511
+Solve: 439 + 848 = ? / Step: 439 + 848 = 1287 / Answer: 1287
+Solve: 35 * 84 = ? / Step: 35 * 84 = 2940 / Answer: 2940
+Solve: 9 * 22 = ? / Step: 9 * 22 = 198 / Answer: 198
+Solve: 26 * 24 + 391 = ? / Step: 26 * 24 + 391 = 1015 / Answer: 1015
+Solve: 3016 / 52 = ? / Step: 3016 / 52 = 58 / Answer: 58
+Solve: 15 + 82 + 100 = ? / Step: 15 + 82 + 100 = 197 / Answer: 197
+Solve: 76 * 71 = ? / Step: 76 * 71 = 5396 / Answer: 5396
+Solve: 430 - 32 = ? / Step: 430 - 32 = 398 / Answer: 398
+Solve: 632 - 612 = ? / Step: 632 - 612 = 20 / Answer: 20
+Solve: 63 + 21 + 74 = ? / Step: 63 + 21 + 74 = 158 / Answer: 158
+Solve: 31 * 34 + 251 = ? / Step: 31 * 34 + 251 = 1305 / Answer: 1305
+Solve: 126 - 106 = ? / Step: 126 - 106 = 20 / Answer: 20
+Solve: 590 + 321 = ? / Step: 590 + 321 = 911 / Answer: 911
+Solve: 179 + 5 + 170 = ? / Step: 179 + 5 + 170 = 354 / Answer: 354
+Solve: 12 + 31 + 119 = ? / Step: 12 + 31 + 119 = 162 / Answer: 162
+Solve: 28 * 42 + 445 = ? / Step: 28 * 42 + 445 = 1621 / Answer: 1621
+Solve: 28 * 19 + 325 = ? / Step: 28 * 19 + 325 = 857 / Answer: 857
+Solve: 25 * 25 + 201 = ? / Step: 25 * 25 + 201 = 826 / Answer: 826
+Solve: 12 * 41 + 245 = ? / Step: 12 * 41 + 245 = 737 / Answer: 737
+Solve: 200 + 435 = ? / Step: 200 + 435 = 635 / Answer: 635
+Solve: 138 + 684 = ? / Step: 138 + 684 = 822 / Answer: 822
+Solve: 127 + 59 + 148 = ? / Step: 127 + 59 + 148 = 334 / Answer: 334
+Solve: 87 * 15 = ? / Step: 87 * 15 = 1305 / Answer: 1305
+Solve: 948 - 781 = ? / Step: 948 - 781 = 167 / Answer: 167
+Solve: 4355 / 67 = ? / Step: 4355 / 67 = 65 / Answer: 65
+Solve: 694 + 921 = ? / Step: 694 + 921 = 1615 / Answer: 1615
+Solve: 150 + 102 + 61 = ? / Step: 150 + 102 + 61 = 313 / Answer: 313
+Solve: 3315 / 51 = ? / Step: 3315 / 51 = 65 / Answer: 65
+Solve: 18 * 3 + 448 = ? / Step: 18 * 3 + 448 = 502 / Answer: 502
+Solve: 477 + 594 = ? / Step: 477 + 594 = 1071 / Answer: 1071
+Solve: 252 / 28 = ? / Step: 252 / 28 = 9 / Answer: 9
+Solve: 694 - 645 = ? / Step: 694 - 645 = 49 / Answer: 49
+Solve: 4015 / 73 = ? / Step: 4015 / 73 = 55 / Answer: 55
+Solve: 48 * 66 = ? / Step: 48 * 66 = 3168 / Answer: 3168
+Solve: 127 + 20 + 102 = ? / Step: 127 + 20 + 102 = 249 / Answer: 249
+Solve: 0 / 72 = ? / Step: 0 / 72 = 0 / Answer: 0
+Solve: 155 + 102 + 85 = ? / Step: 155 + 102 + 85 = 342 / Answer: 342
+Solve: 306 - 183 = ? / Step: 306 - 183 = 123 / Answer: 123
+Solve: 207 + 983 = ? / Step: 207 + 983 = 1190 / Answer: 1190
+Solve: 69 + 814 = ? / Step: 69 + 814 = 883 / Answer: 883
+Solve: 138 + 777 = ? / Step: 138 + 777 = 915 / Answer: 915
+Solve: 10 * 36 + 153 = ? / Step: 10 * 36 + 153 = 513 / Answer: 513
+Solve: 90 * 76 = ? / Step: 90 * 76 = 6840 / Answer: 6840
+Solve: 23 * 17 + 458 = ? / Step: 23 * 17 + 458 = 849 / Answer: 849
+Solve: 34 * 38 + 19 = ? / Step: 34 * 38 + 19 = 1311 / Answer: 1311
+Solve: 339 + 314 = ? / Step: 339 + 314 = 653 / Answer: 653
+Solve: 51 + 173 + 139 = ? / Step: 51 + 173 + 139 = 363 / Answer: 363
+Solve: 972 / 27 = ? / Step: 972 / 27 = 36 / Answer: 36
+Solve: 3763 / 71 = ? / Step: 3763 / 71 = 53 / Answer: 53
+Solve: 400 + 253 = ? / Step: 400 + 253 = 653 / Answer: 653
+Solve: 150 + 138 + 84 = ? / Step: 150 + 138 + 84 = 372 / Answer: 372
+Solve: 14 / 1 = ? / Step: 14 / 1 = 14 / Answer: 14
+Solve: 3417 / 51 = ? / Step: 3417 / 51 = 67 / Answer: 67
+Solve: 518 / 74 = ? / Step: 518 / 74 = 7 / Answer: 7
+Solve: 42 * 30 + 413 = ? / Step: 42 * 30 + 413 = 1673 / Answer: 1673
+Solve: 736 / 32 = ? / Step: 736 / 32 = 23 / Answer: 23
+Solve: 583 - 103 = ? / Step: 583 - 103 = 480 / Answer: 480
+Solve: 668 - 124 = ? / Step: 668 - 124 = 544 / Answer: 544
+Solve: 945 + 319 = ? / Step: 945 + 319 = 1264 / Answer: 1264
+Solve: 24 * 1 + 308 = ? / Step: 24 * 1 + 308 = 332 / Answer: 332
+Solve: 68 + 59 + 112 = ? / Step: 68 + 59 + 112 = 239 / Answer: 239
+Solve: 40 * 27 + 34 = ? / Step: 40 * 27 + 34 = 1114 / Answer: 1114
+Solve: 353 - 209 = ? / Step: 353 - 209 = 144 / Answer: 144
+Solve: 500 / 25 = ? / Step: 500 / 25 = 20 / Answer: 20
+Solve: 4698 / 81 = ? / Step: 4698 / 81 = 58 / Answer: 58
+Solve: 182 + 181 + 65 = ? / Step: 182 + 181 + 65 = 428 / Answer: 428
+Solve: 74 * 77 = ? / Step: 74 * 77 = 5698 / Answer: 5698
+Solve: 9 * 27 + 26 = ? / Step: 9 * 27 + 26 = 269 / Answer: 269
+Solve: 47 * 17 + 44 = ? / Step: 47 * 17 + 44 = 843 / Answer: 843
+Solve: 109 + 703 = ? / Step: 109 + 703 = 812 / Answer: 812
+Solve: 612 + 913 = ? / Step: 612 + 913 = 1525 / Answer: 1525
+Solve: 0 * 40 = ? / Step: 0 * 40 = 0 / Answer: 0
+Solve: 47 * 31 + 206 = ? / Step: 47 * 31 + 206 = 1663 / Answer: 1663
+Solve: 22 + 10 + 157 = ? / Step: 22 + 10 + 157 = 189 / Answer: 189
+Solve: 113 + 42 + 109 = ? / Step: 113 + 42 + 109 = 264 / Answer: 264
+Solve: 578 - 311 = ? / Step: 578 - 311 = 267 / Answer: 267
+Solve: 89 + 574 = ? / Step: 89 + 574 = 663 / Answer: 663
+Solve: 592 - 139 = ? / Step: 592 - 139 = 453 / Answer: 453
+Solve: 520 - 487 = ? / Step: 520 - 487 = 33 / Answer: 33
+Solve: 98 * 31 = ? / Step: 98 * 31 = 3038 / Answer: 3038
+Solve: 405 + 951 = ? / Step: 405 + 951 = 1356 / Answer: 1356
+Solve: 40 * 35 + 358 = ? / Step: 40 * 35 + 358 = 1758 / Answer: 1758
+Solve: 42 * 63 = ? / Step: 42 * 63 = 2646 / Answer: 2646
+Solve: 44 * 65 = ? / Step: 44 * 65 = 2860 / Answer: 2860
+Solve: 3657 / 53 = ? / Step: 3657 / 53 = 69 / Answer: 69
+Solve: 170 + 189 + 109 = ? / Step: 170 + 189 + 109 = 468 / Answer: 468
+Solve: 96 + 532 = ? / Step: 96 + 532 = 628 / Answer: 628
+Solve: 900 - 129 = ? / Step: 900 - 129 = 771 / Answer: 771
+Solve: 694 - 156 = ? / Step: 694 - 156 = 538 / Answer: 538
+Solve: 79 * 23 = ? / Step: 79 * 23 = 1817 / Answer: 1817
+Solve: 35 * 5 = ? / Step: 35 * 5 = 175 / Answer: 175
+Solve: 158 + 120 + 124 = ? / Step: 158 + 120 + 124 = 402 / Answer: 402
+Solve: 35 * 35 + 327 = ? / Step: 35 * 35 + 327 = 1552 / Answer: 1552
+Solve: 160 + 83 + 4 = ? / Step: 160 + 83 + 4 = 247 / Answer: 247
+Solve: 976 + 986 = ? / Step: 976 + 986 = 1962 / Answer: 1962
+Solve: 174 - 130 = ? / Step: 174 - 130 = 44 / Answer: 44
+Solve: 129 + 981 = ? / Step: 129 + 981 = 1110 / Answer: 1110
+Solve: 32 + 112 + 43 = ? / Step: 32 + 112 + 43 = 187 / Answer: 187
+Solve: 14 * 0 + 166 = ? / Step: 14 * 0 + 166 = 166 / Answer: 166
+Solve: 87 * 12 = ? / Step: 87 * 12 = 1044 / Answer: 1044
+Solve: 31 * 85 = ? / Step: 31 * 85 = 2635 / Answer: 2635
+Solve: 45 - 8 = ? / Step: 45 - 8 = 37 / Answer: 37
+Solve: 360 / 45 = ? / Step: 360 / 45 = 8 / Answer: 8
+Solve: 123 + 40 + 77 = ? / Step: 123 + 40 + 77 = 240 / Answer: 240
+Solve: 28 + 124 + 56 = ? / Step: 28 + 124 + 56 = 208 / Answer: 208
+Solve: 202 + 174 = ? / Step: 202 + 174 = 376 / Answer: 376
+Solve: 649 - 226 = ? / Step: 649 - 226 = 423 / Answer: 423
+Solve: 557 - 501 = ? / Step: 557 - 501 = 56 / Answer: 56
+Solve: 989 - 312 = ? / Step: 989 - 312 = 677 / Answer: 677
+Solve: 475 - 392 = ? / Step: 475 - 392 = 83 / Answer: 83
+Solve: 28 * 31 + 130 = ? / Step: 28 * 31 + 130 = 998 / Answer: 998
+Solve: 2668 / 58 = ? / Step: 2668 / 58 = 46 / Answer: 46
+Solve: 512 + 171 = ? / Step: 512 + 171 = 683 / Answer: 683
+Solve: 183 + 66 + 95 = ? / Step: 183 + 66 + 95 = 344 / Answer: 344
+Solve: 244 - 210 = ? / Step: 244 - 210 = 34 / Answer: 34
+Solve: 25 * 28 + 139 = ? / Step: 25 * 28 + 139 = 839 / Answer: 839
+Solve: 2392 / 92 = ? / Step: 2392 / 92 = 26 / Answer: 26
+Solve: 497 - 36 = ? / Step: 497 - 36 = 461 / Answer: 461
+Solve: 2769 / 71 = ? / Step: 2769 / 71 = 39 / Answer: 39
+Solve: 345 - 278 = ? / Step: 345 - 278 = 67 / Answer: 67
+Solve: 19 + 71 + 103 = ? / Step: 19 + 71 + 103 = 193 / Answer: 193
+Solve: 1020 / 15 = ? / Step: 1020 / 15 = 68 / Answer: 68
+Solve: 4171 / 97 = ? / Step: 4171 / 97 = 43 / Answer: 43
+Solve: 60 * 2 = ? / Step: 60 * 2 = 120 / Answer: 120
+Solve: 54 + 175 + 40 = ? / Step: 54 + 175 + 40 = 269 / Answer: 269
+Solve: 191 + 105 + 137 = ? / Step: 191 + 105 + 137 = 433 / Answer: 433
+Solve: 6 * 15 + 363 = ? / Step: 6 * 15 + 363 = 453 / Answer: 453
+Solve: 1170 / 15 = ? / Step: 1170 / 15 = 78 / Answer: 78
+Solve: 24 * 8 + 451 = ? / Step: 24 * 8 + 451 = 643 / Answer: 643
+Solve: 165 + 42 + 45 = ? / Step: 165 + 42 + 45 = 252 / Answer: 252
+Solve: 31 * 1 + 319 = ? / Step: 31 * 1 + 319 = 350 / Answer: 350
+Solve: 43 * 24 + 262 = ? / Step: 43 * 24 + 262 = 1294 / Answer: 1294
+Solve: 45 * 42 + 162 = ? / Step: 45 * 42 + 162 = 2052 / Answer: 2052
+Solve: 15 * 35 = ? / Step: 15 * 35 = 525 / Answer: 525
+Solve: 42 * 85 = ? / Step: 42 * 85 = 3570 / Answer: 3570
+Solve: 342 - 161 = ? / Step: 342 - 161 = 181 / Answer: 181
+Solve: 107 + 76 + 83 = ? / Step: 107 + 76 + 83 = 266 / Answer: 266
+Solve: 30 * 37 + 67 = ? / Step: 30 * 37 + 67 = 1177 / Answer: 1177
+Solve: 1 * 5 = ? / Step: 1 * 5 = 5 / Answer: 5
+Solve: 2607 / 79 = ? / Step: 2607 / 79 = 33 / Answer: 33
+Solve: 28 * 11 + 401 = ? / Step: 28 * 11 + 401 = 709 / Answer: 709
+Solve: 159 + 86 + 67 = ? / Step: 159 + 86 + 67 = 312 / Answer: 312
+Solve: 44 * 4 + 121 = ? / Step: 44 * 4 + 121 = 297 / Answer: 297
+Solve: 456 + 759 = ? / Step: 456 + 759 = 1215 / Answer: 1215
+Solve: 53 + 112 + 47 = ? / Step: 53 + 112 + 47 = 212 / Answer: 212
+Solve: 195 / 65 = ? / Step: 195 / 65 = 3 / Answer: 3
+Solve: 852 + 804 = ? / Step: 852 + 804 = 1656 / Answer: 1656
+Solve: 184 + 0 + 156 = ? / Step: 184 + 0 + 156 = 340 / Answer: 340
+Solve: 4575 / 61 = ? / Step: 4575 / 61 = 75 / Answer: 75
+Solve: 65 + 165 + 194 = ? / Step: 65 + 165 + 194 = 424 / Answer: 424
+Solve: 670 - 348 = ? / Step: 670 - 348 = 322 / Answer: 322
+Solve: 24 * 41 + 18 = ? / Step: 24 * 41 + 18 = 1002 / Answer: 1002
+Solve: 38 + 190 + 78 = ? / Step: 38 + 190 + 78 = 306 / Answer: 306
+Solve: 138 + 113 + 113 = ? / Step: 138 + 113 + 113 = 364 / Answer: 364
+Solve: 1056 / 33 = ? / Step: 1056 / 33 = 32 / Answer: 32
+Solve: 136 + 34 + 64 = ? / Step: 136 + 34 + 64 = 234 / Answer: 234
+Solve: 49 * 11 + 93 = ? / Step: 49 * 11 + 93 = 632 / Answer: 632
+Solve: 1176 / 49 = ? / Step: 1176 / 49 = 24 / Answer: 24
+Solve: 11 + 1 + 82 = ? / Step: 11 + 1 + 82 = 94 / Answer: 94
+Solve: 687 - 10 = ? / Step: 687 - 10 = 677 / Answer: 677
+Solve: 292 - 233 = ? / Step: 292 - 233 = 59 / Answer: 59
+Solve: 77 * 89 = ? / Step: 77 * 89 = 6853 / Answer: 6853
+Solve: 7 * 63 = ? / Step: 7 * 63 = 441 / Answer: 441
+Solve: 64 + 24 + 101 = ? / Step: 64 + 24 + 101 = 189 / Answer: 189
+Solve: 484 - 223 = ? / Step: 484 - 223 = 261 / Answer: 261
+Solve: 877 + 887 = ? / Step: 877 + 887 = 1764 / Answer: 1764
+Solve: 111 + 138 + 58 = ? / Step: 111 + 138 + 58 = 307 / Answer: 307
+Solve: 643 - 334 = ? / Step: 643 - 334 = 309 / Answer: 309
+Solve: 982 - 727 = ? / Step: 982 - 727 = 255 / Answer: 255
+Solve: 301 / 7 = ? / Step: 301 / 7 = 43 / Answer: 43
+Solve: 78 - 5 = ? / Step: 78 - 5 = 73 / Answer: 73
+Solve: 49 + 8 + 77 = ? / Step: 49 + 8 + 77 = 134 / Answer: 134
+Solve: 81 * 10 = ? / Step: 81 * 10 = 810 / Answer: 810
+Solve: 162 + 83 + 147 = ? / Step: 162 + 83 + 147 = 392 / Answer: 392
+Solve: 199 + 160 + 140 = ? / Step: 199 + 160 + 140 = 499 / Answer: 499
+Solve: 825 + 768 = ? / Step: 825 + 768 = 1593 / Answer: 1593
+Solve: 39 * 40 = ? / Step: 39 * 40 = 1560 / Answer: 1560
+Solve: 421 - 153 = ? / Step: 421 - 153 = 268 / Answer: 268
+Solve: 144 + 795 = ? / Step: 144 + 795 = 939 / Answer: 939
+Solve: 862 - 617 = ? / Step: 862 - 617 = 245 / Answer: 245
+Solve: 864 + 698 = ? / Step: 864 + 698 = 1562 / Answer: 1562
+Solve: 19 * 37 + 190 = ? / Step: 19 * 37 + 190 = 893 / Answer: 893
+Solve: 114 + 197 + 24 = ? / Step: 114 + 197 + 24 = 335 / Answer: 335
+Solve: 53 + 20 + 6 = ? / Step: 53 + 20 + 6 = 79 / Answer: 79
+Solve: 304 - 277 = ? / Step: 304 - 277 = 27 / Answer: 27
+Solve: 370 - 355 = ? / Step: 370 - 355 = 15 / Answer: 15
+Solve: 205 - 45 = ? / Step: 205 - 45 = 160 / Answer: 160
+Solve: 708 - 36 = ? / Step: 708 - 36 = 672 / Answer: 672
+Solve: 23 * 19 + 170 = ? / Step: 23 * 19 + 170 = 607 / Answer: 607
+Solve: 219 - 151 = ? / Step: 219 - 151 = 68 / Answer: 68
+Solve: 850 / 85 = ? / Step: 850 / 85 = 10 / Answer: 10
+Solve: 45 * 9 + 168 = ? / Step: 45 * 9 + 168 = 573 / Answer: 573
+Solve: 6 + 91 + 121 = ? / Step: 6 + 91 + 121 = 218 / Answer: 218
+Solve: 114 + 172 + 83 = ? / Step: 114 + 172 + 83 = 369 / Answer: 369
+Solve: 194 + 542 = ? / Step: 194 + 542 = 736 / Answer: 736
+Solve: 542 - 121 = ? / Step: 542 - 121 = 421 / Answer: 421
+Solve: 24 * 18 + 177 = ? / Step: 24 * 18 + 177 = 609 / Answer: 609
+Solve: 2883 / 93 = ? / Step: 2883 / 93 = 31 / Answer: 31
+Solve: 59 * 75 = ? / Step: 59 * 75 = 4425 / Answer: 4425
+Solve: 100 + 125 + 19 = ? / Step: 100 + 125 + 19 = 244 / Answer: 244
+Solve: 30 * 17 + 384 = ? / Step: 30 * 17 + 384 = 894 / Answer: 894
+Solve: 469 - 406 = ? / Step: 469 - 406 = 63 / Answer: 63
+Solve: 4872 / 84 = ? / Step: 4872 / 84 = 58 / Answer: 58
+Solve: 776 + 296 = ? / Step: 776 + 296 = 1072 / Answer: 1072
+Solve: 3128 / 92 = ? / Step: 3128 / 92 = 34 / Answer: 34
+Solve: 19 / 19 = ? / Step: 19 / 19 = 1 / Answer: 1
+Solve: 267 - 29 = ? / Step: 267 - 29 = 238 / Answer: 238
+Solve: 64 + 18 + 185 = ? / Step: 64 + 18 + 185 = 267 / Answer: 267
+Solve: 5548 / 76 = ? / Step: 5548 / 76 = 73 / Answer: 73
+Solve: 195 + 116 + 145 = ? / Step: 195 + 116 + 145 = 456 / Answer: 456
+Solve: 790 - 327 = ? / Step: 790 - 327 = 463 / Answer: 463
+Solve: 31 + 0 + 113 = ? / Step: 31 + 0 + 113 = 144 / Answer: 144
+Solve: 55 * 9 = ? / Step: 55 * 9 = 495 / Answer: 495
+Solve: 43 * 8 = ? / Step: 43 * 8 = 344 / Answer: 344
+Solve: 720 / 40 = ? / Step: 720 / 40 = 18 / Answer: 18
+Solve: 7 * 81 = ? / Step: 7 * 81 = 567 / Answer: 567
+Solve: 290 / 58 = ? / Step: 290 / 58 = 5 / Answer: 5
+Solve: 28 + 0 = ? / Step: 28 + 0 = 28 / Answer: 28
+Solve: 59 * 69 = ? / Step: 59 * 69 = 4071 / Answer: 4071
+Solve: 707 + 954 = ? / Step: 707 + 954 = 1661 / Answer: 1661
+Solve: 106 + 73 + 38 = ? / Step: 106 + 73 + 38 = 217 / Answer: 217
+Solve: 920 - 668 = ? / Step: 920 - 668 = 252 / Answer: 252
+Solve: 23 + 93 + 171 = ? / Step: 23 + 93 + 171 = 287 / Answer: 287
+Solve: 44 + 131 + 165 = ? / Step: 44 + 131 + 165 = 340 / Answer: 340
+Solve: 716 - 96 = ? / Step: 716 - 96 = 620 / Answer: 620
+Solve: 26 * 25 + 89 = ? / Step: 26 * 25 + 89 = 739 / Answer: 739
+Solve: 47 * 49 + 459 = ? / Step: 47 * 49 + 459 = 2762 / Answer: 2762
+Solve: 110 / 11 = ? / Step: 110 / 11 = 10 / Answer: 10
+Solve: 14 * 20 + 433 = ? / Step: 14 * 20 + 433 = 713 / Answer: 713
+Solve: 26 * 77 = ? / Step: 26 * 77 = 2002 / Answer: 2002
+Solve: 8 * 33 = ? / Step: 8 * 33 = 264 / Answer: 264
+Solve: 12 * 47 + 476 = ? / Step: 12 * 47 + 476 = 1040 / Answer: 1040
+Solve: 14 * 5 + 78 = ? / Step: 14 * 5 + 78 = 148 / Answer: 148
+Solve: 39 - 10 = ? / Step: 39 - 10 = 29 / Answer: 29
+Solve: 1 * 6 + 408 = ? / Step: 1 * 6 + 408 = 414 / Answer: 414
+Solve: 538 - 214 = ? / Step: 538 - 214 = 324 / Answer: 324
+Solve: 26 * 39 + 363 = ? / Step: 26 * 39 + 363 = 1377 / Answer: 1377
+Solve: 77 * 19 = ? / Step: 77 * 19 = 1463 / Answer: 1463
+Solve: 189 - 116 = ? / Step: 189 - 116 = 73 / Answer: 73
+Solve: 937 + 184 = ? / Step: 937 + 184 = 1121 / Answer: 1121
+Solve: 294 + 536 = ? / Step: 294 + 536 = 830 / Answer: 830
+Solve: 35 * 34 = ? / Step: 35 * 34 = 1190 / Answer: 1190
+Solve: 32 * 28 + 376 = ? / Step: 32 * 28 + 376 = 1272 / Answer: 1272
+Solve: 635 - 125 = ? / Step: 635 - 125 = 510 / Answer: 510
+Solve: 565 - 519 = ? / Step: 565 - 519 = 46 / Answer: 46
+Solve: 435 + 108 = ? / Step: 435 + 108 = 543 / Answer: 543
+Solve: 903 - 533 = ? / Step: 903 - 533 = 370 / Answer: 370
+Solve: 2 + 144 + 0 = ? / Step: 2 + 144 + 0 = 146 / Answer: 146
+Solve: 14 * 57 = ? / Step: 14 * 57 = 798 / Answer: 798
+Solve: 2650 / 50 = ? / Step: 2650 / 50 = 53 / Answer: 53
+Solve: 42 * 55 = ? / Step: 42 * 55 = 2310 / Answer: 2310
+Solve: 17 * 36 + 195 = ? / Step: 17 * 36 + 195 = 807 / Answer: 807
+Solve: 356 - 175 = ? / Step: 356 - 175 = 181 / Answer: 181
+Solve: 101 + 37 + 122 = ? / Step: 101 + 37 + 122 = 260 / Answer: 260
+Solve: 45 * 35 + 112 = ? / Step: 45 * 35 + 112 = 1687 / Answer: 1687
+Solve: 922 - 596 = ? / Step: 922 - 596 = 326 / Answer: 326
+Solve: 21 + 65 + 144 = ? / Step: 21 + 65 + 144 = 230 / Answer: 230
+Solve: 6 + 33 + 57 = ? / Step: 6 + 33 + 57 = 96 / Answer: 96
+Solve: 368 - 297 = ? / Step: 368 - 297 = 71 / Answer: 71
+Solve: 34 * 34 + 193 = ? / Step: 34 * 34 + 193 = 1349 / Answer: 1349
+Solve: 257 + 724 = ? / Step: 257 + 724 = 981 / Answer: 981
+Solve: 13 * 75 = ? / Step: 13 * 75 = 975 / Answer: 975
+Solve: 67 + 124 + 196 = ? / Step: 67 + 124 + 196 = 387 / Answer: 387
+Solve: 20 + 190 + 173 = ? / Step: 20 + 190 + 173 = 383 / Answer: 383
+Solve: 20 + 48 + 174 = ? / Step: 20 + 48 + 174 = 242 / Answer: 242
+Solve: 17 * 25 + 117 = ? / Step: 17 * 25 + 117 = 542 / Answer: 542
+Solve: 23 * 7 + 130 = ? / Step: 23 * 7 + 130 = 291 / Answer: 291
+Solve: 66 * 76 = ? / Step: 66 * 76 = 5016 / Answer: 5016
+Solve: 238 - 8 = ? / Step: 238 - 8 = 230 / Answer: 230
+Solve: 405 + 500 = ? / Step: 405 + 500 = 905 / Answer: 905
+Solve: 191 + 759 = ? / Step: 191 + 759 = 950 / Answer: 950
+Solve: 19 * 25 + 354 = ? / Step: 19 * 25 + 354 = 829 / Answer: 829
+Solve: 288 / 36 = ? / Step: 288 / 36 = 8 / Answer: 8
+Solve: 323 + 761 = ? / Step: 323 + 761 = 1084 / Answer: 1084
+Solve: 669 - 103 = ? / Step: 669 - 103 = 566 / Answer: 566
+Solve: 11 * 38 + 393 = ? / Step: 11 * 38 + 393 = 811 / Answer: 811
+Solve: 66 * 49 = ? / Step: 66 * 49 = 3234 / Answer: 3234
+Solve: 938 + 721 = ? / Step: 938 + 721 = 1659 / Answer: 1659
+Solve: 23 * 2 = ? / Step: 23 * 2 = 46 / Answer: 46
+Solve: 5 * 30 + 186 = ? / Step: 5 * 30 + 186 = 336 / Answer: 336
+Solve: 874 + 687 = ? / Step: 874 + 687 = 1561 / Answer: 1561
+Solve: 159 + 78 + 55 = ? / Step: 159 + 78 + 55 = 292 / Answer: 292
+Solve: 153 + 16 + 157 = ? / Step: 153 + 16 + 157 = 326 / Answer: 326
+Solve: 618 + 263 = ? / Step: 618 + 263 = 881 / Answer: 881
+Solve: 2590 / 70 = ? / Step: 2590 / 70 = 37 / Answer: 37
+Solve: 153 + 124 + 66 = ? / Step: 153 + 124 + 66 = 343 / Answer: 343
+Solve: 41 * 32 + 122 = ? / Step: 41 * 32 + 122 = 1434 / Answer: 1434
+Solve: 775 + 625 = ? / Step: 775 + 625 = 1400 / Answer: 1400
+Solve: 774 - 687 = ? / Step: 774 - 687 = 87 / Answer: 87
+Solve: 664 + 982 = ? / Step: 664 + 982 = 1646 / Answer: 1646
+Solve: 36 * 16 + 490 = ? / Step: 36 * 16 + 490 = 1066 / Answer: 1066
+Solve: 150 + 22 + 76 = ? / Step: 150 + 22 + 76 = 248 / Answer: 248
+Solve: 12 * 25 + 222 = ? / Step: 12 * 25 + 222 = 522 / Answer: 522
+Solve: 29 * 31 = ? / Step: 29 * 31 = 899 / Answer: 899
+Solve: 52 + 107 + 161 = ? / Step: 52 + 107 + 161 = 320 / Answer: 320
+Solve: 62 + 46 + 71 = ? / Step: 62 + 46 + 71 = 179 / Answer: 179
+Solve: 483 + 597 = ? / Step: 483 + 597 = 1080 / Answer: 1080
+Solve: 6240 / 78 = ? / Step: 6240 / 78 = 80 / Answer: 80
+Solve: 37 * 24 + 89 = ? / Step: 37 * 24 + 89 = 977 / Answer: 977
+Solve: 82 + 145 + 139 = ? / Step: 82 + 145 + 139 = 366 / Answer: 366
+Solve: 78 + 248 = ? / Step: 78 + 248 = 326 / Answer: 326
+Solve: 156 + 173 + 14 = ? / Step: 156 + 173 + 14 = 343 / Answer: 343
+Solve: 95 * 79 = ? / Step: 95 * 79 = 7505 / Answer: 7505
+Solve: 807 - 545 = ? / Step: 807 - 545 = 262 / Answer: 262
+Solve: 10 * 39 + 265 = ? / Step: 10 * 39 + 265 = 655 / Answer: 655
+Solve: 80 - 61 = ? / Step: 80 - 61 = 19 / Answer: 19
+Solve: 43 * 12 + 261 = ? / Step: 43 * 12 + 261 = 777 / Answer: 777
+Solve: 312 + 698 = ? / Step: 312 + 698 = 1010 / Answer: 1010
+Solve: 863 + 638 = ? / Step: 863 + 638 = 1501 / Answer: 1501
+Solve: 961 + 608 = ? / Step: 961 + 608 = 1569 / Answer: 1569
+Solve: 661 + 2 = ? / Step: 661 + 2 = 663 / Answer: 663
+Solve: 629 + 92 = ? / Step: 629 + 92 = 721 / Answer: 721
+Solve: 16 + 120 + 19 = ? / Step: 16 + 120 + 19 = 155 / Answer: 155
+Solve: 85 * 36 = ? / Step: 85 * 36 = 3060 / Answer: 3060
+Solve: 633 + 434 = ? / Step: 633 + 434 = 1067 / Answer: 1067
+Solve: 63 * 52 = ? / Step: 63 * 52 = 3276 / Answer: 3276
+Solve: 616 - 339 = ? / Step: 616 - 339 = 277 / Answer: 277
+Solve: 95 + 170 + 84 = ? / Step: 95 + 170 + 84 = 349 / Answer: 349
+Solve: 126 + 119 + 73 = ? / Step: 126 + 119 + 73 = 318 / Answer: 318
+Solve: 15 * 55 = ? / Step: 15 * 55 = 825 / Answer: 825
+Solve: 106 + 56 + 171 = ? / Step: 106 + 56 + 171 = 333 / Answer: 333
+Solve: 44 * 4 + 18 = ? / Step: 44 * 4 + 18 = 194 / Answer: 194
+Solve: 10 * 47 + 301 = ? / Step: 10 * 47 + 301 = 771 / Answer: 771
+Solve: 187 + 31 + 129 = ? / Step: 187 + 31 + 129 = 347 / Answer: 347
+Solve: 999 + 172 = ? / Step: 999 + 172 = 1171 / Answer: 1171
+Solve: 601 + 527 = ? / Step: 601 + 527 = 1128 / Answer: 1128
+Solve: 7 * 18 + 203 = ? / Step: 7 * 18 + 203 = 329 / Answer: 329
+Solve: 86 - 19 = ? / Step: 86 - 19 = 67 / Answer: 67
+Solve: 86 * 43 = ? / Step: 86 * 43 = 3698 / Answer: 3698
+Solve: 100 + 30 + 170 = ? / Step: 100 + 30 + 170 = 300 / Answer: 300
+Solve: 3 * 20 + 432 = ? / Step: 3 * 20 + 432 = 492 / Answer: 492
+Solve: 718 + 590 = ? / Step: 718 + 590 = 1308 / Answer: 1308
+Solve: 84 * 51 = ? / Step: 84 * 51 = 4284 / Answer: 4284
+Solve: 70 + 79 + 76 = ? / Step: 70 + 79 + 76 = 225 / Answer: 225
+Solve: 6 * 19 = ? / Step: 6 * 19 = 114 / Answer: 114
+Solve: 1316 / 28 = ? / Step: 1316 / 28 = 47 / Answer: 47
+Solve: 151 + 154 = ? / Step: 151 + 154 = 305 / Answer: 305
+Solve: 159 + 168 + 15 = ? / Step: 159 + 168 + 15 = 342 / Answer: 342
+Solve: 273 - 134 = ? / Step: 273 - 134 = 139 / Answer: 139
+Solve: 6072 / 66 = ? / Step: 6072 / 66 = 92 / Answer: 92
+Solve: 152 + 35 = ? / Step: 152 + 35 = 187 / Answer: 187
+Solve: 9 * 17 + 201 = ? / Step: 9 * 17 + 201 = 354 / Answer: 354
+Solve: 156 + 2 + 169 = ? / Step: 156 + 2 + 169 = 327 / Answer: 327
+Solve: 68 * 26 = ? / Step: 68 * 26 = 1768 / Answer: 1768
+Solve: 52 * 33 = ? / Step: 52 * 33 = 1716 / Answer: 1716
+Solve: 281 + 437 = ? / Step: 281 + 437 = 718 / Answer: 718
+Solve: 428 - 316 = ? / Step: 428 - 316 = 112 / Answer: 112
+Solve: 801 - 116 = ? / Step: 801 - 116 = 685 / Answer: 685
+Solve: 10 * 31 + 79 = ? / Step: 10 * 31 + 79 = 389 / Answer: 389
+Solve: 63 + 191 + 140 = ? / Step: 63 + 191 + 140 = 394 / Answer: 394
+Solve: 138 + 110 + 17 = ? / Step: 138 + 110 + 17 = 265 / Answer: 265
+Solve: 873 + 599 = ? / Step: 873 + 599 = 1472 / Answer: 1472
+Solve: 188 + 77 + 140 = ? / Step: 188 + 77 + 140 = 405 / Answer: 405
+Solve: 120 - 59 = ? / Step: 120 - 59 = 61 / Answer: 61
+Solve: 492 + 340 = ? / Step: 492 + 340 = 832 / Answer: 832
+Solve: 86 + 107 + 37 = ? / Step: 86 + 107 + 37 = 230 / Answer: 230
+Solve: 805 + 835 = ? / Step: 805 + 835 = 1640 / Answer: 1640
+Solve: 75 * 87 = ? / Step: 75 * 87 = 6525 / Answer: 6525
+Solve: 39 * 15 + 343 = ? / Step: 39 * 15 + 343 = 928 / Answer: 928
+Solve: 71 * 48 = ? / Step: 71 * 48 = 3408 / Answer: 3408
+Solve: 572 - 110 = ? / Step: 572 - 110 = 462 / Answer: 462
+Solve: 14 * 4 + 339 = ? / Step: 14 * 4 + 339 = 395 / Answer: 395
+Solve: 826 - 291 = ? / Step: 826 - 291 = 535 / Answer: 535
+Solve: 19 * 8 = ? / Step: 19 * 8 = 152 / Answer: 152
+Solve: 1705 / 55 = ? / Step: 1705 / 55 = 31 / Answer: 31
+Solve: 776 + 634 = ? / Step: 776 + 634 = 1410 / Answer: 1410
+Solve: 122 + 101 + 140 = ? / Step: 122 + 101 + 140 = 363 / Answer: 363
+Solve: 3420 / 60 = ? / Step: 3420 / 60 = 57 / Answer: 57
+Solve: 46 - 29 = ? / Step: 46 - 29 = 17 / Answer: 17
+Solve: 419 + 51 = ? / Step: 419 + 51 = 470 / Answer: 470
+Solve: 21 * 40 + 386 = ? / Step: 21 * 40 + 386 = 1226 / Answer: 1226
+Solve: 36 * 99 = ? / Step: 36 * 99 = 3564 / Answer: 3564
+Solve: 27 * 66 = ? / Step: 27 * 66 = 1782 / Answer: 1782
+Solve: 45 * 19 + 395 = ? / Step: 45 * 19 + 395 = 1250 / Answer: 1250
+Solve: 4760 / 85 = ? / Step: 4760 / 85 = 56 / Answer: 56
+Solve: 884 + 457 = ? / Step: 884 + 457 = 1341 / Answer: 1341
+Solve: 28 * 42 + 179 = ? / Step: 28 * 42 + 179 = 1355 / Answer: 1355
+Solve: 48 * 38 = ? / Step: 48 * 38 = 1824 / Answer: 1824
+Solve: 23 * 75 = ? / Step: 23 * 75 = 1725 / Answer: 1725
+Solve: 12 + 820 = ? / Step: 12 + 820 = 832 / Answer: 832
+Solve: 213 - 76 = ? / Step: 213 - 76 = 137 / Answer: 137
+Solve: 198 + 173 + 0 = ? / Step: 198 + 173 + 0 = 371 / Answer: 371
+Solve: 983 + 284 = ? / Step: 983 + 284 = 1267 / Answer: 1267
+Solve: 41 + 80 + 189 = ? / Step: 41 + 80 + 189 = 310 / Answer: 310
+Solve: 745 - 377 = ? / Step: 745 - 377 = 368 / Answer: 368
+Solve: 8 * 23 + 165 = ? / Step: 8 * 23 + 165 = 349 / Answer: 349
+Solve: 74 / 37 = ? / Step: 74 / 37 = 2 / Answer: 2
+Solve: 2784 / 87 = ? / Step: 2784 / 87 = 32 / Answer: 32
+Solve: 43 * 28 + 90 = ? / Step: 43 * 28 + 90 = 1294 / Answer: 1294
+Solve: 80 * 5 = ? / Step: 80 * 5 = 400 / Answer: 400
+Solve: 951 + 408 = ? / Step: 951 + 408 = 1359 / Answer: 1359
+Solve: 5328 / 74 = ? / Step: 5328 / 74 = 72 / Answer: 72
+Solve: 21 * 40 + 217 = ? / Step: 21 * 40 + 217 = 1057 / Answer: 1057
+Solve: 1376 / 43 = ? / Step: 1376 / 43 = 32 / Answer: 32
+Solve: 715 - 689 = ? / Step: 715 - 689 = 26 / Answer: 26
+Solve: 1200 / 30 = ? / Step: 1200 / 30 = 40 / Answer: 40
+Solve: 214 + 493 = ? / Step: 214 + 493 = 707 / Answer: 707
+Solve: 240 + 486 = ? / Step: 240 + 486 = 726 / Answer: 726
+Solve: 10 * 5 + 161 = ? / Step: 10 * 5 + 161 = 211 / Answer: 211
+Solve: 27 * 6 = ? / Step: 27 * 6 = 162 / Answer: 162
+Solve: 81 * 12 = ? / Step: 81 * 12 = 972 / Answer: 972
+Solve: 2516 / 37 = ? / Step: 2516 / 37 = 68 / Answer: 68
+Solve: 259 - 169 = ? / Step: 259 - 169 = 90 / Answer: 90
+Solve: 290 - 289 = ? / Step: 290 - 289 = 1 / Answer: 1
+Solve: 88 + 91 + 20 = ? / Step: 88 + 91 + 20 = 199 / Answer: 199
+Solve: 712 - 217 = ? / Step: 712 - 217 = 495 / Answer: 495
+Solve: 187 + 27 + 184 = ? / Step: 187 + 27 + 184 = 398 / Answer: 398
+Solve: 470 - 0 = ? / Step: 470 - 0 = 470 / Answer: 470
+Solve: 51 + 14 + 179 = ? / Step: 51 + 14 + 179 = 244 / Answer: 244
+Solve: 564 + 41 = ? / Step: 564 + 41 = 605 / Answer: 605
+Solve: 548 + 962 = ? / Step: 548 + 962 = 1510 / Answer: 1510
+Solve: 992 + 990 = ? / Step: 992 + 990 = 1982 / Answer: 1982
+Solve: 445 + 179 = ? / Step: 445 + 179 = 624 / Answer: 624
+Solve: 44 * 31 + 367 = ? / Step: 44 * 31 + 367 = 1731 / Answer: 1731
+Solve: 85 * 93 = ? / Step: 85 * 93 = 7905 / Answer: 7905
+Solve: 114 - 25 = ? / Step: 114 - 25 = 89 / Answer: 89
+Solve: 583 - 175 = ? / Step: 583 - 175 = 408 / Answer: 408
+Solve: 1 * 17 + 158 = ? / Step: 1 * 17 + 158 = 175 / Answer: 175
+Solve: 188 + 160 + 38 = ? / Step: 188 + 160 + 38 = 386 / Answer: 386
+Solve: 723 - 338 = ? / Step: 723 - 338 = 385 / Answer: 385
+Solve: 803 - 131 = ? / Step: 803 - 131 = 672 / Answer: 672
+Solve: 17 * 35 + 19 = ? / Step: 17 * 35 + 19 = 614 / Answer: 614
+Solve: 65 - 8 = ? / Step: 65 - 8 = 57 / Answer: 57
+Solve: 30 * 54 = ? / Step: 30 * 54 = 1620 / Answer: 1620
+Solve: 22 * 44 + 224 = ? / Step: 22 * 44 + 224 = 1192 / Answer: 1192
+Solve: 26 * 67 = ? / Step: 26 * 67 = 1742 / Answer: 1742
+Solve: 47 - 26 = ? / Step: 47 - 26 = 21 / Answer: 21
+Solve: 0 / 98 = ? / Step: 0 / 98 = 0 / Answer: 0
+Solve: 14 * 28 + 245 = ? / Step: 14 * 28 + 245 = 637 / Answer: 637
+Solve: 140 + 101 + 37 = ? / Step: 140 + 101 + 37 = 278 / Answer: 278
+Solve: 0 * 13 = ? / Step: 0 * 13 = 0 / Answer: 0
+Solve: 578 + 799 = ? / Step: 578 + 799 = 1377 / Answer: 1377
+Solve: 505 - 249 = ? / Step: 505 - 249 = 256 / Answer: 256
+Solve: 117 + 44 + 80 = ? / Step: 117 + 44 + 80 = 241 / Answer: 241
+Solve: 113 + 68 + 130 = ? / Step: 113 + 68 + 130 = 311 / Answer: 311
+Solve: 2146 / 58 = ? / Step: 2146 / 58 = 37 / Answer: 37
+Solve: 8 * 3 + 60 = ? / Step: 8 * 3 + 60 = 84 / Answer: 84
+Solve: 386 + 596 = ? / Step: 386 + 596 = 982 / Answer: 982
+Solve: 48 * 20 + 10 = ? / Step: 48 * 20 + 10 = 970 / Answer: 970
+Solve: 2208 / 69 = ? / Step: 2208 / 69 = 32 / Answer: 32
+Solve: 889 - 215 = ? / Step: 889 - 215 = 674 / Answer: 674
+Solve: 58 * 97 = ? / Step: 58 * 97 = 5626 / Answer: 5626
+Solve: 16 * 18 + 326 = ? / Step: 16 * 18 + 326 = 614 / Answer: 614
+Solve: 158 + 139 + 92 = ? / Step: 158 + 139 + 92 = 389 / Answer: 389
+Solve: 664 + 766 = ? / Step: 664 + 766 = 1430 / Answer: 1430
+Solve: 64 * 91 = ? / Step: 64 * 91 = 5824 / Answer: 5824
+Solve: 94 * 88 = ? / Step: 94 * 88 = 8272 / Answer: 8272
+Solve: 831 + 137 = ? / Step: 831 + 137 = 968 / Answer: 968
+Solve: 384 + 990 = ? / Step: 384 + 990 = 1374 / Answer: 1374
+Solve: 43 * 41 + 213 = ? / Step: 43 * 41 + 213 = 1976 / Answer: 1976
+Solve: 250 / 50 = ? / Step: 250 / 50 = 5 / Answer: 5
+Solve: 919 + 330 = ? / Step: 919 + 330 = 1249 / Answer: 1249
+Solve: 86 * 69 = ? / Step: 86 * 69 = 5934 / Answer: 5934
+Solve: 9 - 1 = ? / Step: 9 - 1 = 8 / Answer: 8
+Solve: 98 * 58 = ? / Step: 98 * 58 = 5684 / Answer: 5684
+Solve: 108 - 54 = ? / Step: 108 - 54 = 54 / Answer: 54
+Solve: 2989 / 61 = ? / Step: 2989 / 61 = 49 / Answer: 49
+Solve: 806 + 239 = ? / Step: 806 + 239 = 1045 / Answer: 1045
+Solve: 15 * 42 + 411 = ? / Step: 15 * 42 + 411 = 1041 / Answer: 1041
+Solve: 179 + 190 + 37 = ? / Step: 179 + 190 + 37 = 406 / Answer: 406
+Solve: 149 + 69 + 54 = ? / Step: 149 + 69 + 54 = 272 / Answer: 272
+Solve: 12 + 73 + 132 = ? / Step: 12 + 73 + 132 = 217 / Answer: 217
+Solve: 88 * 78 = ? / Step: 88 * 78 = 6864 / Answer: 6864
+Solve: 86 + 117 + 127 = ? / Step: 86 + 117 + 127 = 330 / Answer: 330
+Solve: 966 - 371 = ? / Step: 966 - 371 = 595 / Answer: 595
+Solve: 71 * 88 = ? / Step: 71 * 88 = 6248 / Answer: 6248
+Solve: 13 + 27 + 103 = ? / Step: 13 + 27 + 103 = 143 / Answer: 143
+Solve: 25 * 47 + 49 = ? / Step: 25 * 47 + 49 = 1224 / Answer: 1224
+Solve: 191 + 178 + 182 = ? / Step: 191 + 178 + 182 = 551 / Answer: 551
+Solve: 303 + 467 = ? / Step: 303 + 467 = 770 / Answer: 770
+Solve: 486 - 398 = ? / Step: 486 - 398 = 88 / Answer: 88
+Solve: 621 + 413 = ? / Step: 621 + 413 = 1034 / Answer: 1034
+Solve: 28 * 40 + 344 = ? / Step: 28 * 40 + 344 = 1464 / Answer: 1464
+Solve: 57 - 9 = ? / Step: 57 - 9 = 48 / Answer: 48
+Solve: 11 * 23 = ? / Step: 11 * 23 = 253 / Answer: 253
+Solve: 2 * 66 = ? / Step: 2 * 66 = 132 / Answer: 132
+Solve: 18 * 14 = ? / Step: 18 * 14 = 252 / Answer: 252
+Solve: 492 - 40 = ? / Step: 492 - 40 = 452 / Answer: 452
+Solve: 168 - 127 = ? / Step: 168 - 127 = 41 / Answer: 41
+Solve: 89 + 135 + 83 = ? / Step: 89 + 135 + 83 = 307 / Answer: 307
+Solve: 11 * 10 + 9 = ? / Step: 11 * 10 + 9 = 119 / Answer: 119
+Solve: 431 + 304 = ? / Step: 431 + 304 = 735 / Answer: 735
+Solve: 67 * 25 = ? / Step: 67 * 25 = 1675 / Answer: 1675
+Solve: 224 + 858 = ? / Step: 224 + 858 = 1082 / Answer: 1082
+Solve: 620 / 10 = ? / Step: 620 / 10 = 62 / Answer: 62
+Solve: 1131 / 13 = ? / Step: 1131 / 13 = 87 / Answer: 87
+Solve: 65 * 29 = ? / Step: 65 * 29 = 1885 / Answer: 1885
+Solve: 5037 / 69 = ? / Step: 5037 / 69 = 73 / Answer: 73
+Solve: 43 * 32 + 344 = ? / Step: 43 * 32 + 344 = 1720 / Answer: 1720
+Solve: 15 * 39 + 461 = ? / Step: 15 * 39 + 461 = 1046 / Answer: 1046
+Solve: 30 + 75 + 86 = ? / Step: 30 + 75 + 86 = 191 / Answer: 191
+Solve: 798 + 408 = ? / Step: 798 + 408 = 1206 / Answer: 1206
+Solve: 475 - 248 = ? / Step: 475 - 248 = 227 / Answer: 227
+Solve: 140 + 163 + 187 = ? / Step: 140 + 163 + 187 = 490 / Answer: 490
+Solve: 45 * 4 + 371 = ? / Step: 45 * 4 + 371 = 551 / Answer: 551
+Solve: 96 * 96 = ? / Step: 96 * 96 = 9216 / Answer: 9216
+Solve: 129 + 159 + 131 = ? / Step: 129 + 159 + 131 = 419 / Answer: 419
+Solve: 18 * 33 + 46 = ? / Step: 18 * 33 + 46 = 640 / Answer: 640
+Solve: 26 * 22 = ? / Step: 26 * 22 = 572 / Answer: 572
+Solve: 12 - 3 = ? / Step: 12 - 3 = 9 / Answer: 9
+Solve: 949 + 640 = ? / Step: 949 + 640 = 1589 / Answer: 1589
+Solve: 6552 / 91 = ? / Step: 6552 / 91 = 72 / Answer: 72
+Solve: 899 - 286 = ? / Step: 899 - 286 = 613 / Answer: 613
+Solve: 23 * 32 + 323 = ? / Step: 23 * 32 + 323 = 1059 / Answer: 1059
+Solve: 905 - 726 = ? / Step: 905 - 726 = 179 / Answer: 179
+Solve: 469 + 219 = ? / Step: 469 + 219 = 688 / Answer: 688
+Solve: 81 + 180 + 177 = ? / Step: 81 + 180 + 177 = 438 / Answer: 438
+Solve: 113 + 150 = ? / Step: 113 + 150 = 263 / Answer: 263
+Solve: 21 * 7 + 182 = ? / Step: 21 * 7 + 182 = 329 / Answer: 329
+Solve: 37 * 3 + 96 = ? / Step: 37 * 3 + 96 = 207 / Answer: 207
+Solve: 99 * 36 = ? / Step: 99 * 36 = 3564 / Answer: 3564
+Solve: 671 + 786 = ? / Step: 671 + 786 = 1457 / Answer: 1457
+Solve: 525 - 20 = ? / Step: 525 - 20 = 505 / Answer: 505
+Solve: 628 + 395 = ? / Step: 628 + 395 = 1023 / Answer: 1023
+Solve: 96 * 33 = ? / Step: 96 * 33 = 3168 / Answer: 3168
+Solve: 46 * 10 + 125 = ? / Step: 46 * 10 + 125 = 585 / Answer: 585
+Solve: 150 + 34 + 39 = ? / Step: 150 + 34 + 39 = 223 / Answer: 223
+Solve: 8 * 27 + 180 = ? / Step: 8 * 27 + 180 = 396 / Answer: 396
+Solve: 223 + 520 = ? / Step: 223 + 520 = 743 / Answer: 743
+Solve: 770 - 260 = ? / Step: 770 - 260 = 510 / Answer: 510
+Solve: 954 - 165 = ? / Step: 954 - 165 = 789 / Answer: 789
+Solve: 123 + 57 + 7 = ? / Step: 123 + 57 + 7 = 187 / Answer: 187
+Solve: 36 * 26 + 9 = ? / Step: 36 * 26 + 9 = 945 / Answer: 945
+Solve: 177 + 601 = ? / Step: 177 + 601 = 778 / Answer: 778
+Solve: 145 + 60 + 26 = ? / Step: 145 + 60 + 26 = 231 / Answer: 231
+Solve: 59 + 15 + 3 = ? / Step: 59 + 15 + 3 = 77 / Answer: 77
+Solve: 26 * 7 + 190 = ? / Step: 26 * 7 + 190 = 372 / Answer: 372
+Solve: 57 + 85 + 151 = ? / Step: 57 + 85 + 151 = 293 / Answer: 293
+Solve: 47 + 305 = ? / Step: 47 + 305 = 352 / Answer: 352
+Solve: 1998 / 27 = ? / Step: 1998 / 27 = 74 / Answer: 74
+Solve: 269 + 934 = ? / Step: 269 + 934 = 1203 / Answer: 1203
+Solve: 2 + 184 + 49 = ? / Step: 2 + 184 + 49 = 235 / Answer: 235
+Solve: 259 + 911 = ? / Step: 259 + 911 = 1170 / Answer: 1170
+Solve: 17 * 26 = ? / Step: 17 * 26 = 442 / Answer: 442
+Solve: 188 + 126 + 87 = ? / Step: 188 + 126 + 87 = 401 / Answer: 401
+Solve: 33 * 29 = ? / Step: 33 * 29 = 957 / Answer: 957
+Solve: 225 - 135 = ? / Step: 225 - 135 = 90 / Answer: 90
+Solve: 9 * 14 + 129 = ? / Step: 9 * 14 + 129 = 255 / Answer: 255
+Solve: 19 * 8 + 432 = ? / Step: 19 * 8 + 432 = 584 / Answer: 584
+Solve: 6912 / 96 = ? / Step: 6912 / 96 = 72 / Answer: 72
+Solve: 40 * 44 + 340 = ? / Step: 40 * 44 + 340 = 2100 / Answer: 2100
+Solve: 740 - 97 = ? / Step: 740 - 97 = 643 / Answer: 643
+Solve: 73 * 95 = ? / Step: 73 * 95 = 6935 / Answer: 6935
+Solve: 1508 / 58 = ? / Step: 1508 / 58 = 26 / Answer: 26
+Solve: 926 - 106 = ? / Step: 926 - 106 = 820 / Answer: 820
+Solve: 105 + 193 + 171 = ? / Step: 105 + 193 + 171 = 469 / Answer: 469
+Solve: 754 - 460 = ? / Step: 754 - 460 = 294 / Answer: 294
+Solve: 672 + 261 = ? / Step: 672 + 261 = 933 / Answer: 933
+Solve: 102 - 44 = ? / Step: 102 - 44 = 58 / Answer: 58
+Solve: 1802 / 34 = ? / Step: 1802 / 34 = 53 / Answer: 53
+Solve: 9 + 40 = ? / Step: 9 + 40 = 49 / Answer: 49
+Solve: 140 + 45 + 175 = ? / Step: 140 + 45 + 175 = 360 / Answer: 360
+Solve: 438 - 213 = ? / Step: 438 - 213 = 225 / Answer: 225
+Solve: 46 * 38 + 212 = ? / Step: 46 * 38 + 212 = 1960 / Answer: 1960
+Solve: 28 * 19 + 59 = ? / Step: 28 * 19 + 59 = 591 / Answer: 591
+Solve: 80 + 66 + 14 = ? / Step: 80 + 66 + 14 = 160 / Answer: 160
+Solve: 89 + 173 + 35 = ? / Step: 89 + 173 + 35 = 297 / Answer: 297
+Solve: 880 / 40 = ? / Step: 880 / 40 = 22 / Answer: 22
+Solve: 184 / 4 = ? / Step: 184 / 4 = 46 / Answer: 46
+Solve: 136 + 156 + 87 = ? / Step: 136 + 156 + 87 = 379 / Answer: 379
+Solve: 79 + 150 + 92 = ? / Step: 79 + 150 + 92 = 321 / Answer: 321
+Solve: 146 + 84 + 8 = ? / Step: 146 + 84 + 8 = 238 / Answer: 238
+Solve: 288 / 12 = ? / Step: 288 / 12 = 24 / Answer: 24
+Solve: 4524 / 78 = ? / Step: 4524 / 78 = 58 / Answer: 58
+Solve: 245 - 122 = ? / Step: 245 - 122 = 123 / Answer: 123
+Solve: 911 + 804 = ? / Step: 911 + 804 = 1715 / Answer: 1715
+Solve: 96 * 7 = ? / Step: 96 * 7 = 672 / Answer: 672
+Solve: 83 + 185 + 148 = ? / Step: 83 + 185 + 148 = 416 / Answer: 416
+Solve: 88 * 58 = ? / Step: 88 * 58 = 5104 / Answer: 5104
+Solve: 17 * 18 + 225 = ? / Step: 17 * 18 + 225 = 531 / Answer: 531
+Solve: 76 * 9 = ? / Step: 76 * 9 = 684 / Answer: 684
+Solve: 68 + 158 + 47 = ? / Step: 68 + 158 + 47 = 273 / Answer: 273
+Solve: 2268 / 81 = ? / Step: 2268 / 81 = 28 / Answer: 28
+Solve: 886 + 767 = ? / Step: 886 + 767 = 1653 / Answer: 1653
+Solve: 39 * 37 + 16 = ? / Step: 39 * 37 + 16 = 1459 / Answer: 1459
+Solve: 916 - 523 = ? / Step: 916 - 523 = 393 / Answer: 393
+Solve: 993 + 908 = ? / Step: 993 + 908 = 1901 / Answer: 1901
+Solve: 4 * 31 + 74 = ? / Step: 4 * 31 + 74 = 198 / Answer: 198
+Solve: 889 - 409 = ? / Step: 889 - 409 = 480 / Answer: 480
+Solve: 31 * 89 = ? / Step: 31 * 89 = 2759 / Answer: 2759
+Solve: 98 * 87 = ? / Step: 98 * 87 = 8526 / Answer: 8526
+Solve: 78 + 100 + 73 = ? / Step: 78 + 100 + 73 = 251 / Answer: 251
+Solve: 5032 / 74 = ? / Step: 5032 / 74 = 68 / Answer: 68
+Solve: 186 + 129 + 150 = ? / Step: 186 + 129 + 150 = 465 / Answer: 465
+Solve: 686 + 700 = ? / Step: 686 + 700 = 1386 / Answer: 1386
+Solve: 45 * 8 + 55 = ? / Step: 45 * 8 + 55 = 415 / Answer: 415
+Solve: 43 * 43 + 431 = ? / Step: 43 * 43 + 431 = 2280 / Answer: 2280
+Solve: 9 * 21 + 227 = ? / Step: 9 * 21 + 227 = 416 / Answer: 416
+Solve: 790 - 419 = ? / Step: 790 - 419 = 371 / Answer: 371
+Solve: 64 * 16 = ? / Step: 64 * 16 = 1024 / Answer: 1024
+Solve: 0 * 16 + 148 = ? / Step: 0 * 16 + 148 = 148 / Answer: 148
+Solve: 5200 / 65 = ? / Step: 5200 / 65 = 80 / Answer: 80
+Solve: 284 - 149 = ? / Step: 284 - 149 = 135 / Answer: 135
+Solve: 0 * 70 = ? / Step: 0 * 70 = 0 / Answer: 0
+Solve: 169 + 702 = ? / Step: 169 + 702 = 871 / Answer: 871
+Solve: 50 + 57 + 108 = ? / Step: 50 + 57 + 108 = 215 / Answer: 215
+Solve: 336 + 242 = ? / Step: 336 + 242 = 578 / Answer: 578
+Solve: 91 + 68 + 103 = ? / Step: 91 + 68 + 103 = 262 / Answer: 262
+Solve: 13 * 6 + 102 = ? / Step: 13 * 6 + 102 = 180 / Answer: 180
+Solve: 196 + 121 + 168 = ? / Step: 196 + 121 + 168 = 485 / Answer: 485
+Solve: 2 * 32 + 9 = ? / Step: 2 * 32 + 9 = 73 / Answer: 73
+Solve: 126 + 0 + 178 = ? / Step: 126 + 0 + 178 = 304 / Answer: 304
+Solve: 3978 / 78 = ? / Step: 3978 / 78 = 51 / Answer: 51
+Solve: 60 * 6 = ? / Step: 60 * 6 = 360 / Answer: 360
+Solve: 2805 / 55 = ? / Step: 2805 / 55 = 51 / Answer: 51
+Solve: 525 / 35 = ? / Step: 525 / 35 = 15 / Answer: 15
+Solve: 264 - 82 = ? / Step: 264 - 82 = 182 / Answer: 182
+Solve: 59 + 150 + 112 = ? / Step: 59 + 150 + 112 = 321 / Answer: 321
+Solve: 647 + 960 = ? / Step: 647 + 960 = 1607 / Answer: 1607
+Solve: 179 + 187 + 33 = ? / Step: 179 + 187 + 33 = 399 / Answer: 399
+Solve: 16 * 7 + 459 = ? / Step: 16 * 7 + 459 = 571 / Answer: 571
+Solve: 199 + 28 + 39 = ? / Step: 199 + 28 + 39 = 266 / Answer: 266
+Solve: 5676 / 86 = ? / Step: 5676 / 86 = 66 / Answer: 66
+Solve: 41 * 35 + 225 = ? / Step: 41 * 35 + 225 = 1660 / Answer: 1660
+Solve: 20 / 20 = ? / Step: 20 / 20 = 1 / Answer: 1
+Solve: 21 * 15 + 55 = ? / Step: 21 * 15 + 55 = 370 / Answer: 370
+Solve: 178 + 167 + 53 = ? / Step: 178 + 167 + 53 = 398 / Answer: 398
+Solve: 47 + 135 + 106 = ? / Step: 47 + 135 + 106 = 288 / Answer: 288
+Solve: 1496 / 34 = ? / Step: 1496 / 34 = 44 / Answer: 44
+Solve: 182 + 153 + 131 = ? / Step: 182 + 153 + 131 = 466 / Answer: 466
+Solve: 783 - 239 = ? / Step: 783 - 239 = 544 / Answer: 544
+Solve: 75 * 43 = ? / Step: 75 * 43 = 3225 / Answer: 3225
+Solve: 324 / 81 = ? / Step: 324 / 81 = 4 / Answer: 4
+Solve: 254 + 962 = ? / Step: 254 + 962 = 1216 / Answer: 1216
+Solve: 19 * 38 + 2 = ? / Step: 19 * 38 + 2 = 724 / Answer: 724
+Solve: 123 + 140 + 109 = ? / Step: 123 + 140 + 109 = 372 / Answer: 372
+Solve: 5092 / 67 = ? / Step: 5092 / 67 = 76 / Answer: 76
+Solve: 731 - 640 = ? / Step: 731 - 640 = 91 / Answer: 91
+Solve: 971 - 87 = ? / Step: 971 - 87 = 884 / Answer: 884
+Solve: 7 * 19 + 173 = ? / Step: 7 * 19 + 173 = 306 / Answer: 306
+Solve: 533 + 287 = ? / Step: 533 + 287 = 820 / Answer: 820
+Solve: 478 + 969 = ? / Step: 478 + 969 = 1447 / Answer: 1447
+Solve: 178 - 47 = ? / Step: 178 - 47 = 131 / Answer: 131
+Solve: 7 * 30 + 380 = ? / Step: 7 * 30 + 380 = 590 / Answer: 590
+Solve: 313 + 501 = ? / Step: 313 + 501 = 814 / Answer: 814
+Solve: 44 * 17 = ? / Step: 44 * 17 = 748 / Answer: 748
+Solve: 929 + 575 = ? / Step: 929 + 575 = 1504 / Answer: 1504
+Solve: 525 + 742 = ? / Step: 525 + 742 = 1267 / Answer: 1267
+Solve: 67 * 29 = ? / Step: 67 * 29 = 1943 / Answer: 1943
+Solve: 99 + 77 + 11 = ? / Step: 99 + 77 + 11 = 187 / Answer: 187
+Solve: 333 / 37 = ? / Step: 333 / 37 = 9 / Answer: 9
+Solve: 893 + 227 = ? / Step: 893 + 227 = 1120 / Answer: 1120
+Solve: 435 + 0 = ? / Step: 435 + 0 = 435 / Answer: 435
+Solve: 36 * 20 = ? / Step: 36 * 20 = 720 / Answer: 720
+Solve: 949 + 637 = ? / Step: 949 + 637 = 1586 / Answer: 1586
+Solve: 43 * 44 + 257 = ? / Step: 43 * 44 + 257 = 2149 / Answer: 2149
+Solve: 338 - 0 = ? / Step: 338 - 0 = 338 / Answer: 338
+Solve: 178 - 9 = ? / Step: 178 - 9 = 169 / Answer: 169
+Solve: 183 + 315 = ? / Step: 183 + 315 = 498 / Answer: 498
+Solve: 1974 / 42 = ? / Step: 1974 / 42 = 47 / Answer: 47
+Solve: 1640 / 41 = ? / Step: 1640 / 41 = 40 / Answer: 40
+Solve: 653 - 277 = ? / Step: 653 - 277 = 376 / Answer: 376
+Solve: 43 * 78 = ? / Step: 43 * 78 = 3354 / Answer: 3354
+Solve: 776 - 510 = ? / Step: 776 - 510 = 266 / Answer: 266
+Solve: 376 / 4 = ? / Step: 376 / 4 = 94 / Answer: 94
+Solve: 980 - 332 = ? / Step: 980 - 332 = 648 / Answer: 648
+Solve: 127 + 80 + 12 = ? / Step: 127 + 80 + 12 = 219 / Answer: 219
+Solve: 978 - 378 = ? / Step: 978 - 378 = 600 / Answer: 600
+Solve: 909 + 267 = ? / Step: 909 + 267 = 1176 / Answer: 1176
+Solve: 145 + 110 + 88 = ? / Step: 145 + 110 + 88 = 343 / Answer: 343
+Solve: 32 * 31 = ? / Step: 32 * 31 = 992 / Answer: 992
+Solve: 2385 / 53 = ? / Step: 2385 / 53 = 45 / Answer: 45
+Solve: 118 + 160 + 56 = ? / Step: 118 + 160 + 56 = 334 / Answer: 334
+Solve: 893 + 444 = ? / Step: 893 + 444 = 1337 / Answer: 1337
+Solve: 20 * 30 + 492 = ? / Step: 20 * 30 + 492 = 1092 / Answer: 1092
+Solve: 146 + 95 + 188 = ? / Step: 146 + 95 + 188 = 429 / Answer: 429
+Solve: 655 - 584 = ? / Step: 655 - 584 = 71 / Answer: 71
+Solve: 7 + 321 = ? / Step: 7 + 321 = 328 / Answer: 328
+Solve: 214 + 705 = ? / Step: 214 + 705 = 919 / Answer: 919
+Solve: 43 * 92 = ? / Step: 43 * 92 = 3956 / Answer: 3956
+Solve: 11 * 44 + 269 = ? / Step: 11 * 44 + 269 = 753 / Answer: 753
+Solve: 128 + 79 + 17 = ? / Step: 128 + 79 + 17 = 224 / Answer: 224
+Solve: 10 * 37 + 399 = ? / Step: 10 * 37 + 399 = 769 / Answer: 769
+Solve: 4690 / 67 = ? / Step: 4690 / 67 = 70 / Answer: 70
+Solve: 26 * 20 + 199 = ? / Step: 26 * 20 + 199 = 719 / Answer: 719
+Solve: 596 - 86 = ? / Step: 596 - 86 = 510 / Answer: 510
+Solve: 238 - 106 = ? / Step: 238 - 106 = 132 / Answer: 132
+Solve: 29 * 13 + 138 = ? / Step: 29 * 13 + 138 = 515 / Answer: 515
+Solve: 543 + 957 = ? / Step: 543 + 957 = 1500 / Answer: 1500
+Solve: 39 * 16 = ? / Step: 39 * 16 = 624 / Answer: 624
+Solve: 368 + 431 = ? / Step: 368 + 431 = 799 / Answer: 799
+Solve: 795 - 548 = ? / Step: 795 - 548 = 247 / Answer: 247
+Solve: 284 / 4 = ? / Step: 284 / 4 = 71 / Answer: 71
+Solve: 62 + 53 + 85 = ? / Step: 62 + 53 + 85 = 200 / Answer: 200
+Solve: 488 + 976 = ? / Step: 488 + 976 = 1464 / Answer: 1464
+Solve: 204 - 93 = ? / Step: 204 - 93 = 111 / Answer: 111
+Solve: 37 * 16 = ? / Step: 37 * 16 = 592 / Answer: 592
+Solve: 280 / 70 = ? / Step: 280 / 70 = 4 / Answer: 4
+Solve: 45 + 70 + 190 = ? / Step: 45 + 70 + 190 = 305 / Answer: 305
+Solve: 47 * 40 = ? / Step: 47 * 40 = 1880 / Answer: 1880
+Solve: 746 - 186 = ? / Step: 746 - 186 = 560 / Answer: 560
+Solve: 407 - 200 = ? / Step: 407 - 200 = 207 / Answer: 207
+Solve: 721 - 98 = ? / Step: 721 - 98 = 623 / Answer: 623
+Solve: 23 * 14 + 371 = ? / Step: 23 * 14 + 371 = 693 / Answer: 693
+Solve: 34 * 82 = ? / Step: 34 * 82 = 2788 / Answer: 2788
+Solve: 48 * 15 + 64 = ? / Step: 48 * 15 + 64 = 784 / Answer: 784
+Solve: 20 * 98 = ? / Step: 20 * 98 = 1960 / Answer: 1960
+Solve: 677 - 451 = ? / Step: 677 - 451 = 226 / Answer: 226
+Solve: 650 / 13 = ? / Step: 650 / 13 = 50 / Answer: 50
+Solve: 814 / 74 = ? / Step: 814 / 74 = 11 / Answer: 11
+Solve: 13 * 49 + 444 = ? / Step: 13 * 49 + 444 = 1081 / Answer: 1081
+Solve: 9 * 20 = ? / Step: 9 * 20 = 180 / Answer: 180
+Solve: 46 * 61 = ? / Step: 46 * 61 = 2806 / Answer: 2806
+Solve: 38 * 43 + 69 = ? / Step: 38 * 43 + 69 = 1703 / Answer: 1703
+Solve: 1 + 481 = ? / Step: 1 + 481 = 482 / Answer: 482
+Solve: 1080 / 20 = ? / Step: 1080 / 20 = 54 / Answer: 54
+Solve: 810 - 61 = ? / Step: 810 - 61 = 749 / Answer: 749
+Solve: 87 / 3 = ? / Step: 87 / 3 = 29 / Answer: 29
+Solve: 536 + 901 = ? / Step: 536 + 901 = 1437 / Answer: 1437
+Solve: 39 * 2 + 268 = ? / Step: 39 * 2 + 268 = 346 / Answer: 346
+Solve: 333 + 756 = ? / Step: 333 + 756 = 1089 / Answer: 1089
+Solve: 142 + 11 + 121 = ? / Step: 142 + 11 + 121 = 274 / Answer: 274
+Solve: 655 - 466 = ? / Step: 655 - 466 = 189 / Answer: 189
+Solve: 19 * 7 = ? / Step: 19 * 7 = 133 / Answer: 133
+Solve: 615 - 565 = ? / Step: 615 - 565 = 50 / Answer: 50
+Solve: 1 * 94 = ? / Step: 1 * 94 = 94 / Answer: 94
+Solve: 3 * 38 + 479 = ? / Step: 3 * 38 + 479 = 593 / Answer: 593
+Solve: 9 + 98 + 174 = ? / Step: 9 + 98 + 174 = 281 / Answer: 281
+Solve: 52 + 83 + 25 = ? / Step: 52 + 83 + 25 = 160 / Answer: 160
+Solve: 23 * 14 + 364 = ? / Step: 23 * 14 + 364 = 686 / Answer: 686
+Solve: 915 + 864 = ? / Step: 915 + 864 = 1779 / Answer: 1779
+Solve: 574 - 214 = ? / Step: 574 - 214 = 360 / Answer: 360
+Solve: 4992 / 78 = ? / Step: 4992 / 78 = 64 / Answer: 64
+Solve: 25 * 44 + 224 = ? / Step: 25 * 44 + 224 = 1324 / Answer: 1324
+Solve: 135 + 115 = ? / Step: 135 + 115 = 250 / Answer: 250
+Solve: 831 + 648 = ? / Step: 831 + 648 = 1479 / Answer: 1479
+Solve: 618 - 469 = ? / Step: 618 - 469 = 149 / Answer: 149
+Solve: 67 + 60 + 108 = ? / Step: 67 + 60 + 108 = 235 / Answer: 235
+Solve: 8415 / 99 = ? / Step: 8415 / 99 = 85 / Answer: 85
+Solve: 228 / 12 = ? / Step: 228 / 12 = 19 / Answer: 19
+Solve: 119 + 64 + 26 = ? / Step: 119 + 64 + 26 = 209 / Answer: 209
+Solve: 183 + 158 + 197 = ? / Step: 183 + 158 + 197 = 538 / Answer: 538
+Solve: 74 + 8 + 60 = ? / Step: 74 + 8 + 60 = 142 / Answer: 142
+Solve: 2170 / 31 = ? / Step: 2170 / 31 = 70 / Answer: 70
+Solve: 22 + 92 + 115 = ? / Step: 22 + 92 + 115 = 229 / Answer: 229
+Solve: 675 - 330 = ? / Step: 675 - 330 = 345 / Answer: 345
+Solve: 9 * 40 = ? / Step: 9 * 40 = 360 / Answer: 360
+Solve: 49 * 90 = ? / Step: 49 * 90 = 4410 / Answer: 4410
+Solve: 475 - 65 = ? / Step: 475 - 65 = 410 / Answer: 410
+Solve: 885 + 926 = ? / Step: 885 + 926 = 1811 / Answer: 1811
+Solve: 129 + 123 + 120 = ? / Step: 129 + 123 + 120 = 372 / Answer: 372
+Solve: 1449 / 21 = ? / Step: 1449 / 21 = 69 / Answer: 69
+Solve: 472 + 199 = ? / Step: 472 + 199 = 671 / Answer: 671
+Solve: 67 * 78 = ? / Step: 67 * 78 = 5226 / Answer: 5226
+Solve: 60 * 28 = ? / Step: 60 * 28 = 1680 / Answer: 1680
+Solve: 74 + 595 = ? / Step: 74 + 595 = 669 / Answer: 669
+Solve: 699 + 53 = ? / Step: 699 + 53 = 752 / Answer: 752
+Solve: 27 * 32 + 285 = ? / Step: 27 * 32 + 285 = 1149 / Answer: 1149
+Solve: 192 + 4 + 94 = ? / Step: 192 + 4 + 94 = 290 / Answer: 290
+Solve: 135 + 29 + 127 = ? / Step: 135 + 29 + 127 = 291 / Answer: 291
+Solve: 7 * 6 + 384 = ? / Step: 7 * 6 + 384 = 426 / Answer: 426
+Solve: 1 * 13 + 193 = ? / Step: 1 * 13 + 193 = 206 / Answer: 206
+Solve: 103 - 89 = ? / Step: 103 - 89 = 14 / Answer: 14
+Solve: 31 + 58 + 96 = ? / Step: 31 + 58 + 96 = 185 / Answer: 185
+Solve: 22 * 30 + 425 = ? / Step: 22 * 30 + 425 = 1085 / Answer: 1085
+Solve: 2028 / 78 = ? / Step: 2028 / 78 = 26 / Answer: 26
+Solve: 251 - 76 = ? / Step: 251 - 76 = 175 / Answer: 175
+Solve: 103 + 2 = ? / Step: 103 + 2 = 105 / Answer: 105
+Solve: 39 * 36 + 201 = ? / Step: 39 * 36 + 201 = 1605 / Answer: 1605
+Solve: 973 + 635 = ? / Step: 973 + 635 = 1608 / Answer: 1608
+Solve: 55 * 23 = ? / Step: 55 * 23 = 1265 / Answer: 1265
+Solve: 393 - 312 = ? / Step: 393 - 312 = 81 / Answer: 81
+Solve: 949 - 356 = ? / Step: 949 - 356 = 593 / Answer: 593
+Solve: 54 - 50 = ? / Step: 54 - 50 = 4 / Answer: 4
+Solve: 195 + 140 + 153 = ? / Step: 195 + 140 + 153 = 488 / Answer: 488
+Solve: 6664 / 68 = ? / Step: 6664 / 68 = 98 / Answer: 98
+Solve: 575 + 663 = ? / Step: 575 + 663 = 1238 / Answer: 1238
+Solve: 3403 / 41 = ? / Step: 3403 / 41 = 83 / Answer: 83
+Solve: 65 - 43 = ? / Step: 65 - 43 = 22 / Answer: 22
+Solve: 26 * 29 = ? / Step: 26 * 29 = 754 / Answer: 754
+Solve: 747 + 258 = ? / Step: 747 + 258 = 1005 / Answer: 1005
+Solve: 95 * 43 = ? / Step: 95 * 43 = 4085 / Answer: 4085
+Solve: 184 + 669 = ? / Step: 184 + 669 = 853 / Answer: 853
+Solve: 124 + 14 + 167 = ? / Step: 124 + 14 + 167 = 305 / Answer: 305
+Solve: 299 + 773 = ? / Step: 299 + 773 = 1072 / Answer: 1072
+Solve: 687 + 416 = ? / Step: 687 + 416 = 1103 / Answer: 1103
+Solve: 109 + 57 + 54 = ? / Step: 109 + 57 + 54 = 220 / Answer: 220
+Solve: 40 * 29 + 437 = ? / Step: 40 * 29 + 437 = 1597 / Answer: 1597
+Solve: 92 * 18 = ? / Step: 92 * 18 = 1656 / Answer: 1656
+Solve: 3872 / 88 = ? / Step: 3872 / 88 = 44 / Answer: 44
+Solve: 668 - 494 = ? / Step: 668 - 494 = 174 / Answer: 174
+Solve: 79 * 86 = ? / Step: 79 * 86 = 6794 / Answer: 6794
+Solve: 15 + 131 + 103 = ? / Step: 15 + 131 + 103 = 249 / Answer: 249
+Solve: 186 - 181 = ? / Step: 186 - 181 = 5 / Answer: 5
+Solve: 11 * 43 = ? / Step: 11 * 43 = 473 / Answer: 473
+Solve: 11 * 3 + 318 = ? / Step: 11 * 3 + 318 = 351 / Answer: 351
+Solve: 23 + 142 + 19 = ? / Step: 23 + 142 + 19 = 184 / Answer: 184
+Solve: 18 * 43 = ? / Step: 18 * 43 = 774 / Answer: 774
+Solve: 362 + 803 = ? / Step: 362 + 803 = 1165 / Answer: 1165
+Solve: 197 - 151 = ? / Step: 197 - 151 = 46 / Answer: 46
+Solve: 458 - 324 = ? / Step: 458 - 324 = 134 / Answer: 134
+Solve: 8 * 15 + 352 = ? / Step: 8 * 15 + 352 = 472 / Answer: 472
+Solve: 182 + 52 + 171 = ? / Step: 182 + 52 + 171 = 405 / Answer: 405
+Solve: 39 * 31 + 251 = ? / Step: 39 * 31 + 251 = 1460 / Answer: 1460
+Solve: 22 * 79 = ? / Step: 22 * 79 = 1738 / Answer: 1738
+Solve: 30 * 46 + 137 = ? / Step: 30 * 46 + 137 = 1517 / Answer: 1517
+Solve: 467 + 41 = ? / Step: 467 + 41 = 508 / Answer: 508
+Solve: 2 * 19 = ? / Step: 2 * 19 = 38 / Answer: 38
+Solve: 411 + 339 = ? / Step: 411 + 339 = 750 / Answer: 750
+Solve: 14 * 25 + 276 = ? / Step: 14 * 25 + 276 = 626 / Answer: 626
+Solve: 21 * 58 = ? / Step: 21 * 58 = 1218 / Answer: 1218
+Solve: 669 + 976 = ? / Step: 669 + 976 = 1645 / Answer: 1645
+Solve: 9 * 39 + 217 = ? / Step: 9 * 39 + 217 = 568 / Answer: 568
+Solve: 727 + 271 = ? / Step: 727 + 271 = 998 / Answer: 998
+Solve: 70 * 11 = ? / Step: 70 * 11 = 770 / Answer: 770
+Solve: 209 - 68 = ? / Step: 209 - 68 = 141 / Answer: 141
+Solve: 31 + 77 + 181 = ? / Step: 31 + 77 + 181 = 289 / Answer: 289
+Solve: 1430 / 26 = ? / Step: 1430 / 26 = 55 / Answer: 55
+Solve: 412 - 308 = ? / Step: 412 - 308 = 104 / Answer: 104
+Solve: 330 / 11 = ? / Step: 330 / 11 = 30 / Answer: 30
+Solve: 146 + 146 + 51 = ? / Step: 146 + 146 + 51 = 343 / Answer: 343
+Solve: 129 + 574 = ? / Step: 129 + 574 = 703 / Answer: 703
+Solve: 594 - 156 = ? / Step: 594 - 156 = 438 / Answer: 438
+Solve: 363 - 197 = ? / Step: 363 - 197 = 166 / Answer: 166
+Solve: 159 + 150 + 34 = ? / Step: 159 + 150 + 34 = 343 / Answer: 343
+Solve: 72 + 156 + 13 = ? / Step: 72 + 156 + 13 = 241 / Answer: 241
+Solve: 222 + 190 = ? / Step: 222 + 190 = 412 / Answer: 412
+Solve: 46 * 9 + 371 = ? / Step: 46 * 9 + 371 = 785 / Answer: 785
+Solve: 841 - 262 = ? / Step: 841 - 262 = 579 / Answer: 579
+Solve: 49 * 97 = ? / Step: 49 * 97 = 4753 / Answer: 4753
+Solve: 44 + 137 + 182 = ? / Step: 44 + 137 + 182 = 363 / Answer: 363
+Solve: 217 + 378 = ? / Step: 217 + 378 = 595 / Answer: 595
+Solve: 320 / 64 = ? / Step: 320 / 64 = 5 / Answer: 5
+Solve: 7 * 69 = ? / Step: 7 * 69 = 483 / Answer: 483
+Solve: 187 + 60 + 0 = ? / Step: 187 + 60 + 0 = 247 / Answer: 247
+Solve: 197 + 165 + 47 = ? / Step: 197 + 165 + 47 = 409 / Answer: 409
+Solve: 17 * 15 + 384 = ? / Step: 17 * 15 + 384 = 639 / Answer: 639
+Solve: 736 + 691 = ? / Step: 736 + 691 = 1427 / Answer: 1427
+Solve: 50 + 89 = ? / Step: 50 + 89 = 139 / Answer: 139
+Solve: 62 * 60 = ? / Step: 62 * 60 = 3720 / Answer: 3720
+Solve: 4 + 52 + 57 = ? / Step: 4 + 52 + 57 = 113 / Answer: 113
+Solve: 11 * 9 = ? / Step: 11 * 9 = 99 / Answer: 99
+Solve: 5810 / 83 = ? / Step: 5810 / 83 = 70 / Answer: 70
+Solve: 148 - 32 = ? / Step: 148 - 32 = 116 / Answer: 116
+Solve: 124 + 122 + 140 = ? / Step: 124 + 122 + 140 = 386 / Answer: 386
+Solve: 57 * 77 = ? / Step: 57 * 77 = 4389 / Answer: 4389
+Solve: 13 * 48 + 418 = ? / Step: 13 * 48 + 418 = 1042 / Answer: 1042
+Solve: 12 + 32 + 73 = ? / Step: 12 + 32 + 73 = 117 / Answer: 117
+Solve: 13 * 1 = ? / Step: 13 * 1 = 13 / Answer: 13
+Solve: 60 / 3 = ? / Step: 60 / 3 = 20 / Answer: 20
+Solve: 3 * 41 + 420 = ? / Step: 3 * 41 + 420 = 543 / Answer: 543
+Solve: 872 + 592 = ? / Step: 872 + 592 = 1464 / Answer: 1464
+Solve: 34 * 21 + 314 = ? / Step: 34 * 21 + 314 = 1028 / Answer: 1028
+Solve: 96 * 15 = ? / Step: 96 * 15 = 1440 / Answer: 1440
+Solve: 44 * 44 + 138 = ? / Step: 44 * 44 + 138 = 2074 / Answer: 2074
+Solve: 892 - 562 = ? / Step: 892 - 562 = 330 / Answer: 330
+Solve: 901 + 673 = ? / Step: 901 + 673 = 1574 / Answer: 1574
+Solve: 9 * 45 + 159 = ? / Step: 9 * 45 + 159 = 564 / Answer: 564
+Solve: 44 * 46 + 22 = ? / Step: 44 * 46 + 22 = 2046 / Answer: 2046
+Solve: 585 - 454 = ? / Step: 585 - 454 = 131 / Answer: 131
+Solve: 1472 / 92 = ? / Step: 1472 / 92 = 16 / Answer: 16
+Solve: 730 - 609 = ? / Step: 730 - 609 = 121 / Answer: 121
+Solve: 24 * 45 + 473 = ? / Step: 24 * 45 + 473 = 1553 / Answer: 1553
+Solve: 14 + 172 + 164 = ? / Step: 14 + 172 + 164 = 350 / Answer: 350
+Solve: 33 + 60 + 117 = ? / Step: 33 + 60 + 117 = 210 / Answer: 210
+Solve: 80 * 57 = ? / Step: 80 * 57 = 4560 / Answer: 4560
+Solve: 192 + 86 + 106 = ? / Step: 192 + 86 + 106 = 384 / Answer: 384
+Solve: 701 + 51 = ? / Step: 701 + 51 = 752 / Answer: 752
+Solve: 50 * 16 = ? / Step: 50 * 16 = 800 / Answer: 800
+Solve: 520 - 32 = ? / Step: 520 - 32 = 488 / Answer: 488
+Solve: 754 - 532 = ? / Step: 754 - 532 = 222 / Answer: 222
+Solve: 166 - 68 = ? / Step: 166 - 68 = 98 / Answer: 98
+Solve: 203 + 613 = ? / Step: 203 + 613 = 816 / Answer: 816
+Solve: 33 * 10 + 148 = ? / Step: 33 * 10 + 148 = 478 / Answer: 478
+Solve: 132 + 177 + 49 = ? / Step: 132 + 177 + 49 = 358 / Answer: 358
+Solve: 8 * 6 + 64 = ? / Step: 8 * 6 + 64 = 112 / Answer: 112
+Solve: 420 / 6 = ? / Step: 420 / 6 = 70 / Answer: 70
+Solve: 92 + 114 = ? / Step: 92 + 114 = 206 / Answer: 206
+Solve: 17 + 59 + 170 = ? / Step: 17 + 59 + 170 = 246 / Answer: 246
+Solve: 12 * 36 + 128 = ? / Step: 12 * 36 + 128 = 560 / Answer: 560
+Solve: 173 - 107 = ? / Step: 173 - 107 = 66 / Answer: 66
+Solve: 72 + 97 + 170 = ? / Step: 72 + 97 + 170 = 339 / Answer: 339
+Solve: 30 * 55 = ? / Step: 30 * 55 = 1650 / Answer: 1650
+Solve: 14 * 38 + 22 = ? / Step: 14 * 38 + 22 = 554 / Answer: 554
+Solve: 523 + 872 = ? / Step: 523 + 872 = 1395 / Answer: 1395
+Solve: 21 * 57 = ? / Step: 21 * 57 = 1197 / Answer: 1197
+Solve: 56 * 98 = ? / Step: 56 * 98 = 5488 / Answer: 5488
+Solve: 26 * 9 + 379 = ? / Step: 26 * 9 + 379 = 613 / Answer: 613
+Solve: 22 + 184 + 17 = ? / Step: 22 + 184 + 17 = 223 / Answer: 223
+Solve: 184 + 32 + 103 = ? / Step: 184 + 32 + 103 = 319 / Answer: 319
+Solve: 7 * 25 = ? / Step: 7 * 25 = 175 / Answer: 175
+Solve: 927 - 765 = ? / Step: 927 - 765 = 162 / Answer: 162
+Solve: 31 + 942 = ? / Step: 31 + 942 = 973 / Answer: 973
+Solve: 484 - 303 = ? / Step: 484 - 303 = 181 / Answer: 181
+Solve: 759 + 974 = ? / Step: 759 + 974 = 1733 / Answer: 1733
+Solve: 5192 / 88 = ? / Step: 5192 / 88 = 59 / Answer: 59
+Solve: 71 * 60 = ? / Step: 71 * 60 = 4260 / Answer: 4260
+Solve: 346 + 65 = ? / Step: 346 + 65 = 411 / Answer: 411
+Solve: 6 + 180 + 179 = ? / Step: 6 + 180 + 179 = 365 / Answer: 365
+Solve: 482 + 96 = ? / Step: 482 + 96 = 578 / Answer: 578
+Solve: 668 + 931 = ? / Step: 668 + 931 = 1599 / Answer: 1599
+Solve: 20 * 29 + 109 = ? / Step: 20 * 29 + 109 = 689 / Answer: 689
+Solve: 757 - 211 = ? / Step: 757 - 211 = 546 / Answer: 546
+Solve: 138 + 81 + 82 = ? / Step: 138 + 81 + 82 = 301 / Answer: 301
+Solve: 670 - 575 = ? / Step: 670 - 575 = 95 / Answer: 95
+Solve: 4 * 80 = ? / Step: 4 * 80 = 320 / Answer: 320
+Solve: 142 + 89 + 192 = ? / Step: 142 + 89 + 192 = 423 / Answer: 423
+Solve: 5 + 22 + 153 = ? / Step: 5 + 22 + 153 = 180 / Answer: 180
+Solve: 63 - 32 = ? / Step: 63 - 32 = 31 / Answer: 31
+Solve: 12 * 6 + 208 = ? / Step: 12 * 6 + 208 = 280 / Answer: 280

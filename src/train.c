@@ -1252,6 +1252,23 @@ static void bwo_act(Tape *tp, PMap *pm, int which) {
 }
 static void bwo_gelu(Tape *tp, PMap *pm) { bwo_act(tp, pm, 0); }
 static void bwo_silu(Tape *tp, PMap *pm) { bwo_act(tp, pm, 1); }
+static void bwo_gelu_tanh(Tape *tp, PMap *pm) {
+    int64_t n = 256, s[1] = {n};
+    Tensor *x = bwo_tensor(1, s, -2, 2), *y = tensor_alloc(1, s);
+    bwo_reg(pm, x);
+    t_gelu_tanh(tp, x->data, y->data, n);
+    bwo_mse_seed(tp, y->data, n);
+}
+/* LayerNorm with GPT-2 epsilon (1e-5): guards the eps actually reaches
+ * both the device stats kernel and the host fallback identically. */
+static void bwo_lne(Tape *tp, PMap *pm) {
+    int64_t rows = 32, C = 16, s[2] = {rows, C}, s1[1] = {C};
+    Tensor *x = bwo_tensor(2, s, -2, 2), *w = bwo_tensor(1, s1, 0.5, 1.5);
+    Tensor *b = bwo_tensor(1, s1, -1, 1), *y = tensor_alloc(2, s);
+    bwo_reg(pm, x); bwo_reg(pm, w); bwo_reg(pm, b);
+    t_layernorm_eps(tp, x->data, w->data, b->data, y->data, rows, (int)C, 1e-5);
+    bwo_mse_seed(tp, y->data, rows * C);
+}
 static void bwo_relu2(Tape *tp, PMap *pm) { bwo_act(tp, pm, 2); }
 static void bwo_softmax(Tape *tp, PMap *pm) {
     int64_t rows = 8, C = 16, s[2] = {rows, C};
@@ -1494,6 +1511,7 @@ int bwdops_run(double tol) {
     arena_init_default();
     static const struct { bwo_build_fn f; const char *nm; } ops[] = {
         {bwo_linear, "linear"}, {bwo_linear_big, "linear_qwen"}, {bwo_ln, "ln"}, {bwo_rmsn, "rmsn"},
+        {bwo_lne, "ln_eps"}, {bwo_gelu_tanh, "gelu_tanh"},
         {bwo_gn, "gn"}, {bwo_gelu, "gelu"}, {bwo_silu, "silu"},
         {bwo_relu2, "relu2"}, {bwo_softmax, "softmax"}, {bwo_rope, "rope"},
         {bwo_sdpa, "sdpa"}, {bwo_add, "add"}, {bwo_scale, "scale"},

@@ -98,6 +98,62 @@ under autograd and updated by EMA (same as the paper's scheme).
 - Non-RoPE models and the per-batch pad path in training forward are wired
   but untested (all released configs use RoPE; sudoku has no pads).
 
+## GPT-2 training (`cncm train-gpt2`)
+
+`src/train_gpt2.c` implements a complete fine-tuning loop on the taped
+GPT-2 forward (`train_gpt2_forward`, verified bit-exact vs `gpt2.c` and
+grad-vs-numeric in `tests/gcheck.c`): B=1 random-row batches of (T+1)
+token ids, causal CE, device backward, global-norm clip 1.0, AdamW with
+the same cosine schedule, and NCK1 checkpoints with the same exact-resume
+contract as the Qwen loop (`--resume`, same identity rules).
+
+Faithfulness needs two tape ops the NCP/Qwen paths never used, both with
+host and device backward and both covered by `bwdops` (bit-identical)
+and `gcheck` (analytic-vs-numeric):
+- `t_layernorm_eps` — GPT-2 epsilon is 1e-5, not the 1e-6 baked into
+  `layernorm_fwd`/`t_layernorm`. Eps travels in the tape record.
+- `t_gelu_tanh` — HF gelu_new (tanh approx), not exact-erf `t_gelu`.
+  A different function with a different derivative; training with the
+  wrong one silently biases every MLP gradient.
+
+`gpt2-taped --prompt TEXT` proves forward parity on real 124M weights
+(maxabs=0, CPU and CUDA). `tests/test_train_gpt2.sh` is the training
+gate: resume loss-lines identical, resume checkpoint byte-identical,
+checkpoint loads for inference (`gpt2-ppl` on the `.nckpt`).
+
+Memory (12 GB card, fp32 124M): weights 0.5 + device grad map ~0.5 +
+activations. Same recipe as Qwen: `NCM_ADAMW=cpu` (host moments) and a
+sized arena (`NCM_ARENA_MB=1536` at T=16 test, 3072 at T=128).
+
+Query path fix (shared tokenizer): BPE `skip_special` used to blank ids
+`[0, n_special)`, which for GPT-2/Qwen vocabs (specials at the END:
+50256, 151643+) skipped the entire vocabulary — `gpt2-gen`/`qwen-gen`
+printed ids but empty text. Now only the actual eos/pad ids are skipped.
+
+## Math reasoning corpus v1 (`tools/mathdata.py`, `tools/eval_math.py`)
+
+`mathdata.py` generates single-line docs (`mkqwenrows` takes one document
+per file line, EOS-joined) with a worked step and a final answer:
+
+    Solve: 47 + 58 = ? / Step: 47 + 58 = 105 / Answer: 105
+
+Ops: add, sub (non-negative), mul, div (exact), two-step chain-add and
+mul-add. Splits are disjoint by full expression, audited in-process, with
+a manifest (counts + sha256). `results/math-v1/`: 20000/1000/2000 docs,
+packed rows for GPT-2 BPE (`train.nctrain`, 3734 rows T=128) and Qwen
+(`train_qwen.nctrain`, 6196 rows). `test_prompts.txt`/`test_answers.txt`
+feed the query eval.
+
+`eval_math.py` queries held-out prompts via `gpt2-gen` (greedy) and
+verifies with a deterministic engine (exact integer arithmetic over the
+same expression grammar, plus an expression-identity check so
+problem-switching cannot score). A response counts as SOLVED only if the
+step is valid AND the answer matches AND the two agree. Reports per-op
+accuracy. Status: 200-step smoke (5% of an epoch) learns the format but
+solves nothing — the capability run (12000 steps, ~3 epochs) is in
+flight; checkpoints + eval numbers land in `results/math-v1/` and
+`weights/math-gpt2/`.
+
 ## Qwen2.5-0.5B fine-tuning (`cncm train-qwen`)
 
 `src/train_qwen.c` implements a complete fine-tuning loop on the taped

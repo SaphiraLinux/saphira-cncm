@@ -269,6 +269,44 @@ int gpt2_cmd_ppl(const NCMConfig *c, const char *weights, const char *adir, cons
     return 0;
 }
 
+/* Taped-vs-reference parity: train_gpt2_forward must reproduce
+ * gpt2_forward bit-comparably on the same weights (both use eps=1e-5
+ * LayerNorm and gelu_new; any arch mismatch shows up here first). */
+int gpt2_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
+                   const char *prompt, int T) {
+    GPT2 g;
+    if (gpt2_open(&g, c, weights, adir)) return 1;
+    int ids_buf[8192];
+    int n = 0;
+    if (prompt) n = tok_encode(g.tok, prompt, ids_buf, 8192);
+    if (n < 2) { fprintf(stderr, "gpt2-taped needs --prompt TEXT (>=2 tokens)\n"); return 2; }
+    if (T > 0 && n > T) n = T;
+    int V = g.vocab_size;
+    /* reference */
+    float *lg = gpt2_forward(&g, ids_buf, n);
+    float *href = (float *)backend_to_host(lg, (size_t)n * V * sizeof(float));
+    /* taped */
+    arena_reset();
+    Tape *tp = tape_new();
+    float *tl = train_gpt2_forward(tp, &g.ws, c, ids_buf, 1, n);
+    float *htap = (float *)backend_to_host(tl, (size_t)n * V * sizeof(float));
+    tape_free(tp);
+    double mx = 0;
+    int64_t mi = -1;
+    for (int64_t i = 0; i < (int64_t)n * V; i++) {
+        double d = fabs((double)href[i] - htap[i]);
+        if (d > mx) { mx = d; mi = i; }
+    }
+    printf("gpt2-taped T=%d V=%d maxabs=%.3g at %lld (ref=%.6g tap=%.6g)\n",
+           n, V, mx, (long long)mi,
+           mi >= 0 ? href[mi] : 0.0, mi >= 0 ? htap[mi] : 0.0);
+    int rc = (mx == 0.0) ? 0 : (mx < 1e-5 ? 0 : 1);
+    printf("GPT2-TAPED %s\n", rc ? "FAIL" : "PASS");
+    free(href); free(htap);
+    gpt2_close(&g);
+    return rc;
+}
+
 /* ---------- verification against transformers fixtures ---------- */
 
 static int hexval(char c) {

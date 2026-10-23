@@ -17,8 +17,8 @@
 #include <string.h>
 
 typedef enum {
-    TOP_LINEAR, TOP_EMBED, TOP_LN, TOP_RMSN, TOP_GN,
-    TOP_GELU, TOP_SILU,
+    TOP_LINEAR, TOP_EMBED, TOP_LN, TOP_LNE, TOP_RMSN, TOP_GN,
+    TOP_GELU, TOP_SILU, TOP_GELU_TANH,
     TOP_SOFTMAX, TOP_ROPE, TOP_SDPA,
     TOP_CONV, TOP_CONVT, TOP_IAREA, TOP_ILIN,
     TOP_ADD, TOP_SCALE, TOP_CONCAT, TOP_GATHER, TOP_MUL, TOP_RELU2, TOP_JOIN, TOP_MSE,
@@ -168,6 +168,16 @@ void t_layernorm(Tape *t, const float *x, const float *w, const float *b,
     r->n = rows; r->p1 = C;
 }
 
+/* LayerNorm with explicit epsilon (GPT-2 uses 1e-5; the plain variant
+ * matches layernorm_fwd's built-in 1e-6). eps travels in r->s. */
+void t_layernorm_eps(Tape *t, const float *x, const float *w, const float *b,
+                     float *y, int64_t rows, int C, double eps) {
+    layernorm_eps_fwd(x, w, b, y, rows, C, (float)eps);
+    TopRec *r = emit(t, TOP_LNE);
+    r->a = (float *)x; r->b = (float *)w; r->c = (float *)b; r->y = y;
+    r->n = rows; r->p1 = C; r->s = eps;
+}
+
 void t_rmsnorm(Tape *t, const float *x, const float *w, float *y,
                int64_t rows, int C) {
     rmsnorm_fwd(x, w, y, rows, C);
@@ -186,6 +196,14 @@ void t_groupnorm(Tape *t, const float *x, float *y, int N, int G, int C, int TT)
 void t_gelu(Tape *t, const float *x, float *y, int64_t n) {
     gelu_fwd(x, y, n);
     TopRec *r = emit(t, TOP_GELU);
+    r->a = (float *)x; r->y = y; r->n = n;
+}
+
+/* HF gelu_new (GPT-2): 0.5x(1+tanh(c0(x+c1 x^3))). Exact-erf t_gelu is a
+ * different function; GPT-2 training must record this variant. */
+void t_gelu_tanh(Tape *t, const float *x, float *y, int64_t n) {
+    gelu_tanh_fwd(x, y, n);
+    TopRec *r = emit(t, TOP_GELU_TANH);
     r->a = (float *)x; r->y = y; r->n = n;
 }
 
@@ -528,6 +546,75 @@ void tape_backward_force(Tape *t, PMap *pm, float seed, int dev) {
     tape_backward_host(t, pm, seed);
 }
 
+/* Shared LayerNorm backward, explicit eps. TOP_LN calls it with 1e-6
+ * (matching layernorm_fwd); TOP_LNE passes its recorded eps. */
+static void host_ln_bwd(GMap *gm, TopRec *r, const float *dy, double eps) {
+    int64_t rows = r->n;
+    int C = r->p1;
+    float *hx = stage_h(r->a, (size_t)rows * C);
+    float *hdy = stage_h(dy, (size_t)rows * C);
+    float *hw = r->b ? stage_h(r->b, C) : NULL;
+    float *hb = r->c ? stage_h(r->c, C) : NULL;
+    float *dx = gmap_get(gm, r->a, rows * C);
+    float *dw = (float *)calloc(C, sizeof(float));
+    float *db = (float *)calloc(C, sizeof(float));
+    /* per-row stats first (independent rows) */
+    double *pmean = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
+    double *pinv = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
+#pragma omp parallel for schedule(static) if(rows > 4)
+    for (int64_t rr = 0; rr < rows; rr++) {
+        double mean = 0;
+        for (int c = 0; c < C; c++) mean += hx[rr * C + c];
+        mean /= C;
+        double var = 0;
+        for (int c = 0; c < C; c++) { double d = hx[rr * C + c] - mean; var += d * d; }
+        var /= C;
+        pmean[rr] = mean;
+        pinv[rr] = 1.0 / sqrt(var + eps);
+    }
+    /* param grads: same rr-ascending accumulation order as serial */
+#pragma omp parallel for schedule(static) if((int64_t)rows * C > 512)
+    for (int c = 0; c < C; c++) {
+        double sw = 0, sb = 0;
+        for (int64_t rr = 0; rr < rows; rr++) {
+            double y = (hx[rr * C + c] - pmean[rr]) * pinv[rr];
+            sw += hdy[rr * C + c] * y;
+            sb += hdy[rr * C + c];
+        }
+        dw[c] = (float)sw;
+        db[c] = (float)sb;
+    }
+    /* dx per row (independent rows) */
+#pragma omp parallel for schedule(static) if(rows > 4)
+    for (int64_t rr = 0; rr < rows; rr++) {
+        double mean = pmean[rr], inv = pinv[rr];
+        double dmean = 0, dvar = 0;
+        for (int c = 0; c < C; c++) {
+            double w = hw ? hw[c] : 1.0;
+            double d = hdy[rr * C + c] * w;
+            dmean += d;
+            dvar += d * (hx[rr * C + c] - mean);
+        }
+        dmean /= C;
+        dvar *= -0.5 * inv * inv * inv / C;
+        for (int c = 0; c < C; c++) {
+            double w = hw ? hw[c] : 1.0;
+            double d = hdy[rr * C + c] * w;
+            dx[rr * C + c] += (float)((d - dmean) * inv + 2 * (hx[rr * C + c] - mean) * dvar);
+        }
+    }
+    free(pmean); free(pinv);
+    free(hx); free(hdy);
+    if (hw) {
+        hadd_into(gmap_get(gm, r->b, C), dw, C);
+        free(hw);
+    } else free(dw);
+    if (hb) {
+        hadd_into(gmap_get(gm, r->c, C), db, C);
+        free(hb);
+    } else free(db);
+}
+
 void tape_backward_host(Tape *t, PMap *pm, float seed) {
     (void)seed;
     GMap *gm = gmap_new();
@@ -634,71 +721,10 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
             free(dW);
             break;
         }
-        case TOP_LN: {
-            int64_t rows = r->n;
-            int C = r->p1;
-            float *hx = stage_h(r->a, (size_t)rows * C);
-            float *hdy = stage_h(dy, (size_t)rows * C);
-            float *hw = r->b ? stage_h(r->b, C) : NULL;
-            float *hb = r->c ? stage_h(r->c, C) : NULL;
-            float *dx = gmap_get(gm, r->a, rows * C);
-            float *dw = (float *)calloc(C, sizeof(float));
-            float *db = (float *)calloc(C, sizeof(float));
-            /* per-row stats first (independent rows) */
-            double *pmean = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
-            double *pinv = (double *)malloc((size_t)(rows > 0 ? rows : 1) * sizeof(double));
-#pragma omp parallel for schedule(static) if(rows > 4)
-            for (int64_t rr = 0; rr < rows; rr++) {
-                double mean = 0;
-                for (int c = 0; c < C; c++) mean += hx[rr * C + c];
-                mean /= C;
-                double var = 0;
-                for (int c = 0; c < C; c++) { double d = hx[rr * C + c] - mean; var += d * d; }
-                var /= C;
-                pmean[rr] = mean;
-                pinv[rr] = 1.0 / sqrt(var + 1e-6);
-            }
-            /* param grads: same rr-ascending accumulation order as serial */
-#pragma omp parallel for schedule(static) if((int64_t)rows * C > 512)
-            for (int c = 0; c < C; c++) {
-                double sw = 0, sb = 0;
-                for (int64_t rr = 0; rr < rows; rr++) {
-                    double y = (hx[rr * C + c] - pmean[rr]) * pinv[rr];
-                    sw += hdy[rr * C + c] * y;
-                    sb += hdy[rr * C + c];
-                }
-                dw[c] = (float)sw;
-                db[c] = (float)sb;
-            }
-            /* dx per row (independent rows) */
-#pragma omp parallel for schedule(static) if(rows > 4)
-            for (int64_t rr = 0; rr < rows; rr++) {
-                double mean = pmean[rr], inv = pinv[rr];
-                double dmean = 0, dvar = 0;
-                for (int c = 0; c < C; c++) {
-                    double w = hw ? hw[c] : 1.0;
-                    double d = hdy[rr * C + c] * w;
-                    dmean += d;
-                    dvar += d * (hx[rr * C + c] - mean);
-                }
-                dmean /= C;
-                dvar *= -0.5 * inv * inv * inv / C;
-                for (int c = 0; c < C; c++) {
-                    double w = hw ? hw[c] : 1.0;
-                    double d = hdy[rr * C + c] * w;
-                    dx[rr * C + c] += (float)((d - dmean) * inv + 2 * (hx[rr * C + c] - mean) * dvar);
-                }
-            }
-            free(pmean); free(pinv);
-            free(hx); free(hdy);
-            if (hw) {
-                hadd_into(gmap_get(gm, r->b, C), dw, C);
-                free(hw);
-            } else free(dw);
-            if (hb) {
-                hadd_into(gmap_get(gm, r->c, C), db, C);
-                free(hb);
-            } else free(db);
+        case TOP_LN:
+        case TOP_LNE: {
+            double eps = (r->op == TOP_LNE) ? r->s : 1e-6;
+            host_ln_bwd(gm, r, dy, eps);
             break;
         }
         case TOP_RMSN: {
@@ -802,6 +828,26 @@ void tape_backward_host(Tape *t, PMap *pm, float seed) {
                     double s = 1.0 / (1.0 + exp(-hx[i]));
                     g = s * (1 + hx[i] * (1 - s));
                 }
+                dx[i] += (float)(hdy[i] * g);
+            }
+            free(hx); free(hdy);
+            break;
+        }
+        case TOP_GELU_TANH: {
+            /* gelu_new: y = 0.5x(1+tanh(u)), u = c0(x+c1 x^3) */
+            int64_t n = r->n;
+            float *hx = stage_h(r->a, (size_t)n);
+            float *hdy = stage_h(dy, (size_t)n);
+            float *dx = gmap_get(gm, r->a, n);
+            const double c0 = 0.7978845608028654; /* sqrt(2/pi) */
+            const double c1 = 0.044715;
+#pragma omp parallel for schedule(static) if(n > 512)
+            for (int64_t i = 0; i < n; i++) {
+                double x = hx[i];
+                double u = c0 * (x + c1 * x * x * x);
+                double th = tanh(u);
+                double g = 0.5 * (1.0 + th)
+                    + 0.5 * x * (1.0 - th * th) * c0 * (1.0 + 3.0 * c1 * x * x);
                 dx[i] += (float)(hdy[i] * g);
             }
             free(hx); free(hdy);
@@ -1451,6 +1497,19 @@ __global__ static void k_gelu_bwd(float *dx, const float *hx, const float *dy,
     }
     dx[i] += (float)(dy[i] * g);
 }
+/* gelu_new (GPT-2 tanh approx) backward. dtype: double math, float accum. */
+__global__ static void k_gelu_tanh_bwd(float *dx, const float *hx, const float *dy,
+                                       int64_t n) {
+    int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    const double c0 = 0.7978845608028654, c1 = 0.044715;
+    double x = hx[i];
+    double u = c0 * (x + c1 * x * x * x);
+    double th = tanh(u);
+    double g = 0.5 * (1.0 + th)
+        + 0.5 * x * (1.0 - th * th) * c0 * (1.0 + 3.0 * c1 * x * x);
+    dx[i] += (float)(dy[i] * g);
+}
 /* relu2: dx += dy*2x for x>0 */
 __global__ static void k_relu2_bwd(float *dx, const float *hx, const float *dy, int64_t n) {
     int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
@@ -1923,7 +1982,8 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
         }
         case TOP_EMBED: { dbwd_embed_host(gm, r, dy); break; }
         case TOP_GATHER: { dbwd_gather_host(gm, r, dy); break; }
-        case TOP_LN: {
+        case TOP_LN:
+        case TOP_LNE: {
             int64_t rows = r->n;
             int C = r->p1;
             /* two rows-double arrays: rows*4 floats, not rows*2
@@ -1931,7 +1991,8 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
              * past the end, clobbered by the next allocation). */
             double *pmean = (double *)arena_alloc((size_t)rows * 4);
             double *pinv = pmean + rows;
-            k_ln_stats<<<dbwd_blocks(rows), 256>>>(r->a, rows, C, pmean, pinv, 1e-6);
+            k_ln_stats<<<dbwd_blocks(rows), 256>>>(r->a, rows, C, pmean, pinv,
+                (r->op == TOP_LNE) ? r->s : 1e-6);
             float *dx = dmap_get(gm, r->a, rows * C);
             k_ln_dx<<<dbwd_blocks(rows), 256>>>(dx, r->a, dy, r->b, pmean, pinv, rows, C);
             if (r->b || r->c) {
@@ -1979,6 +2040,12 @@ int tape_backward_dev(Tape *t, PMap *pm, float seed) {
             int64_t n = r->n;
             float *dx = dmap_get(gm, r->a, n);
             k_gelu_bwd<<<dbwd_blocks(n), 256>>>(dx, r->a, dy, n, r->op == TOP_GELU);
+            break;
+        }
+        case TOP_GELU_TANH: {
+            int64_t n = r->n;
+            float *dx = dmap_get(gm, r->a, n);
+            k_gelu_tanh_bwd<<<dbwd_blocks(n), 256>>>(dx, r->a, dy, n);
             break;
         }
         case TOP_RELU2: {

@@ -1,0 +1,22 @@
+{
+  "seed": 7,
+  "counts": {
+    "train": 20000,
+    "val": 1000,
+    "test": 2000
+  },
+  "sha256": {
+    "train": "2ab8b30efe435a750782018eeae4df0f71ba5fb3f7233f288fdd392610f6b3d7",
+    "val": "3cc0804f4b23bb7687557690b8999e2ca7bd0a161b92a623a5bcf71625c8e01f",
+    "test": "bbfb8fba5910cf5a1a250a3ae842c16ae6ba440697d1048a7e367ad6eec9bc13",
+    "test_prompts": "e59e3f02f8960864f1cf855c5a0807f5f80b3a2e17a374e6a02642086ae7e9d9",
+    "test_answers": "21703f7b908705816de9fbb279f34a7f1f1f61a9c674daa803aa621862f01b81"
+  },
+  "files": {
+    "train": "results/math-v1/train.txt",
+    "val": "results/math-v1/val.txt",
+    "test": "results/math-v1/test.txt",
+    "test_prompts": "results/math-v1/test_prompts.txt",
+    "test_answers": "results/math-v1/test_answers.txt"
+  }
+}

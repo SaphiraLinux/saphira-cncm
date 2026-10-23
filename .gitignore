@@ -18,3 +18,4 @@ tests/ckpt_unit
 tests/fontcheck
 
 tools/qwenimport
+*.nctrain

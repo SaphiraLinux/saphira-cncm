@@ -435,7 +435,11 @@ TokState *tok_load(const NCMConfig *c, const char *asset_dir) {
         if (t->eos_id >= 0 && t->eos_id + 1 > t->n_special) t->n_special = t->eos_id + 1;
         if (t->pad_id >= 0 && t->pad_id + 1 > t->n_special) t->n_special = t->pad_id + 1;
         t->skip = (unsigned char *)calloc(t->n_vocab, 1);
-        for (int i = 0; i < t->n_special && i < t->n_vocab; i++) t->skip[i] = 1;
+        /* skip only the actual special ids (eos/pad). Skipping [0,n_special)
+         * is wrong for GPT-2/Qwen-style vocabs where the specials sit at
+         * the END (50256, 151643+): it would blank the entire vocabulary. */
+        if (t->eos_id >= 0 && t->eos_id < t->n_vocab) t->skip[t->eos_id] = 1;
+        if (t->pad_id >= 0 && t->pad_id < t->n_vocab) t->skip[t->pad_id] = 1;
         return t;
     }
     /* wordpiece */

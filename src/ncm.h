@@ -319,6 +319,10 @@ int gpt2_cmd_ppl(const NCMConfig *c, const char *weights, const char *adir,
                  const char *texts_path);
 int gpt2_cmd_verify(const NCMConfig *c, const char *weights, const char *adir,
                     const char *fixtures_dir);
+/* taped-vs-reference forward parity on a prompt (train_gpt2_forward vs
+ * gpt2_forward, bit-comparable when the arch matches). */
+int gpt2_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
+                   const char *prompt, int T);
 int qwen_cmd_gen(const NCMConfig *c, const char *weights, const char *adir,
                  const char *prompt, const char *ids_csv, int n_new,
                  float temp, int top_k, float top_p, unsigned long long seed);
@@ -364,6 +368,17 @@ float *train_qwen_forward(Tape *tp, WeightStore *ws, const NCMConfig *c,
 int qwen_cmd_taped(const NCMConfig *c, const char *weights, const char *adir,
                    const char *prompt, int T);
 int train_qwen_run(const NCMConfig *c, const char *weights_path,
+                   const char *data_path, int max_steps, double lr,
+                   const TrainOpts *o);
+/* ---- taped GPT-2 forward (train_gpt2.c): mirrors gpt2.c op-for-op.
+ * Block: LayerNorm(eps=1e-5) -> c_attn -> qkv split -> causal SDPA ->
+ * merge -> c_proj -> add -> LayerNorm -> c_fc -> gelu_new(tanh) ->
+ * c_proj -> add. Returns logits [B][T][V] via the tied wte head. */
+float *train_gpt2_block(Tape *tp, WeightStore *ws, const NCMConfig *c,
+                        int li, float *x, int B, int T, const float *mask);
+float *train_gpt2_forward(Tape *tp, WeightStore *ws, const NCMConfig *c,
+                          const int *ids, int B, int T);
+int train_gpt2_run(const NCMConfig *c, const char *weights_path,
                    const char *data_path, int max_steps, double lr,
                    const TrainOpts *o);
 /* ---- live native viewer (viewer.c, SDL2; silent no-ops when the display
@@ -459,10 +474,15 @@ void t_embed(Tape *t, const float *W, const int *idx, int V, float *y,
              int64_t n, int D);
 void t_layernorm(Tape *t, const float *x, const float *w, const float *b,
                  float *y, int64_t rows, int C);
+/* LayerNorm with explicit eps (GPT-2: 1e-5); eps recorded in the tape. */
+void t_layernorm_eps(Tape *t, const float *x, const float *w, const float *b,
+                     float *y, int64_t rows, int C, double eps);
 void t_rmsnorm(Tape *t, const float *x, const float *w, float *y,
                int64_t rows, int C);
 void t_groupnorm(Tape *t, const float *x, float *y, int N, int G, int C, int T);
 void t_gelu(Tape *t, const float *x, float *y, int64_t n);
+/* HF gelu_new (GPT-2 tanh approx). t_gelu is exact-erf; not the same. */
+void t_gelu_tanh(Tape *t, const float *x, float *y, int64_t n);
 void t_mul(Tape *t, const float *a, const float *b, float *y, int64_t n);
 void t_relu2(Tape *t, const float *x, float *y, int64_t n);
 void t_silu(Tape *t, const float *x, float *y, int64_t n);

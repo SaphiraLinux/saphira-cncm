@@ -611,6 +611,123 @@ int main(void) {
         free(qws.items);
     }
 
+    /* ---- taped GPT-2 block (1 layer, synthetic) + CE, analytic vs numeric --
+     * Exercises the real train_gpt2_forward end to end: wte+wpe embed,
+     * layernorm(eps=1e-5), c_attn(+bias), qkv split, causal sdpa, merge,
+     * c_proj, gelu_new(tanh), tied head. Numeric side re-runs the same
+     * taped forward with perturbed weights (validates the backward only). */
+    {
+        int B = 1, T = 4, C = 32, H = 4, I = 128, V = 256;
+        NCMConfig gc;
+        memset(&gc, 0, sizeof(gc));
+        gc.n_layer = 1; gc.n_head = H; gc.n_embd = C;
+        gc.context_length = 64;
+        struct { const char *nm; int rows, cols; } spec[] = {
+            {"wte.weight", V, C},
+            {"wpe.weight", 64, C},
+            {"ln_f.weight", 1, C},
+            {"ln_f.bias", 1, C},
+            {"h.0.ln_1.weight", 1, C},
+            {"h.0.ln_1.bias", 1, C},
+            {"h.0.attn.c_attn.weight", 3 * C, C},
+            {"h.0.attn.c_attn.bias", 1, 3 * C},
+            {"h.0.attn.c_proj.weight", C, C},
+            {"h.0.attn.c_proj.bias", 1, C},
+            {"h.0.ln_2.weight", 1, C},
+            {"h.0.ln_2.bias", 1, C},
+            {"h.0.mlp.c_fc.weight", I, C},
+            {"h.0.mlp.c_fc.bias", 1, I},
+            {"h.0.mlp.c_proj.weight", C, I},
+            {"h.0.mlp.c_proj.bias", 1, C},
+        };
+        int NW = (int)(sizeof(spec) / sizeof(spec[0]));
+        WeightStore gws;
+        gws.items = (NamedTensor *)calloc(NW, sizeof(NamedTensor));
+        gws.count = NW;
+        float **hostw = (float **)malloc(NW * sizeof(float *));
+        for (int i = 0; i < NW; i++) {
+            int n = spec[i].rows * spec[i].cols;
+            hostw[i] = (float *)malloc(n * sizeof(float));
+            for (int k = 0; k < n; k++) hostw[i][k] = (float)frand();
+            Tensor *t = tensor_alloc(2, (int64_t[]){spec[i].rows, spec[i].cols});
+            mem_h2d(t->data, hostw[i], n * sizeof(float));
+            snprintf(gws.items[i].name, sizeof(gws.items[i].name), "%s", spec[i].nm);
+            gws.items[i].t = t;
+        }
+        int hids[4] = {7, 42, 100, 5};
+        int htg[4] = {3, 200, 17, 99};
+        Tape *tp = tape_new();
+        float *logits = train_gpt2_forward(tp, &gws, &gc, hids, B, T);
+        float *loss = arena_alloc(1), *probs = arena_alloc((size_t)B * T * V);
+        /* t_ce takes HOST targets (copies internally) */
+        t_ce(tp, logits, htg, NULL, loss, probs, (int64_t)B * T, V, 1.0);
+        float **gr = (float **)malloc(NW * sizeof(float *));
+        PMap pm;
+        float **pp = (float **)malloc(NW * sizeof(float *));
+        float **pg = (float **)malloc(NW * sizeof(float *));
+        int64_t *sz = (int64_t *)malloc(NW * sizeof(int64_t));
+        for (int i = 0; i < NW; i++) {
+            pp[i] = gws.items[i].t->data;
+            gr[i] = (float *)calloc(gws.items[i].t->n, sizeof(float));
+            pg[i] = gr[i];
+            sz[i] = gws.items[i].t->n;
+        }
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = NW;
+        tape_backward(tp, &pm, 0);
+        tape_free(tp);
+        /* numeric: perturb host copy, push to backend, rerun taped forward */
+        double gpt2_loss_at(float **hw) {
+            for (int i = 0; i < NW; i++) {
+                int n = spec[i].rows * spec[i].cols;
+                mem_h2d(gws.items[i].t->data, hw[i], n * sizeof(float));
+            }
+            Tape *t2 = tape_new();
+            float *lg2 = train_gpt2_forward(t2, &gws, &gc, hids, B, T);
+            float *lo2 = arena_alloc(1), *pr2 = arena_alloc((size_t)B * T * V);
+            t_ce(t2, lg2, htg, NULL, lo2, pr2, (int64_t)B * T, V, 1.0);
+            float lh = 0;
+            mem_d2h(&lh, lo2, sizeof(float));
+            tape_free(t2);
+            return lh;
+        }
+        /* restore backend = unperturbed before numeric loop */
+        for (int i = 0; i < NW; i++) {
+            int n = spec[i].rows * spec[i].cols;
+            mem_h2d(gws.items[i].t->data, hostw[i], n * sizeof(float));
+        }
+        struct { int wi; const char *nm; } checks[] = {
+            {6, "gpt2 c_attn.weight"}, {7, "gpt2 c_attn.bias"},
+            {8, "gpt2 c_proj.weight"}, {12, "gpt2 c_fc.weight"},
+            {14, "gpt2 mlp proj.weight"}, {2, "gpt2 ln_f.weight"},
+            {4, "gpt2 ln_1.weight"},
+        };
+        for (unsigned ci = 0; ci < sizeof(checks) / sizeof(checks[0]); ci++) {
+            int wi = checks[ci].wi;
+            /* check the largest-magnitude entry: finite differences on
+             * ~1e-4 grads drown in float32 cancellation, so probe the entry
+             * that actually drives the update (deterministic under the
+             * fixed test RNG). */
+            int idx = 0;
+            double amx = 0;
+            for (int64_t k = 0; k < sz[wi]; k++) {
+                double a = fabs(gr[wi][k]);
+                if (a > amx) { amx = a; idx = (int)k; }
+            }
+            double ana = gr[wi][idx], v[2];
+            for (int sgn = -1; sgn <= 1; sgn += 2) {
+                hostw[wi][idx] += (float)(sgn * eps);
+                v[sgn > 0 ? 1 : 0] = gpt2_loss_at(hostw);
+                hostw[wi][idx] -= (float)(sgn * eps);
+            }
+            char nm[64];
+            snprintf(nm, sizeof(nm), "%s[%d]", checks[ci].nm, idx);
+            check(nm, ana, (v[1] - v[0]) / (2 * eps));
+        }
+        for (int i = 0; i < NW; i++) { free(hostw[i]); free(gr[i]); }
+        free(hostw); free(gr); free(pp); free(pg); free(sz);
+        free(gws.items);
+    }
+
     printf(fails ? "GCHECK-FAIL (%d)\n" : "GCHECK-PASS\n", fails);
     return fails != 0;
 }
