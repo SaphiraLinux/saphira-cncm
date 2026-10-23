@@ -1,0 +1,405 @@
+  [train-gpt2] loss=2.7872 gnorm=24.322
+[train-gpt2] 3734 rows, T=128 target=200 schedule_total=200
+[train-gpt2] step 0 loss 2.7872
+  [train-gpt2] loss=2.7424 gnorm=21.072
+[train-gpt2] step 1 loss 2.7424
+  [train-gpt2] loss=2.8150 gnorm=23.169
+[train-gpt2] step 2 loss 2.8150
+  [train-gpt2] loss=2.8452 gnorm=19.970
+[train-gpt2] step 3 loss 2.8452
+  [train-gpt2] loss=2.8747 gnorm=21.992
+[train-gpt2] step 4 loss 2.8747
+  [train-gpt2] loss=2.6983 gnorm=21.283
+[train-gpt2] step 5 loss 2.6983
+  [train-gpt2] loss=2.7706 gnorm=22.187
+[train-gpt2] step 6 loss 2.7706
+  [train-gpt2] loss=2.5546 gnorm=20.848
+[train-gpt2] step 7 loss 2.5546
+  [train-gpt2] loss=2.6186 gnorm=20.046
+[train-gpt2] step 8 loss 2.6186
+  [train-gpt2] loss=2.6250 gnorm=20.994
+[train-gpt2] step 9 loss 2.6250
+  [train-gpt2] loss=2.6547 gnorm=21.165
+[train-gpt2] step 10 loss 2.6547
+  [train-gpt2] loss=2.7641 gnorm=22.081
+[train-gpt2] step 11 loss 2.7641
+  [train-gpt2] loss=2.5838 gnorm=22.349
+[train-gpt2] step 12 loss 2.5838
+  [train-gpt2] loss=2.8153 gnorm=20.616
+[train-gpt2] step 13 loss 2.8153
+  [train-gpt2] loss=2.5829 gnorm=19.181
+[train-gpt2] step 14 loss 2.5829
+  [train-gpt2] loss=2.7220 gnorm=19.986
+[train-gpt2] step 15 loss 2.7220
+  [train-gpt2] loss=2.4466 gnorm=20.143
+[train-gpt2] step 16 loss 2.4466
+  [train-gpt2] loss=2.3379 gnorm=20.482
+[train-gpt2] step 17 loss 2.3379
+  [train-gpt2] loss=2.5036 gnorm=18.336
+[train-gpt2] step 18 loss 2.5036
+  [train-gpt2] loss=2.4890 gnorm=19.936
+[train-gpt2] step 19 loss 2.4890
+  [train-gpt2] loss=2.6380 gnorm=18.613
+[train-gpt2] step 20 loss 2.6380
+  [train-gpt2] loss=2.5057 gnorm=17.676
+[train-gpt2] step 21 loss 2.5057
+  [train-gpt2] loss=2.3138 gnorm=18.392
+[train-gpt2] step 22 loss 2.3138
+  [train-gpt2] loss=2.3822 gnorm=18.447
+[train-gpt2] step 23 loss 2.3822
+  [train-gpt2] loss=2.3415 gnorm=19.100
+[train-gpt2] step 24 loss 2.3415
+  [train-gpt2] loss=2.3302 gnorm=19.768
+[train-gpt2] step 25 loss 2.3302
+  [train-gpt2] loss=2.2800 gnorm=17.137
+[train-gpt2] step 26 loss 2.2800
+  [train-gpt2] loss=2.2481 gnorm=19.013
+[train-gpt2] step 27 loss 2.2481
+  [train-gpt2] loss=2.1685 gnorm=17.697
+[train-gpt2] step 28 loss 2.1685
+  [train-gpt2] loss=2.1430 gnorm=17.389
+[train-gpt2] step 29 loss 2.1430
+  [train-gpt2] loss=2.1776 gnorm=16.276
+[train-gpt2] step 30 loss 2.1776
+  [train-gpt2] loss=2.3152 gnorm=17.269
+[train-gpt2] step 31 loss 2.3152
+  [train-gpt2] loss=2.3442 gnorm=17.378
+[train-gpt2] step 32 loss 2.3442
+  [train-gpt2] loss=2.0697 gnorm=17.003
+[train-gpt2] step 33 loss 2.0697
+  [train-gpt2] loss=2.2886 gnorm=19.569
+[train-gpt2] step 34 loss 2.2886
+  [train-gpt2] loss=2.0127 gnorm=16.753
+[train-gpt2] step 35 loss 2.0127
+  [train-gpt2] loss=2.1320 gnorm=17.715
+[train-gpt2] step 36 loss 2.1320
+  [train-gpt2] loss=2.1473 gnorm=15.927
+[train-gpt2] step 37 loss 2.1473
+  [train-gpt2] loss=2.2205 gnorm=18.013
+[train-gpt2] step 38 loss 2.2205
+  [train-gpt2] loss=2.1969 gnorm=16.360
+[train-gpt2] step 39 loss 2.1969
+  [train-gpt2] loss=2.0383 gnorm=17.077
+[train-gpt2] step 40 loss 2.0383
+  [train-gpt2] loss=2.0990 gnorm=17.011
+[train-gpt2] step 41 loss 2.0990
+  [train-gpt2] loss=2.0373 gnorm=17.268
+[train-gpt2] step 42 loss 2.0373
+  [train-gpt2] loss=1.9628 gnorm=17.067
+[train-gpt2] step 43 loss 1.9628
+  [train-gpt2] loss=1.9712 gnorm=15.476
+[train-gpt2] step 44 loss 1.9712
+  [train-gpt2] loss=2.0852 gnorm=15.518
+[train-gpt2] step 45 loss 2.0852
+  [train-gpt2] loss=1.9730 gnorm=16.994
+[train-gpt2] step 46 loss 1.9730
+  [train-gpt2] loss=2.0549 gnorm=14.785
+[train-gpt2] step 47 loss 2.0549
+  [train-gpt2] loss=1.9874 gnorm=17.467
+[train-gpt2] step 48 loss 1.9874
+  [train-gpt2] loss=2.0113 gnorm=18.013
+[train-gpt2] checkpoint saved in 3.11s
+[train-gpt2] step 49 loss 2.0113 (saved weights/math-gpt2/ckpt-final.nckpt)
+  [train-gpt2] loss=2.0227 gnorm=17.123
+[train-gpt2] step 50 loss 2.0227
+  [train-gpt2] loss=1.8987 gnorm=15.543
+[train-gpt2] step 51 loss 1.8987
+  [train-gpt2] loss=1.8887 gnorm=15.558
+[train-gpt2] step 52 loss 1.8887
+  [train-gpt2] loss=1.7054 gnorm=14.122
+[train-gpt2] step 53 loss 1.7054
+  [train-gpt2] loss=1.7439 gnorm=15.786
+[train-gpt2] step 54 loss 1.7439
+  [train-gpt2] loss=1.9444 gnorm=16.174
+[train-gpt2] step 55 loss 1.9444
+  [train-gpt2] loss=1.7275 gnorm=16.149
+[train-gpt2] step 56 loss 1.7275
+  [train-gpt2] loss=1.8682 gnorm=15.665
+[train-gpt2] step 57 loss 1.8682
+  [train-gpt2] loss=1.7706 gnorm=16.018
+[train-gpt2] step 58 loss 1.7706
+  [train-gpt2] loss=1.8599 gnorm=17.323
+[train-gpt2] step 59 loss 1.8599
+  [train-gpt2] loss=1.8507 gnorm=16.242
+[train-gpt2] step 60 loss 1.8507
+  [train-gpt2] loss=1.7221 gnorm=16.547
+[train-gpt2] step 61 loss 1.7221
+  [train-gpt2] loss=1.7598 gnorm=15.380
+[train-gpt2] step 62 loss 1.7598
+  [train-gpt2] loss=1.8026 gnorm=16.179
+[train-gpt2] step 63 loss 1.8026
+  [train-gpt2] loss=1.7087 gnorm=16.043
+[train-gpt2] step 64 loss 1.7087
+  [train-gpt2] loss=1.6524 gnorm=16.589
+[train-gpt2] step 65 loss 1.6524
+  [train-gpt2] loss=1.5886 gnorm=15.266
+[train-gpt2] step 66 loss 1.5886
+  [train-gpt2] loss=1.7082 gnorm=15.360
+[train-gpt2] step 67 loss 1.7082
+  [train-gpt2] loss=1.6237 gnorm=15.554
+[train-gpt2] step 68 loss 1.6237
+  [train-gpt2] loss=1.6241 gnorm=15.113
+[train-gpt2] step 69 loss 1.6241
+  [train-gpt2] loss=1.5506 gnorm=14.344
+[train-gpt2] step 70 loss 1.5506
+  [train-gpt2] loss=1.6698 gnorm=15.672
+[train-gpt2] step 71 loss 1.6698
+  [train-gpt2] loss=1.6644 gnorm=15.527
+[train-gpt2] step 72 loss 1.6644
+  [train-gpt2] loss=1.5987 gnorm=15.349
+[train-gpt2] step 73 loss 1.5987
+  [train-gpt2] loss=1.5353 gnorm=15.200
+[train-gpt2] step 74 loss 1.5353
+  [train-gpt2] loss=1.5416 gnorm=15.435
+[train-gpt2] step 75 loss 1.5416
+  [train-gpt2] loss=1.6669 gnorm=15.858
+[train-gpt2] step 76 loss 1.6669
+  [train-gpt2] loss=1.5406 gnorm=14.546
+[train-gpt2] step 77 loss 1.5406
+  [train-gpt2] loss=1.5030 gnorm=15.181
+[train-gpt2] step 78 loss 1.5030
+  [train-gpt2] loss=1.3890 gnorm=15.905
+[train-gpt2] step 79 loss 1.3890
+  [train-gpt2] loss=1.5061 gnorm=15.480
+[train-gpt2] step 80 loss 1.5061
+  [train-gpt2] loss=1.5107 gnorm=15.185
+[train-gpt2] step 81 loss 1.5107
+  [train-gpt2] loss=1.3834 gnorm=14.523
+[train-gpt2] step 82 loss 1.3834
+  [train-gpt2] loss=1.4936 gnorm=15.559
+[train-gpt2] step 83 loss 1.4936
+  [train-gpt2] loss=1.3614 gnorm=15.984
+[train-gpt2] step 84 loss 1.3614
+  [train-gpt2] loss=1.3391 gnorm=16.434
+[train-gpt2] step 85 loss 1.3391
+  [train-gpt2] loss=1.4650 gnorm=15.254
+[train-gpt2] step 86 loss 1.4650
+  [train-gpt2] loss=1.3262 gnorm=14.232
+[train-gpt2] step 87 loss 1.3262
+  [train-gpt2] loss=1.3443 gnorm=14.941
+[train-gpt2] step 88 loss 1.3443
+  [train-gpt2] loss=1.2217 gnorm=15.028
+[train-gpt2] step 89 loss 1.2217
+  [train-gpt2] loss=1.2682 gnorm=12.777
+[train-gpt2] step 90 loss 1.2682
+  [train-gpt2] loss=1.2393 gnorm=15.148
+[train-gpt2] step 91 loss 1.2393
+  [train-gpt2] loss=1.3065 gnorm=14.001
+[train-gpt2] step 92 loss 1.3065
+  [train-gpt2] loss=1.1992 gnorm=12.786
+[train-gpt2] step 93 loss 1.1992
+  [train-gpt2] loss=1.2428 gnorm=14.813
+[train-gpt2] step 94 loss 1.2428
+  [train-gpt2] loss=1.2155 gnorm=12.124
+[train-gpt2] step 95 loss 1.2155
+  [train-gpt2] loss=1.2435 gnorm=15.462
+[train-gpt2] step 96 loss 1.2435
+  [train-gpt2] loss=1.3112 gnorm=14.052
+[train-gpt2] step 97 loss 1.3112
+  [train-gpt2] loss=1.3596 gnorm=14.236
+[train-gpt2] step 98 loss 1.3596
+  [train-gpt2] loss=1.1898 gnorm=13.657
+[train-gpt2] checkpoint saved in 3.16s
+[train-gpt2] step 99 loss 1.1898 (saved weights/math-gpt2/ckpt-final.nckpt)
+  [train-gpt2] loss=1.2752 gnorm=13.502
+[train-gpt2] step 100 loss 1.2752
+  [train-gpt2] loss=1.2757 gnorm=14.563
+[train-gpt2] step 101 loss 1.2757
+  [train-gpt2] loss=1.1481 gnorm=12.439
+[train-gpt2] step 102 loss 1.1481
+  [train-gpt2] loss=1.1185 gnorm=12.463
+[train-gpt2] step 103 loss 1.1185
+  [train-gpt2] loss=1.1044 gnorm=13.097
+[train-gpt2] step 104 loss 1.1044
+  [train-gpt2] loss=1.1030 gnorm=12.257
+[train-gpt2] step 105 loss 1.1030
+  [train-gpt2] loss=1.1960 gnorm=12.929
+[train-gpt2] step 106 loss 1.1960
+  [train-gpt2] loss=1.3032 gnorm=13.529
+[train-gpt2] step 107 loss 1.3032
+  [train-gpt2] loss=1.1966 gnorm=12.763
+[train-gpt2] step 108 loss 1.1966
+  [train-gpt2] loss=1.2609 gnorm=13.477
+[train-gpt2] step 109 loss 1.2609
+  [train-gpt2] loss=1.1772 gnorm=12.704
+[train-gpt2] step 110 loss 1.1772
+  [train-gpt2] loss=1.1779 gnorm=13.162
+[train-gpt2] step 111 loss 1.1779
+  [train-gpt2] loss=1.2191 gnorm=13.005
+[train-gpt2] step 112 loss 1.2191
+  [train-gpt2] loss=1.1646 gnorm=13.747
+[train-gpt2] step 113 loss 1.1646
+  [train-gpt2] loss=1.1879 gnorm=13.875
+[train-gpt2] step 114 loss 1.1879
+  [train-gpt2] loss=1.0950 gnorm=12.776
+[train-gpt2] step 115 loss 1.0950
+  [train-gpt2] loss=1.2533 gnorm=13.458
+[train-gpt2] step 116 loss 1.2533
+  [train-gpt2] loss=1.3256 gnorm=14.173
+[train-gpt2] step 117 loss 1.3256
+  [train-gpt2] loss=1.1651 gnorm=12.819
+[train-gpt2] step 118 loss 1.1651
+  [train-gpt2] loss=1.1044 gnorm=12.507
+[train-gpt2] step 119 loss 1.1044
+  [train-gpt2] loss=1.1972 gnorm=13.057
+[train-gpt2] step 120 loss 1.1972
+  [train-gpt2] loss=1.1643 gnorm=13.266
+[train-gpt2] step 121 loss 1.1643
+  [train-gpt2] loss=1.2166 gnorm=12.336
+[train-gpt2] step 122 loss 1.2166
+  [train-gpt2] loss=1.1989 gnorm=13.372
+[train-gpt2] step 123 loss 1.1989
+  [train-gpt2] loss=1.2979 gnorm=14.678
+[train-gpt2] step 124 loss 1.2979
+  [train-gpt2] loss=1.1389 gnorm=12.410
+[train-gpt2] step 125 loss 1.1389
+  [train-gpt2] loss=1.1719 gnorm=12.818
+[train-gpt2] step 126 loss 1.1719
+  [train-gpt2] loss=1.1581 gnorm=13.728
+[train-gpt2] step 127 loss 1.1581
+  [train-gpt2] loss=1.1678 gnorm=13.187
+[train-gpt2] step 128 loss 1.1678
+  [train-gpt2] loss=1.1713 gnorm=14.855
+[train-gpt2] step 129 loss 1.1713
+  [train-gpt2] loss=1.0592 gnorm=14.144
+[train-gpt2] step 130 loss 1.0592
+  [train-gpt2] loss=1.0793 gnorm=12.702
+[train-gpt2] step 131 loss 1.0793
+  [train-gpt2] loss=1.1181 gnorm=13.998
+[train-gpt2] step 132 loss 1.1181
+  [train-gpt2] loss=1.1792 gnorm=13.865
+[train-gpt2] step 133 loss 1.1792
+  [train-gpt2] loss=1.1389 gnorm=14.350
+[train-gpt2] step 134 loss 1.1389
+  [train-gpt2] loss=1.3643 gnorm=15.045
+[train-gpt2] step 135 loss 1.3643
+  [train-gpt2] loss=1.1036 gnorm=12.962
+[train-gpt2] step 136 loss 1.1036
+  [train-gpt2] loss=1.0216 gnorm=13.265
+[train-gpt2] step 137 loss 1.0216
+  [train-gpt2] loss=1.1598 gnorm=12.398
+[train-gpt2] step 138 loss 1.1598
+  [train-gpt2] loss=1.1991 gnorm=14.086
+[train-gpt2] step 139 loss 1.1991
+  [train-gpt2] loss=1.2330 gnorm=12.586
+[train-gpt2] step 140 loss 1.2330
+  [train-gpt2] loss=1.1088 gnorm=12.532
+[train-gpt2] step 141 loss 1.1088
+  [train-gpt2] loss=1.1830 gnorm=13.716
+[train-gpt2] step 142 loss 1.1830
+  [train-gpt2] loss=1.1113 gnorm=14.433
+[train-gpt2] step 143 loss 1.1113
+  [train-gpt2] loss=1.1124 gnorm=13.090
+[train-gpt2] step 144 loss 1.1124
+  [train-gpt2] loss=1.2090 gnorm=13.404
+[train-gpt2] step 145 loss 1.2090
+  [train-gpt2] loss=1.1227 gnorm=13.571
+[train-gpt2] step 146 loss 1.1227
+  [train-gpt2] loss=1.1692 gnorm=13.436
+[train-gpt2] step 147 loss 1.1692
+  [train-gpt2] loss=1.0979 gnorm=12.905
+[train-gpt2] step 148 loss 1.0979
+  [train-gpt2] loss=1.1112 gnorm=12.400
+[train-gpt2] checkpoint saved in 3.13s
+[train-gpt2] step 149 loss 1.1112 (saved weights/math-gpt2/ckpt-final.nckpt)
+  [train-gpt2] loss=1.2033 gnorm=13.263
+[train-gpt2] step 150 loss 1.2033
+  [train-gpt2] loss=1.0834 gnorm=13.824
+[train-gpt2] step 151 loss 1.0834
+  [train-gpt2] loss=1.1835 gnorm=13.463
+[train-gpt2] step 152 loss 1.1835
+  [train-gpt2] loss=1.1501 gnorm=13.338
+[train-gpt2] step 153 loss 1.1501
+  [train-gpt2] loss=1.1787 gnorm=13.384
+[train-gpt2] step 154 loss 1.1787
+  [train-gpt2] loss=1.2207 gnorm=14.643
+[train-gpt2] step 155 loss 1.2207
+  [train-gpt2] loss=1.1548 gnorm=12.821
+[train-gpt2] step 156 loss 1.1548
+  [train-gpt2] loss=1.1556 gnorm=12.431
+[train-gpt2] step 157 loss 1.1556
+  [train-gpt2] loss=1.1897 gnorm=13.084
+[train-gpt2] step 158 loss 1.1897
+  [train-gpt2] loss=1.1434 gnorm=12.550
+[train-gpt2] step 159 loss 1.1434
+  [train-gpt2] loss=1.0497 gnorm=13.465
+[train-gpt2] step 160 loss 1.0497
+  [train-gpt2] loss=1.0872 gnorm=13.230
+[train-gpt2] step 161 loss 1.0872
+  [train-gpt2] loss=1.1391 gnorm=12.211
+[train-gpt2] step 162 loss 1.1391
+  [train-gpt2] loss=1.0263 gnorm=12.988
+[train-gpt2] step 163 loss 1.0263
+  [train-gpt2] loss=1.1889 gnorm=13.231
+[train-gpt2] step 164 loss 1.1889
+  [train-gpt2] loss=1.2319 gnorm=14.274
+[train-gpt2] step 165 loss 1.2319
+  [train-gpt2] loss=1.0685 gnorm=12.798
+[train-gpt2] step 166 loss 1.0685
+  [train-gpt2] loss=1.0137 gnorm=11.811
+[train-gpt2] step 167 loss 1.0137
+  [train-gpt2] loss=1.2004 gnorm=13.251
+[train-gpt2] step 168 loss 1.2004
+  [train-gpt2] loss=0.9803 gnorm=12.421
+[train-gpt2] step 169 loss 0.9803
+  [train-gpt2] loss=1.0301 gnorm=13.423
+[train-gpt2] step 170 loss 1.0301
+  [train-gpt2] loss=1.0093 gnorm=12.557
+[train-gpt2] step 171 loss 1.0093
+  [train-gpt2] loss=1.1985 gnorm=17.315
+[train-gpt2] step 172 loss 1.1985
+  [train-gpt2] loss=1.1236 gnorm=11.526
+[train-gpt2] step 173 loss 1.1236
+  [train-gpt2] loss=1.1604 gnorm=12.327
+[train-gpt2] step 174 loss 1.1604
+  [train-gpt2] loss=1.0773 gnorm=12.302
+[train-gpt2] step 175 loss 1.0773
+  [train-gpt2] loss=1.1286 gnorm=12.574
+[train-gpt2] step 176 loss 1.1286
+  [train-gpt2] loss=1.1464 gnorm=12.307
+[train-gpt2] step 177 loss 1.1464
+  [train-gpt2] loss=1.0841 gnorm=12.854
+[train-gpt2] step 178 loss 1.0841
+  [train-gpt2] loss=1.2378 gnorm=13.473
+[train-gpt2] step 179 loss 1.2378
+  [train-gpt2] loss=1.0350 gnorm=13.511
+[train-gpt2] step 180 loss 1.0350
+  [train-gpt2] loss=1.1046 gnorm=13.068
+[train-gpt2] step 181 loss 1.1046
+  [train-gpt2] loss=1.0088 gnorm=11.803
+[train-gpt2] step 182 loss 1.0088
+  [train-gpt2] loss=1.1582 gnorm=12.605
+[train-gpt2] step 183 loss 1.1582
+  [train-gpt2] loss=1.1195 gnorm=12.324
+[train-gpt2] step 184 loss 1.1195
+  [train-gpt2] loss=1.0864 gnorm=12.751
+[train-gpt2] step 185 loss 1.0864
+  [train-gpt2] loss=1.1228 gnorm=14.057
+[train-gpt2] step 186 loss 1.1228
+  [train-gpt2] loss=1.1388 gnorm=13.913
+[train-gpt2] step 187 loss 1.1388
+  [train-gpt2] loss=1.1984 gnorm=13.163
+[train-gpt2] step 188 loss 1.1984
+  [train-gpt2] loss=1.1317 gnorm=13.971
+[train-gpt2] step 189 loss 1.1317
+  [train-gpt2] loss=1.2100 gnorm=12.586
+[train-gpt2] step 190 loss 1.2100
+  [train-gpt2] loss=1.1443 gnorm=12.895
+[train-gpt2] step 191 loss 1.1443
+  [train-gpt2] loss=1.0507 gnorm=12.224
+[train-gpt2] step 192 loss 1.0507
+  [train-gpt2] loss=1.0344 gnorm=14.125
+[train-gpt2] step 193 loss 1.0344
+  [train-gpt2] loss=1.1656 gnorm=12.126
+[train-gpt2] step 194 loss 1.1656
+  [train-gpt2] loss=1.2022 gnorm=12.765
+[train-gpt2] step 195 loss 1.2022
+  [train-gpt2] loss=1.1454 gnorm=13.881
+[train-gpt2] step 196 loss 1.1454
+  [train-gpt2] loss=1.0715 gnorm=13.662
+[train-gpt2] step 197 loss 1.0715
+  [train-gpt2] loss=1.0798 gnorm=13.909
+[train-gpt2] step 198 loss 1.0798
+  [train-gpt2] loss=1.1589 gnorm=14.146
+[train-gpt2] checkpoint saved in 3.13s
+[train-gpt2] step 199 loss 1.1589 (saved weights/math-gpt2/ckpt-final.nckpt)
