@@ -113,3 +113,53 @@ actions (continue / adjust / kill). Watching a curve is not managing it.
 - **Committing failure evidence.** Dead-end checkpoints, full logs,
   negative results — all in-repo. The OOM post-mortem was possible
   because the logs existed.
+
+## Enforcement: how each lesson is now a gate, not a wish
+
+Documentation decays. Each entry above is wired to something that fails
+loudly. Run `make test` (weight-free) — every item marked [AUTO] below
+executes there.
+
+1. **No kill criterion** → [AUTO] `tools/gate_eval.sh` (fail-closed
+   metric gate: `--min/--max`, exit 1 on breach, 2 on bad input) and
+   `tools/run_gated.sh` (chunked work + eval + gate per chunk; first
+   failure aborts before the next chunk starts). Long work without
+   pre-declared gates is now a procedure violation with no tooling to
+   hide behind. Writing the thresholds down remains procedural — the
+   scripts cannot invent them.
+2. **Thread ceiling ignored** → [AUTO] `tools/run_capped.sh` refuses
+   `--threads 29+` (exit 2; tested), caps OMP/NCM/OpenBLAS/MKL env, and
+   logs actual `/proc` thread counts per run. `test_units.sh` asserts
+   the refusal.
+3. **Evidence-free diagnosis** → [AUTO] `tests/gcheck.c` tape-rss gate:
+   12 timed forward+CE+backward+clear iterations at real vocab size,
+   `ru_maxrss` growth bounded at +128 MiB (the bug added 250 MiB;
+   verified it FAILS when the fix is reverted: +251904 KiB, GCHECK-FAIL).
+   The remaining half — "measure before theorizing" — is procedural.
+4. **Harness lies** → [AUTO] `tools/eval_math.py --self-test` (8 canned
+   cases: ids-line pollution, missing Step: restatement,
+   problem-switching, truncated prompts, inexact division) and
+   `tools/eval_sudoku_text.py --self-test` (5 board-extraction cases).
+   Both run in `make test`. Any parser change that re-breaks a case
+   fails the build.
+5. **Dataset bias** → [AUTO] `tools/mathdata.py::assert_balance`
+   (every op present, max/min ≤ 4, fail-closed `SystemExit`) runs on
+   every generation; `test_units.sh` runs a tiny generation through it.
+   Red paths (missing ops, skewed ratios) probed and confirmed to exit.
+6. **Silent decode failure** → [AUTO, weight-gated]
+   `tests/test_train_gpt2.sh` asserts `gpt2-gen` emits a non-empty
+   decoded text line on real weights (SKIPs without weights, like the
+   rest of that gate).
+7. **Moving files under live jobs** → procedural. No script can know
+   which paths a running job holds; the rule is: artifacts under
+   measurement are read-only until the job exits. Enforced by review.
+8. **Ungated long runs** → [AUTO] `tools/run_gated.sh` (see 1). The
+   12k-run shape — one shot, no fractions — is no longer expressible
+   without bypassing the standard runner.
+9. **What worked** → already automated: exact-resume parity
+   (`test_train_qwen.sh`, `test_train_gpt2.sh`: identical loss lines,
+   byte-identical checkpoints), NCK1 refusal tests (`ckpt_unit`).
+
+Coverage note: #7 and the human halves of #1/#3 are procedural by
+nature — they are review checklist items, stated here so the next
+operator can ask for them by name. Everything else fails the build.

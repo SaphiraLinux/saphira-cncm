@@ -65,14 +65,91 @@ STEP_RE = re.compile(r"Step:\s*(.+?)\s*=\s*(-?\d+)")
 ANS_RE = re.compile(r"Answer:\s*(-?\d+)")
 
 
+def score_text(prompt, gen_text, ref):
+    """Score one (prompt, generation) pair. Returns
+    (parsed, step_ok, ans_ok, consistent). Pure function — no subprocess —
+    so --self-test exercises the exact matching logic the live loop uses.
+    Encodes MISTAKES.md #4: ids-line pollution, missing Step: restatement
+    (prompt anchors the step), problem-switching rejection."""
+    # drop the "ids: ..." diagnostics line (gen prints ids + text)
+    genlines = [l for l in gen_text.split("\n") if not l.startswith("ids:")]
+    # gpt2-gen prints only the continuation, not the prompt; match on
+    # prompt + generation so the trailing "Step:" anchors the step.
+    full = prompt + " " + "\n".join(genlines)
+    sm = STEP_RE.search(full)
+    am = ANS_RE.search(full)
+    if not (sm and am):
+        return (False, False, False, False)
+    asked = prompt.split("Solve:")[1].split("=")[0].strip() if "Solve:" in prompt else ""
+    try:
+        sv = arith(sm.group(1).strip())
+        step_ok = (sv == int(sm.group(2))) and (sm.group(1).strip() == asked)
+    except ValueError:
+        step_ok = False
+    a = int(am.group(1))
+    return (True, step_ok, (a == ref), (a == int(sm.group(2))))
+
+
+def self_test():
+    """Regression gate for every harness defect in MISTAKES.md #4.
+    Fails loudly (nonzero exit) if the parser ever mis-scores again."""
+    cases = [
+        # (name, prompt, gen_text, ref, want(parsed, step, ans, cons))
+        ("ids-line pollution",
+         "Solve: 83 * 6 = ? / Step:",
+         "ids: 1367 3459 1220\n 83 * 6 = 498 / Answer: 498",
+         498, (True, True, True, True)),
+        ("continuation without Step restatement",
+         "Solve: 83 * 6 = ? / Step:",
+         " 83 * 6 = 498 / Answer: 498",
+         498, (True, True, True, True)),
+        ("problem switching rejected",
+         "Solve: 83 * 6 = ? / Step:",
+         " 12 * 12 = 144 / Answer: 144",
+         498, (True, False, False, True)),
+        ("wrong arithmetic, consistent",
+         "Solve: 83 * 6 = ? / Step:",
+         " 83 * 6 = 500 / Answer: 500",
+         498, (True, False, False, True)),
+        ("unparseable",
+         "Solve: 83 * 6 = ? / Step:",
+         " blah blah no numbers here",
+         498, (False, False, False, False)),
+        ("truncated div prompt never verifies",
+         "Solve: 1188 / Step:",
+         " 1188 / 22 = 54 / Answer: 54",
+         54, (True, False, True, True)),
+        ("inexact division rejected",
+         "Solve: 10 / 3 = ? / Step:",
+         " 10 / 3 = 3 / Answer: 3",
+         4, (True, False, False, True)),
+        ("negative result accepted",
+         "Solve: 5 - 9 = ? / Step:",
+         " 5 - 9 = -4 / Answer: -4",
+         -4, (True, True, True, True)),
+    ]
+    fails = 0
+    for name, p, g, ref, want in cases:
+        got = score_text(p, g, ref)
+        if got != want:
+            print("SELFTEST-FAIL %s: got %s want %s" % (name, got, want))
+            fails += 1
+        else:
+            print("SELFTEST-OK %s" % name)
+    print("EVAL-MATH-SELFTEST %s" % ("PASS" if not fails else "FAIL (%d)" % fails))
+    return 1 if fails else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--bin", required=True)
-    ap.add_argument("--conf", required=True)
-    ap.add_argument("--weights", required=True)
-    ap.add_argument("--asset-dir", required=True)
-    ap.add_argument("--prompts", required=True)
-    ap.add_argument("--answers", required=True)
+    ap.add_argument("--bin", required=False, default=None)
+    ap.add_argument("--conf", required=False, default=None)
+    ap.add_argument("--weights", required=False, default=None)
+    ap.add_argument("--asset-dir", required=False, default=None)
+    ap.add_argument("--prompts", required=False, default=None)
+    ap.add_argument("--answers", required=False, default=None)
+    ap.add_argument("--self-test", action="store_true",
+                    help="run the parser regression gate (no model needed)")
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--new-tokens", type=int, default=24)
     ap.add_argument("--seed", type=int, default=0)
@@ -81,6 +158,12 @@ def main():
                          "(system metric: model + deterministic engine)")
     ap.add_argument("--temp", type=float, default=0.0)
     args = ap.parse_args()
+    if args.self_test:
+        return self_test()
+    for k in ("bin", "conf", "weights", "asset_dir", "prompts", "answers"):
+        if not getattr(args, k):
+            print("eval_math needs --%s (or --self-test)" % k, file=sys.stderr)
+            return 2
 
     prompts = [l.rstrip("\n") for l in open(args.prompts) if l.strip()]
     answers = [l.strip() for l in open(args.answers) if l.strip()]
@@ -100,7 +183,6 @@ def main():
         row = by_op.setdefault(op, {"n": 0, "solved": 0})
         row["n"] += 1
         stat["n"] += 1
-        asked = p.split("Solve:")[1].split("=")[0].strip() if "Solve:" in p else ""
         solved_here = False
         parsed_here = False
         for s in range(max(args.samples, 1)):
@@ -111,27 +193,12 @@ def main():
                  "--seed", str(1 + s)],
                 capture_output=True, text=True, timeout=300)
             text = (r.stdout or "") + (r.stderr or "")
-            # drop the "ids: ..." diagnostics line (gen prints ids + text)
-            genlines = [l for l in text.split("\n") if not l.startswith("ids:")]
-            # gpt2-gen prints only the continuation, not the prompt; match on
-            # prompt + generation so the trailing "Step:" anchors the step.
-            full = p + " " + "\n".join(genlines)
-            sm = STEP_RE.search(full)
-            am = ANS_RE.search(full)
-            if not (sm and am):
+            parsed, step_ok, ans_ok, cons = score_text(p, text, ref)
+            if not parsed:
                 continue
             parsed_here = True
             if s == 0:
                 stat["parsed"] += 1
-            try:
-                sv = arith(sm.group(1).strip())
-                step_ok = (sv == int(sm.group(2))) and (sm.group(1).strip() == asked)
-            except ValueError:
-                step_ok = False
-            a = int(am.group(1))
-            ans_ok = (a == ref)
-            cons = (a == int(sm.group(2)))
-            if s == 0:
                 stat["step_valid"] += bool(step_ok)
                 stat["answer_ok"] += bool(ans_ok)
                 stat["consistent"] += bool(cons)

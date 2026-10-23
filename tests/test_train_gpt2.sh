@@ -98,6 +98,16 @@ PB="$("$BIN" gpt2-ppl --conf "$CONF" --weights "$W0" \
   || fail "ppl identical to base (optimizer idle?)"
 rm -f "$WORK/z.nckpt" "$WORK/c.nckpt"
 
+# ---------- query path emits text (MISTAKES.md #6) ----------
+# BPE skip_special once blanked the whole vocab: gen printed ids with
+# EMPTY text. Assert the decoded line is non-empty on real weights.
+"$BIN" gpt2-gen --conf "$CONF" --weights "$W0" \
+  --asset-dir "$ADIR" --prompt "The quick brown fox" --n 3 --temp 0.0 \
+  --seed 1 >"$WORK/gen.txt" 2>/dev/null
+TEXTLINE="$(sed -n '2p' "$WORK/gen.txt")"
+[ -n "$TEXTLINE" ] && pass "gen emits decoded text ('$TEXTLINE')" \
+  || { fail "gen text empty (skip_special regression?)"; cat "$WORK/gen.txt"; }
+
 if [ "$NFAIL" = 0 ]; then echo "ALL TRAIN-GPT2 TESTS PASSED (work=$WORK)"; else
   echo "TRAIN-GPT2-FAIL ($NFAIL)"; fi
 exit $NFAIL

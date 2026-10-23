@@ -78,6 +78,24 @@ def make_doc(expr, ans):
     return "Solve: %s = ? / Step: %s = %d / Answer: %d" % (expr, expr, ans, ans)
 
 
+def assert_balance(splits):
+    """Every op present in every split, max/min <= 4. Raises SystemExit
+    on violation (fail-closed: a skewed corpus must never train quietly).
+    MISTAKES.md #5: a shared round-robin counter once locked each split
+    to 2 of 6 ops while totals looked right."""
+    n_ops = len(GENS)
+    for sp, docs in splits.items():
+        cnt = {}
+        for d, op, a, b, ans in docs:
+            cnt[op] = cnt.get(op, 0) + 1
+        if len(cnt) != n_ops:
+            raise SystemExit("mathdata: split %s missing ops: have %s"
+                             % (sp, sorted(cnt)))
+        lo, hi = min(cnt.values()), max(cnt.values())
+        if lo == 0 or hi / lo > 4:
+            raise SystemExit("mathdata: split %s imbalanced: %s" % (sp, cnt))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -109,6 +127,7 @@ def main():
             splits[sp].append((make_doc(expr, ans), op, a, b, ans))
     # hard disjointness audit (triples unique across all splits by construction)
     assert len(used) == sum(len(v) for v in splits.values())
+    assert_balance(splits)
 
     manifest = {"seed": args.seed, "counts": {}, "sha256": {}, "files": {}}
     for sp, docs in splits.items():

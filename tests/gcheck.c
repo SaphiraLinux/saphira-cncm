@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <sys/resource.h>
 #include "ncm.h"
 
 static unsigned long long rng = 0x12345;
@@ -726,6 +727,106 @@ int main(void) {
         for (int i = 0; i < NW; i++) { free(hostw[i]); free(gr[i]); }
         free(hostw); free(gr); free(pp); free(pg); free(sz);
         free(gws.items);
+    }
+
+    /* ---- tape host-memory regression gate (MISTAKES.md #3) ----
+     * t_ce once orphaned its rows*V softmax buffer (~25 MiB at GPT-2
+     * T=128) on EVERY training step, and aux structs leaked members —
+     * ~260 GiB cumulative before the kernel OOM-killed a 12k-step run.
+     * Loop full forward+CE+backward+clear K times at the real V size and
+     * bound ru_maxrss growth: a leak adds K*hp (250 MiB here); the fixed
+     * tape adds ~0. Weight-free, CPU-only, seconds. */
+    {
+        /* ru_maxrss is a high-water mark: one-time OpenMP pool creation
+         * (~tens of MiB) must not count as growth. The warmup runs below,
+         * after setup, before ru0 is read. */
+        struct rusage ru0, ru1;
+        int B = 1, T = 128, C = 16, H = 2, I = 64, V = 50257;
+        NCMConfig lc;
+        memset(&lc, 0, sizeof(lc));
+        lc.n_layer = 1; lc.n_head = H; lc.n_embd = C;
+        lc.context_length = 256;
+        struct { const char *nm; int rows, cols; } spec[] = {
+            {"wte.weight", V, C},
+            {"wpe.weight", 256, C},
+            {"ln_f.weight", 1, C},
+            {"ln_f.bias", 1, C},
+            {"h.0.ln_1.weight", 1, C},
+            {"h.0.ln_1.bias", 1, C},
+            {"h.0.attn.c_attn.weight", 3 * C, C},
+            {"h.0.attn.c_attn.bias", 1, 3 * C},
+            {"h.0.attn.c_proj.weight", C, C},
+            {"h.0.attn.c_proj.bias", 1, C},
+            {"h.0.ln_2.weight", 1, C},
+            {"h.0.ln_2.bias", 1, C},
+            {"h.0.mlp.c_fc.weight", I, C},
+            {"h.0.mlp.c_fc.bias", 1, I},
+            {"h.0.mlp.c_proj.weight", C, I},
+            {"h.0.mlp.c_proj.bias", 1, C},
+        };
+        int NW = (int)(sizeof(spec) / sizeof(spec[0]));
+        WeightStore lws;
+        lws.items = (NamedTensor *)calloc(NW, sizeof(NamedTensor));
+        lws.count = NW;
+        for (int i = 0; i < NW; i++) {
+            int n = spec[i].rows * spec[i].cols;
+            float *hw = (float *)malloc(n * sizeof(float));
+            for (int k = 0; k < n; k++) hw[k] = (float)frand() * 0.1f;
+            Tensor *t = tensor_alloc(2, (int64_t[]){spec[i].rows, spec[i].cols});
+            mem_h2d(t->data, hw, n * sizeof(float));
+            free(hw);
+            snprintf(lws.items[i].name, sizeof(lws.items[i].name), "%s", spec[i].nm);
+            lws.items[i].t = t;
+        }
+        int *hids = (int *)malloc(T * sizeof(int));
+        int *htg = (int *)malloc(T * sizeof(int));
+        for (int t = 0; t < T; t++) { hids[t] = t % V; htg[t] = (t * 7) % V; }
+        PMap pm;
+        float **pp = (float **)malloc(NW * sizeof(float *));
+        float **pg = (float **)malloc(NW * sizeof(float *));
+        int64_t *sz = (int64_t *)malloc(NW * sizeof(int64_t));
+        for (int i = 0; i < NW; i++) {
+            pp[i] = lws.items[i].t->data;
+            pg[i] = (float *)calloc(lws.items[i].t->n, sizeof(float));
+            sz[i] = lws.items[i].t->n;
+        }
+        pm.params = pp; pm.grads = pg; pm.sizes = sz; pm.n = NW;
+        for (int k = 0; k < 2; k++) {
+            arena_reset();
+            Tape *tp = tape_new();
+            float *logits = train_gpt2_forward(tp, &lws, &lc, hids, B, T);
+            float *loss = arena_alloc(1), *probs = arena_alloc((size_t)B * T * V);
+            t_ce(tp, logits, htg, NULL, loss, probs, (int64_t)B * T, V, 1.0);
+            tape_backward(tp, &pm, 0);
+            tape_free(tp);
+        }
+        getrusage(RUSAGE_SELF, &ru0);
+        for (int k = 0; k < 10; k++) {
+            /* mirror train_gpt2_step exactly: clear tape AND reset arena.
+             * Without the reset, bump-allocated forward buffers accumulate
+             * by design and the gate would false-positive. */
+            arena_reset();
+            Tape *tp = tape_new();
+            float *logits = train_gpt2_forward(tp, &lws, &lc, hids, B, T);
+            float *loss = arena_alloc(1), *probs = arena_alloc((size_t)B * T * V);
+            t_ce(tp, logits, htg, NULL, loss, probs, (int64_t)B * T, V, 1.0);
+            tape_backward(tp, &pm, 0);
+            tape_free(tp); /* recs + owned members; grads reuse is fine */
+        }
+        getrusage(RUSAGE_SELF, &ru1);
+        /* ru_maxrss is KiB on Linux: 10 iters x 25 MiB leak = +250 MiB
+         * if the bug returns; bound at +128 MiB. */
+        long dkb = (long)ru1.ru_maxrss - (long)ru0.ru_maxrss;
+        if (dkb < 128 * 1024)
+            printf("ok   tape-rss flat across 10 steps (maxrss +%ld KiB)\n", dkb);
+        else {
+            printf("FAIL tape-rss grew +%ld KiB over 10 steps (leak)\n", dkb);
+            fails++;
+        }
+        free(hids); free(htg);
+        for (int i = 0; i < NW; i++) free(pg[i]);
+        free(pp); free(pg); free(sz);
+        free(lws.items);
     }
 
     printf(fails ? "GCHECK-FAIL (%d)\n" : "GCHECK-PASS\n", fails);
