@@ -144,15 +144,31 @@ packed rows for GPT-2 BPE (`train.nctrain`, 3734 rows T=128) and Qwen
 (`train_qwen.nctrain`, 6196 rows). `test_prompts.txt`/`test_answers.txt`
 feed the query eval.
 
-`eval_math.py` queries held-out prompts via `gpt2-gen` (greedy) and
-verifies with a deterministic engine (exact integer arithmetic over the
-same expression grammar, plus an expression-identity check so
-problem-switching cannot score). A response counts as SOLVED only if the
-step is valid AND the answer matches AND the two agree. Reports per-op
-accuracy. Status: 200-step smoke (5% of an epoch) learns the format but
-solves nothing — the capability run (12000 steps, ~3 epochs) is in
-flight; checkpoints + eval numbers land in `results/math-v1/` and
-`weights/math-gpt2/`.
+`eval_math.py` queries held-out prompts via `gpt2-gen` (greedy, or
+`--samples K --temp T` best-of-N) and verifies with a deterministic
+engine (exact integer arithmetic over the same expression grammar, plus
+an expression-identity check so problem-switching cannot score).
+A response counts as SOLVED only if the step is valid AND the answer
+matches AND the two agree. Reports per-op accuracy.
+
+Incident 2026-10-23: the 12k run OOM-died at step 10867 (kernel kill,
+61 GiB resident). Root cause was a per-step host leak in the tape, not
+scheduling: `t_ce` orphaned its 25 MiB softmax buffer every step and
+`tape_free_recs` never freed aux members (CeAux targets/weights,
+TiedAux codebook/norms) — ~260 GiB cumulative into RAM+swap. Fixed and
+verified flat (25 proof steps at ~1.91 GiB RSS, zero trend). Guarded by
+`tools/run_capped.sh`: one job, thread caps (actual 5, cap 16, global
+ceiling 28), RSS SIGTERM + `ulimit -v` backstop, monitor logging.
+
+Final 12k-step numbers (exact resume 10000 -> 12000, exit 0, peak RSS
+3.2 GiB transient at ckpt save, steady 1.86 GiB, 5 threads): train loss
+~0.85 plateau, held-out val ppl 130.3 -> 2.51, greedy held-out SOLVED
+8/100 (mul/muladd/div/chain/sub; add 0/24 — degenerate copyable cases
+fall first, exact computation emerges slowly). 100% parsed, 100%
+self-consistent throughout. Capability verdict: format + number sense
+reliably learned; exact arithmetic partial at ~3.2 epochs — needs more
+epochs, LR/schedule work, or batch-size efficiency, not more of the same
+at B=1/lr 1e-5 blindly.
 
 ## Qwen2.5-0.5B fine-tuning (`cncm train-qwen`)
 

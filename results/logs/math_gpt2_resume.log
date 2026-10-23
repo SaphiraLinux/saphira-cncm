@@ -1,0 +1,4005 @@
+[train-gpt2] exact resume: global_step=10000 opt_step=10000
+  [train-gpt2] loss=0.9191 gnorm=4.819
+[train-gpt2] 3734 rows, T=128 target=12000 schedule_total=12000 (resumed)
+[train-gpt2] step 10000 loss 0.9191
+  [train-gpt2] loss=0.7977 gnorm=4.366
+[train-gpt2] step 10001 loss 0.7977
+  [train-gpt2] loss=0.8610 gnorm=5.724
+[train-gpt2] step 10002 loss 0.8610
+  [train-gpt2] loss=0.9461 gnorm=4.912
+[train-gpt2] step 10003 loss 0.9461
+  [train-gpt2] loss=0.8074 gnorm=5.106
+[train-gpt2] step 10004 loss 0.8074
+  [train-gpt2] loss=0.8616 gnorm=4.631
+[train-gpt2] step 10005 loss 0.8616
+  [train-gpt2] loss=0.8794 gnorm=4.627
+[train-gpt2] step 10006 loss 0.8794
+  [train-gpt2] loss=0.8818 gnorm=5.107
+[train-gpt2] step 10007 loss 0.8818
+  [train-gpt2] loss=0.8818 gnorm=5.246
+[train-gpt2] step 10008 loss 0.8818
+  [train-gpt2] loss=0.9358 gnorm=5.048
+[train-gpt2] step 10009 loss 0.9358
+  [train-gpt2] loss=0.8898 gnorm=4.184
+[train-gpt2] step 10010 loss 0.8898
+  [train-gpt2] loss=0.7718 gnorm=5.509
+[train-gpt2] step 10011 loss 0.7718
+  [train-gpt2] loss=0.8654 gnorm=6.818
+[train-gpt2] step 10012 loss 0.8654
+  [train-gpt2] loss=0.7835 gnorm=4.264
+[train-gpt2] step 10013 loss 0.7835
+  [train-gpt2] loss=0.8089 gnorm=4.276
+[train-gpt2] step 10014 loss 0.8089
+  [train-gpt2] loss=0.9021 gnorm=5.948
+[train-gpt2] step 10015 loss 0.9021
+  [train-gpt2] loss=0.8600 gnorm=4.894
+[train-gpt2] step 10016 loss 0.8600
+  [train-gpt2] loss=0.8197 gnorm=4.717
+[train-gpt2] step 10017 loss 0.8197
+  [train-gpt2] loss=0.8055 gnorm=5.368
+[train-gpt2] step 10018 loss 0.8055
+  [train-gpt2] loss=0.8784 gnorm=5.168
+[train-gpt2] step 10019 loss 0.8784
+  [train-gpt2] loss=0.8749 gnorm=4.480
+[train-gpt2] step 10020 loss 0.8749
+  [train-gpt2] loss=0.9368 gnorm=5.206
+[train-gpt2] step 10021 loss 0.9368
+  [train-gpt2] loss=0.8429 gnorm=4.895
+[train-gpt2] step 10022 loss 0.8429
+  [train-gpt2] loss=0.8841 gnorm=4.492
+[train-gpt2] step 10023 loss 0.8841
+  [train-gpt2] loss=0.8618 gnorm=5.122
+[train-gpt2] step 10024 loss 0.8618
+  [train-gpt2] loss=0.8210 gnorm=5.084
+[train-gpt2] step 10025 loss 0.8210
+  [train-gpt2] loss=0.8785 gnorm=4.835
+[train-gpt2] step 10026 loss 0.8785
+  [train-gpt2] loss=0.9360 gnorm=5.516
+[train-gpt2] step 10027 loss 0.9360
+  [train-gpt2] loss=0.8072 gnorm=5.354
+[train-gpt2] step 10028 loss 0.8072
+  [train-gpt2] loss=0.8384 gnorm=5.112
+[train-gpt2] step 10029 loss 0.8384
+  [train-gpt2] loss=0.8980 gnorm=4.480
+[train-gpt2] step 10030 loss 0.8980
+  [train-gpt2] loss=0.9169 gnorm=4.597
+[train-gpt2] step 10031 loss 0.9169
+  [train-gpt2] loss=0.7839 gnorm=5.683
+[train-gpt2] step 10032 loss 0.7839
+  [train-gpt2] loss=0.8582 gnorm=6.844
+[train-gpt2] step 10033 loss 0.8582
+  [train-gpt2] loss=0.8754 gnorm=4.447
+[train-gpt2] step 10034 loss 0.8754
+  [train-gpt2] loss=0.7496 gnorm=5.496
+[train-gpt2] step 10035 loss 0.7496
+  [train-gpt2] loss=0.8785 gnorm=5.117
+[train-gpt2] step 10036 loss 0.8785
+  [train-gpt2] loss=0.9079 gnorm=5.236
+[train-gpt2] step 10037 loss 0.9079
+  [train-gpt2] loss=0.9105 gnorm=5.922
+[train-gpt2] step 10038 loss 0.9105
+  [train-gpt2] loss=0.8288 gnorm=4.908
+[train-gpt2] step 10039 loss 0.8288
+  [train-gpt2] loss=0.8895 gnorm=5.624
+[train-gpt2] step 10040 loss 0.8895
+  [train-gpt2] loss=0.9641 gnorm=4.619
+[train-gpt2] step 10041 loss 0.9641
+  [train-gpt2] loss=0.8187 gnorm=6.203
+[train-gpt2] step 10042 loss 0.8187
+  [train-gpt2] loss=0.8386 gnorm=5.635
+[train-gpt2] step 10043 loss 0.8386
+  [train-gpt2] loss=0.9176 gnorm=4.770
+[train-gpt2] step 10044 loss 0.9176
+  [train-gpt2] loss=0.8265 gnorm=4.704
+[train-gpt2] step 10045 loss 0.8265
+  [train-gpt2] loss=0.9584 gnorm=5.031
+[train-gpt2] step 10046 loss 0.9584
+  [train-gpt2] loss=0.8481 gnorm=5.544
+[train-gpt2] step 10047 loss 0.8481
+  [train-gpt2] loss=0.8157 gnorm=5.031
+[train-gpt2] step 10048 loss 0.8157
+  [train-gpt2] loss=0.8629 gnorm=4.982
+[train-gpt2] step 10049 loss 0.8629
+  [train-gpt2] loss=1.0112 gnorm=5.030
+[train-gpt2] step 10050 loss 1.0112
+  [train-gpt2] loss=0.7654 gnorm=5.005
+[train-gpt2] step 10051 loss 0.7654
+  [train-gpt2] loss=0.8048 gnorm=5.187
+[train-gpt2] step 10052 loss 0.8048
+  [train-gpt2] loss=0.8856 gnorm=5.144
+[train-gpt2] step 10053 loss 0.8856
+  [train-gpt2] loss=0.8331 gnorm=4.915
+[train-gpt2] step 10054 loss 0.8331
+  [train-gpt2] loss=0.7718 gnorm=5.043
+[train-gpt2] step 10055 loss 0.7718
+  [train-gpt2] loss=0.8393 gnorm=5.529
+[train-gpt2] step 10056 loss 0.8393
+  [train-gpt2] loss=0.7018 gnorm=4.961
+[train-gpt2] step 10057 loss 0.7018
+  [train-gpt2] loss=0.7978 gnorm=4.787
+[train-gpt2] step 10058 loss 0.7978
+  [train-gpt2] loss=0.8459 gnorm=4.707
+[train-gpt2] step 10059 loss 0.8459
+  [train-gpt2] loss=0.8567 gnorm=4.970
+[train-gpt2] step 10060 loss 0.8567
+  [train-gpt2] loss=0.8439 gnorm=4.462
+[train-gpt2] step 10061 loss 0.8439
+  [train-gpt2] loss=0.9097 gnorm=5.414
+[train-gpt2] step 10062 loss 0.9097
+  [train-gpt2] loss=0.9541 gnorm=5.685
+[train-gpt2] step 10063 loss 0.9541
+  [train-gpt2] loss=0.9385 gnorm=4.977
+[train-gpt2] step 10064 loss 0.9385
+  [train-gpt2] loss=0.7504 gnorm=4.513
+[train-gpt2] step 10065 loss 0.7504
+  [train-gpt2] loss=0.8192 gnorm=5.771
+[train-gpt2] step 10066 loss 0.8192
+  [train-gpt2] loss=0.8841 gnorm=5.690
+[train-gpt2] step 10067 loss 0.8841
+  [train-gpt2] loss=0.7292 gnorm=4.330
+[train-gpt2] step 10068 loss 0.7292
+  [train-gpt2] loss=0.8566 gnorm=5.347
+[train-gpt2] step 10069 loss 0.8566
+  [train-gpt2] loss=0.9004 gnorm=4.639
+[train-gpt2] step 10070 loss 0.9004
+  [train-gpt2] loss=0.8369 gnorm=4.463
+[train-gpt2] step 10071 loss 0.8369
+  [train-gpt2] loss=0.8288 gnorm=4.952
+[train-gpt2] step 10072 loss 0.8288
+  [train-gpt2] loss=0.9125 gnorm=4.595
+[train-gpt2] step 10073 loss 0.9125
+  [train-gpt2] loss=0.8025 gnorm=4.498
+[train-gpt2] step 10074 loss 0.8025
+  [train-gpt2] loss=0.7980 gnorm=4.858
+[train-gpt2] step 10075 loss 0.7980
+  [train-gpt2] loss=0.9208 gnorm=6.006
+[train-gpt2] step 10076 loss 0.9208
+  [train-gpt2] loss=0.8561 gnorm=5.419
+[train-gpt2] step 10077 loss 0.8561
+  [train-gpt2] loss=0.8288 gnorm=4.973
+[train-gpt2] step 10078 loss 0.8288
+  [train-gpt2] loss=0.8999 gnorm=4.420
+[train-gpt2] step 10079 loss 0.8999
+  [train-gpt2] loss=0.7898 gnorm=4.206
+[train-gpt2] step 10080 loss 0.7898
+  [train-gpt2] loss=0.8741 gnorm=4.910
+[train-gpt2] step 10081 loss 0.8741
+  [train-gpt2] loss=0.8530 gnorm=4.282
+[train-gpt2] step 10082 loss 0.8530
+  [train-gpt2] loss=0.9460 gnorm=4.903
+[train-gpt2] step 10083 loss 0.9460
+  [train-gpt2] loss=0.8146 gnorm=4.517
+[train-gpt2] step 10084 loss 0.8146
+  [train-gpt2] loss=0.7965 gnorm=5.009
+[train-gpt2] step 10085 loss 0.7965
+  [train-gpt2] loss=0.8723 gnorm=6.552
+[train-gpt2] step 10086 loss 0.8723
+  [train-gpt2] loss=0.8994 gnorm=5.448
+[train-gpt2] step 10087 loss 0.8994
+  [train-gpt2] loss=0.8518 gnorm=5.757
+[train-gpt2] step 10088 loss 0.8518
+  [train-gpt2] loss=0.8875 gnorm=4.379
+[train-gpt2] step 10089 loss 0.8875
+  [train-gpt2] loss=0.8698 gnorm=5.911
+[train-gpt2] step 10090 loss 0.8698
+  [train-gpt2] loss=0.9365 gnorm=5.048
+[train-gpt2] step 10091 loss 0.9365
+  [train-gpt2] loss=0.8386 gnorm=5.195
+[train-gpt2] step 10092 loss 0.8386
+  [train-gpt2] loss=0.8495 gnorm=4.830
+[train-gpt2] step 10093 loss 0.8495
+  [train-gpt2] loss=0.8736 gnorm=5.228
+[train-gpt2] step 10094 loss 0.8736
+  [train-gpt2] loss=0.8306 gnorm=4.536
+[train-gpt2] step 10095 loss 0.8306
+  [train-gpt2] loss=0.8355 gnorm=4.332
+[train-gpt2] step 10096 loss 0.8355
+  [train-gpt2] loss=0.8501 gnorm=5.148
+[train-gpt2] step 10097 loss 0.8501
+  [train-gpt2] loss=0.8374 gnorm=4.092
+[train-gpt2] step 10098 loss 0.8374
+  [train-gpt2] loss=0.8797 gnorm=5.655
+[train-gpt2] step 10099 loss 0.8797
+  [train-gpt2] loss=0.9042 gnorm=5.341
+[train-gpt2] step 10100 loss 0.9042
+  [train-gpt2] loss=0.8036 gnorm=4.010
+[train-gpt2] step 10101 loss 0.8036
+  [train-gpt2] loss=0.8674 gnorm=4.894
+[train-gpt2] step 10102 loss 0.8674
+  [train-gpt2] loss=0.9059 gnorm=7.382
+[train-gpt2] step 10103 loss 0.9059
+  [train-gpt2] loss=0.8798 gnorm=4.820
+[train-gpt2] step 10104 loss 0.8798
+  [train-gpt2] loss=0.8192 gnorm=4.719
+[train-gpt2] step 10105 loss 0.8192
+  [train-gpt2] loss=0.7476 gnorm=4.815
+[train-gpt2] step 10106 loss 0.7476
+  [train-gpt2] loss=0.8581 gnorm=3.838
+[train-gpt2] step 10107 loss 0.8581
+  [train-gpt2] loss=0.8309 gnorm=5.071
+[train-gpt2] step 10108 loss 0.8309
+  [train-gpt2] loss=0.7642 gnorm=4.885
+[train-gpt2] step 10109 loss 0.7642
+  [train-gpt2] loss=0.8089 gnorm=5.653
+[train-gpt2] step 10110 loss 0.8089
+  [train-gpt2] loss=0.7909 gnorm=5.089
+[train-gpt2] step 10111 loss 0.7909
+  [train-gpt2] loss=0.9577 gnorm=4.848
+[train-gpt2] step 10112 loss 0.9577
+  [train-gpt2] loss=0.9052 gnorm=4.734
+[train-gpt2] step 10113 loss 0.9052
+  [train-gpt2] loss=0.8563 gnorm=4.726
+[train-gpt2] step 10114 loss 0.8563
+  [train-gpt2] loss=0.9153 gnorm=5.635
+[train-gpt2] step 10115 loss 0.9153
+  [train-gpt2] loss=0.8192 gnorm=5.518
+[train-gpt2] step 10116 loss 0.8192
+  [train-gpt2] loss=0.9294 gnorm=5.106
+[train-gpt2] step 10117 loss 0.9294
+  [train-gpt2] loss=0.8200 gnorm=4.084
+[train-gpt2] step 10118 loss 0.8200
+  [train-gpt2] loss=0.8485 gnorm=4.599
+[train-gpt2] step 10119 loss 0.8485
+  [train-gpt2] loss=0.9422 gnorm=5.310
+[train-gpt2] step 10120 loss 0.9422
+  [train-gpt2] loss=0.9030 gnorm=4.713
+[train-gpt2] step 10121 loss 0.9030
+  [train-gpt2] loss=0.8562 gnorm=4.784
+[train-gpt2] step 10122 loss 0.8562
+  [train-gpt2] loss=0.8477 gnorm=5.545
+[train-gpt2] step 10123 loss 0.8477
+  [train-gpt2] loss=0.9155 gnorm=4.850
+[train-gpt2] step 10124 loss 0.9155
+  [train-gpt2] loss=0.8282 gnorm=5.114
+[train-gpt2] step 10125 loss 0.8282
+  [train-gpt2] loss=0.8926 gnorm=5.823
+[train-gpt2] step 10126 loss 0.8926
+  [train-gpt2] loss=0.8976 gnorm=5.237
+[train-gpt2] step 10127 loss 0.8976
+  [train-gpt2] loss=0.9021 gnorm=4.229
+[train-gpt2] step 10128 loss 0.9021
+  [train-gpt2] loss=0.7602 gnorm=5.151
+[train-gpt2] step 10129 loss 0.7602
+  [train-gpt2] loss=0.8353 gnorm=5.021
+[train-gpt2] step 10130 loss 0.8353
+  [train-gpt2] loss=0.8667 gnorm=4.987
+[train-gpt2] step 10131 loss 0.8667
+  [train-gpt2] loss=0.9047 gnorm=5.355
+[train-gpt2] step 10132 loss 0.9047
+  [train-gpt2] loss=0.9393 gnorm=5.211
+[train-gpt2] step 10133 loss 0.9393
+  [train-gpt2] loss=0.8445 gnorm=5.051
+[train-gpt2] step 10134 loss 0.8445
+  [train-gpt2] loss=0.7044 gnorm=4.217
+[train-gpt2] step 10135 loss 0.7044
+  [train-gpt2] loss=0.9131 gnorm=5.381
+[train-gpt2] step 10136 loss 0.9131
+  [train-gpt2] loss=0.8620 gnorm=4.995
+[train-gpt2] step 10137 loss 0.8620
+  [train-gpt2] loss=0.8867 gnorm=4.903
+[train-gpt2] step 10138 loss 0.8867
+  [train-gpt2] loss=0.9337 gnorm=5.500
+[train-gpt2] step 10139 loss 0.9337
+  [train-gpt2] loss=0.9161 gnorm=4.608
+[train-gpt2] step 10140 loss 0.9161
+  [train-gpt2] loss=0.8080 gnorm=4.472
+[train-gpt2] step 10141 loss 0.8080
+  [train-gpt2] loss=0.8158 gnorm=4.649
+[train-gpt2] step 10142 loss 0.8158
+  [train-gpt2] loss=0.8287 gnorm=6.275
+[train-gpt2] step 10143 loss 0.8287
+  [train-gpt2] loss=0.8103 gnorm=6.028
+[train-gpt2] step 10144 loss 0.8103
+  [train-gpt2] loss=0.8615 gnorm=5.061
+[train-gpt2] step 10145 loss 0.8615
+  [train-gpt2] loss=0.7854 gnorm=4.646
+[train-gpt2] step 10146 loss 0.7854
+  [train-gpt2] loss=0.9346 gnorm=4.964
+[train-gpt2] step 10147 loss 0.9346
+  [train-gpt2] loss=0.7602 gnorm=4.921
+[train-gpt2] step 10148 loss 0.7602
+  [train-gpt2] loss=0.9373 gnorm=5.376
+[train-gpt2] step 10149 loss 0.9373
+  [train-gpt2] loss=0.8997 gnorm=4.291
+[train-gpt2] step 10150 loss 0.8997
+  [train-gpt2] loss=0.8965 gnorm=5.836
+[train-gpt2] step 10151 loss 0.8965
+  [train-gpt2] loss=0.8592 gnorm=3.893
+[train-gpt2] step 10152 loss 0.8592
+  [train-gpt2] loss=0.9550 gnorm=4.781
+[train-gpt2] step 10153 loss 0.9550
+  [train-gpt2] loss=0.7838 gnorm=4.043
+[train-gpt2] step 10154 loss 0.7838
+  [train-gpt2] loss=0.9027 gnorm=4.651
+[train-gpt2] step 10155 loss 0.9027
+  [train-gpt2] loss=0.8012 gnorm=5.098
+[train-gpt2] step 10156 loss 0.8012
+  [train-gpt2] loss=0.8029 gnorm=4.103
+[train-gpt2] step 10157 loss 0.8029
+  [train-gpt2] loss=0.8301 gnorm=5.331
+[train-gpt2] step 10158 loss 0.8301
+  [train-gpt2] loss=0.8843 gnorm=4.107
+[train-gpt2] step 10159 loss 0.8843
+  [train-gpt2] loss=0.8584 gnorm=5.389
+[train-gpt2] step 10160 loss 0.8584
+  [train-gpt2] loss=0.7202 gnorm=5.622
+[train-gpt2] step 10161 loss 0.7202
+  [train-gpt2] loss=0.9007 gnorm=4.981
+[train-gpt2] step 10162 loss 0.9007
+  [train-gpt2] loss=0.8227 gnorm=5.276
+[train-gpt2] step 10163 loss 0.8227
+  [train-gpt2] loss=0.8826 gnorm=4.693
+[train-gpt2] step 10164 loss 0.8826
+  [train-gpt2] loss=0.7466 gnorm=5.545
+[train-gpt2] step 10165 loss 0.7466
+  [train-gpt2] loss=0.8353 gnorm=4.480
+[train-gpt2] step 10166 loss 0.8353
+  [train-gpt2] loss=0.8869 gnorm=5.839
+[train-gpt2] step 10167 loss 0.8869
+  [train-gpt2] loss=0.9451 gnorm=5.172
+[train-gpt2] step 10168 loss 0.9451
+  [train-gpt2] loss=0.8718 gnorm=5.030
+[train-gpt2] step 10169 loss 0.8718
+  [train-gpt2] loss=0.8768 gnorm=5.677
+[train-gpt2] step 10170 loss 0.8768
+  [train-gpt2] loss=0.8564 gnorm=6.067
+[train-gpt2] step 10171 loss 0.8564
+  [train-gpt2] loss=0.8475 gnorm=4.840
+[train-gpt2] step 10172 loss 0.8475
+  [train-gpt2] loss=0.9397 gnorm=5.091
+[train-gpt2] step 10173 loss 0.9397
+  [train-gpt2] loss=0.8785 gnorm=5.195
+[train-gpt2] step 10174 loss 0.8785
+  [train-gpt2] loss=0.7702 gnorm=5.498
+[train-gpt2] step 10175 loss 0.7702
+  [train-gpt2] loss=0.9086 gnorm=4.700
+[train-gpt2] step 10176 loss 0.9086
+  [train-gpt2] loss=0.9813 gnorm=5.111
+[train-gpt2] step 10177 loss 0.9813
+  [train-gpt2] loss=0.7798 gnorm=5.151
+[train-gpt2] step 10178 loss 0.7798
+  [train-gpt2] loss=0.7898 gnorm=5.710
+[train-gpt2] step 10179 loss 0.7898
+  [train-gpt2] loss=0.8410 gnorm=5.689
+[train-gpt2] step 10180 loss 0.8410
+  [train-gpt2] loss=0.8435 gnorm=4.624
+[train-gpt2] step 10181 loss 0.8435
+  [train-gpt2] loss=0.7821 gnorm=5.467
+[train-gpt2] step 10182 loss 0.7821
+  [train-gpt2] loss=0.9478 gnorm=5.051
+[train-gpt2] step 10183 loss 0.9478
+  [train-gpt2] loss=0.9532 gnorm=4.665
+[train-gpt2] step 10184 loss 0.9532
+  [train-gpt2] loss=0.7827 gnorm=5.737
+[train-gpt2] step 10185 loss 0.7827
+  [train-gpt2] loss=0.9704 gnorm=6.261
+[train-gpt2] step 10186 loss 0.9704
+  [train-gpt2] loss=0.9235 gnorm=6.214
+[train-gpt2] step 10187 loss 0.9235
+  [train-gpt2] loss=0.7576 gnorm=5.847
+[train-gpt2] step 10188 loss 0.7576
+  [train-gpt2] loss=0.8793 gnorm=4.313
+[train-gpt2] step 10189 loss 0.8793
+  [train-gpt2] loss=0.7794 gnorm=5.765
+[train-gpt2] step 10190 loss 0.7794
+  [train-gpt2] loss=0.9301 gnorm=5.026
+[train-gpt2] step 10191 loss 0.9301
+  [train-gpt2] loss=0.8898 gnorm=5.645
+[train-gpt2] step 10192 loss 0.8898
+  [train-gpt2] loss=0.8305 gnorm=4.264
+[train-gpt2] step 10193 loss 0.8305
+  [train-gpt2] loss=0.8142 gnorm=4.216
+[train-gpt2] step 10194 loss 0.8142
+  [train-gpt2] loss=0.9107 gnorm=5.472
+[train-gpt2] step 10195 loss 0.9107
+  [train-gpt2] loss=0.8391 gnorm=4.702
+[train-gpt2] step 10196 loss 0.8391
+  [train-gpt2] loss=0.8569 gnorm=5.353
+[train-gpt2] step 10197 loss 0.8569
+  [train-gpt2] loss=0.9297 gnorm=5.551
+[train-gpt2] step 10198 loss 0.9297
+  [train-gpt2] loss=0.8778 gnorm=4.941
+[train-gpt2] step 10199 loss 0.8778
+  [train-gpt2] loss=0.9467 gnorm=5.786
+[train-gpt2] step 10200 loss 0.9467
+  [train-gpt2] loss=0.8055 gnorm=5.360
+[train-gpt2] step 10201 loss 0.8055
+  [train-gpt2] loss=0.8512 gnorm=4.125
+[train-gpt2] step 10202 loss 0.8512
+  [train-gpt2] loss=0.8194 gnorm=5.916
+[train-gpt2] step 10203 loss 0.8194
+  [train-gpt2] loss=0.8388 gnorm=5.340
+[train-gpt2] step 10204 loss 0.8388
+  [train-gpt2] loss=0.8443 gnorm=5.309
+[train-gpt2] step 10205 loss 0.8443
+  [train-gpt2] loss=0.8784 gnorm=4.013
+[train-gpt2] step 10206 loss 0.8784
+  [train-gpt2] loss=0.8153 gnorm=5.398
+[train-gpt2] step 10207 loss 0.8153
+  [train-gpt2] loss=0.9275 gnorm=5.881
+[train-gpt2] step 10208 loss 0.9275
+  [train-gpt2] loss=0.9355 gnorm=6.271
+[train-gpt2] step 10209 loss 0.9355
+  [train-gpt2] loss=0.8600 gnorm=3.881
+[train-gpt2] step 10210 loss 0.8600
+  [train-gpt2] loss=0.8390 gnorm=7.524
+[train-gpt2] step 10211 loss 0.8390
+  [train-gpt2] loss=0.9057 gnorm=4.052
+[train-gpt2] step 10212 loss 0.9057
+  [train-gpt2] loss=0.7981 gnorm=5.367
+[train-gpt2] step 10213 loss 0.7981
+  [train-gpt2] loss=0.9226 gnorm=5.463
+[train-gpt2] step 10214 loss 0.9226
+  [train-gpt2] loss=0.8772 gnorm=4.643
+[train-gpt2] step 10215 loss 0.8772
+  [train-gpt2] loss=0.8096 gnorm=4.997
+[train-gpt2] step 10216 loss 0.8096
+  [train-gpt2] loss=0.8783 gnorm=5.004
+[train-gpt2] step 10217 loss 0.8783
+  [train-gpt2] loss=0.7731 gnorm=4.207
+[train-gpt2] step 10218 loss 0.7731
+  [train-gpt2] loss=0.9326 gnorm=4.648
+[train-gpt2] step 10219 loss 0.9326
+  [train-gpt2] loss=0.8764 gnorm=5.398
+[train-gpt2] step 10220 loss 0.8764
+  [train-gpt2] loss=0.8296 gnorm=5.422
+[train-gpt2] step 10221 loss 0.8296
+  [train-gpt2] loss=0.8431 gnorm=4.622
+[train-gpt2] step 10222 loss 0.8431
+  [train-gpt2] loss=0.8704 gnorm=5.244
+[train-gpt2] step 10223 loss 0.8704
+  [train-gpt2] loss=0.9397 gnorm=5.357
+[train-gpt2] step 10224 loss 0.9397
+  [train-gpt2] loss=0.8334 gnorm=4.708
+[train-gpt2] step 10225 loss 0.8334
+  [train-gpt2] loss=0.8420 gnorm=5.691
+[train-gpt2] step 10226 loss 0.8420
+  [train-gpt2] loss=0.9220 gnorm=6.038
+[train-gpt2] step 10227 loss 0.9220
+  [train-gpt2] loss=0.8035 gnorm=5.067
+[train-gpt2] step 10228 loss 0.8035
+  [train-gpt2] loss=0.8402 gnorm=4.069
+[train-gpt2] step 10229 loss 0.8402
+  [train-gpt2] loss=0.9203 gnorm=4.613
+[train-gpt2] step 10230 loss 0.9203
+  [train-gpt2] loss=0.9925 gnorm=4.763
+[train-gpt2] step 10231 loss 0.9925
+  [train-gpt2] loss=0.8877 gnorm=4.027
+[train-gpt2] step 10232 loss 0.8877
+  [train-gpt2] loss=0.8180 gnorm=5.112
+[train-gpt2] step 10233 loss 0.8180
+  [train-gpt2] loss=0.8015 gnorm=4.435
+[train-gpt2] step 10234 loss 0.8015
+  [train-gpt2] loss=0.7857 gnorm=6.589
+[train-gpt2] step 10235 loss 0.7857
+  [train-gpt2] loss=0.8497 gnorm=5.783
+[train-gpt2] step 10236 loss 0.8497
+  [train-gpt2] loss=0.8036 gnorm=4.960
+[train-gpt2] step 10237 loss 0.8036
+  [train-gpt2] loss=0.8142 gnorm=5.562
+[train-gpt2] step 10238 loss 0.8142
+  [train-gpt2] loss=0.7914 gnorm=4.517
+[train-gpt2] step 10239 loss 0.7914
+  [train-gpt2] loss=0.9136 gnorm=4.382
+[train-gpt2] step 10240 loss 0.9136
+  [train-gpt2] loss=0.8953 gnorm=5.985
+[train-gpt2] step 10241 loss 0.8953
+  [train-gpt2] loss=0.8969 gnorm=5.500
+[train-gpt2] step 10242 loss 0.8969
+  [train-gpt2] loss=0.8282 gnorm=4.986
+[train-gpt2] step 10243 loss 0.8282
+  [train-gpt2] loss=0.8006 gnorm=4.781
+[train-gpt2] step 10244 loss 0.8006
+  [train-gpt2] loss=0.9251 gnorm=4.813
+[train-gpt2] step 10245 loss 0.9251
+  [train-gpt2] loss=0.9078 gnorm=5.061
+[train-gpt2] step 10246 loss 0.9078
+  [train-gpt2] loss=0.8226 gnorm=6.912
+[train-gpt2] step 10247 loss 0.8226
+  [train-gpt2] loss=0.8638 gnorm=4.221
+[train-gpt2] step 10248 loss 0.8638
+  [train-gpt2] loss=0.8654 gnorm=5.092
+[train-gpt2] step 10249 loss 0.8654
+  [train-gpt2] loss=0.9402 gnorm=5.103
+[train-gpt2] step 10250 loss 0.9402
+  [train-gpt2] loss=0.8234 gnorm=4.525
+[train-gpt2] step 10251 loss 0.8234
+  [train-gpt2] loss=0.8711 gnorm=4.672
+[train-gpt2] step 10252 loss 0.8711
+  [train-gpt2] loss=0.8823 gnorm=5.911
+[train-gpt2] step 10253 loss 0.8823
+  [train-gpt2] loss=0.8328 gnorm=4.954
+[train-gpt2] step 10254 loss 0.8328
+  [train-gpt2] loss=0.8357 gnorm=6.487
+[train-gpt2] step 10255 loss 0.8357
+  [train-gpt2] loss=0.8691 gnorm=4.910
+[train-gpt2] step 10256 loss 0.8691
+  [train-gpt2] loss=0.8529 gnorm=4.154
+[train-gpt2] step 10257 loss 0.8529
+  [train-gpt2] loss=0.8859 gnorm=5.759
+[train-gpt2] step 10258 loss 0.8859
+  [train-gpt2] loss=0.8383 gnorm=5.282
+[train-gpt2] step 10259 loss 0.8383
+  [train-gpt2] loss=0.8414 gnorm=4.073
+[train-gpt2] step 10260 loss 0.8414
+  [train-gpt2] loss=0.8790 gnorm=5.852
+[train-gpt2] step 10261 loss 0.8790
+  [train-gpt2] loss=0.8818 gnorm=4.386
+[train-gpt2] step 10262 loss 0.8818
+  [train-gpt2] loss=0.9179 gnorm=5.148
+[train-gpt2] step 10263 loss 0.9179
+  [train-gpt2] loss=0.8937 gnorm=4.439
+[train-gpt2] step 10264 loss 0.8937
+  [train-gpt2] loss=0.8478 gnorm=6.081
+[train-gpt2] step 10265 loss 0.8478
+  [train-gpt2] loss=0.9236 gnorm=5.383
+[train-gpt2] step 10266 loss 0.9236
+  [train-gpt2] loss=0.9308 gnorm=5.596
+[train-gpt2] step 10267 loss 0.9308
+  [train-gpt2] loss=0.8311 gnorm=6.839
+[train-gpt2] step 10268 loss 0.8311
+  [train-gpt2] loss=0.8612 gnorm=4.024
+[train-gpt2] step 10269 loss 0.8612
+  [train-gpt2] loss=0.9010 gnorm=4.524
+[train-gpt2] step 10270 loss 0.9010
+  [train-gpt2] loss=0.8902 gnorm=4.364
+[train-gpt2] step 10271 loss 0.8902
+  [train-gpt2] loss=0.9051 gnorm=5.187
+[train-gpt2] step 10272 loss 0.9051
+  [train-gpt2] loss=0.9864 gnorm=4.668
+[train-gpt2] step 10273 loss 0.9864
+  [train-gpt2] loss=0.8753 gnorm=4.504
+[train-gpt2] step 10274 loss 0.8753
+  [train-gpt2] loss=0.8951 gnorm=5.297
+[train-gpt2] step 10275 loss 0.8951
+  [train-gpt2] loss=0.8503 gnorm=4.874
+[train-gpt2] step 10276 loss 0.8503
+  [train-gpt2] loss=0.8186 gnorm=4.105
+[train-gpt2] step 10277 loss 0.8186
+  [train-gpt2] loss=0.8023 gnorm=5.025
+[train-gpt2] step 10278 loss 0.8023
+  [train-gpt2] loss=0.8908 gnorm=3.593
+[train-gpt2] step 10279 loss 0.8908
+  [train-gpt2] loss=0.8492 gnorm=5.226
+[train-gpt2] step 10280 loss 0.8492
+  [train-gpt2] loss=0.8773 gnorm=4.516
+[train-gpt2] step 10281 loss 0.8773
+  [train-gpt2] loss=0.7605 gnorm=6.281
+[train-gpt2] step 10282 loss 0.7605
+  [train-gpt2] loss=0.8770 gnorm=5.937
+[train-gpt2] step 10283 loss 0.8770
+  [train-gpt2] loss=0.8867 gnorm=5.533
+[train-gpt2] step 10284 loss 0.8867
+  [train-gpt2] loss=0.8409 gnorm=4.562
+[train-gpt2] step 10285 loss 0.8409
+  [train-gpt2] loss=0.8919 gnorm=4.825
+[train-gpt2] step 10286 loss 0.8919
+  [train-gpt2] loss=0.9431 gnorm=4.968
+[train-gpt2] step 10287 loss 0.9431
+  [train-gpt2] loss=0.8151 gnorm=5.246
+[train-gpt2] step 10288 loss 0.8151
+  [train-gpt2] loss=0.8839 gnorm=4.247
+[train-gpt2] step 10289 loss 0.8839
+  [train-gpt2] loss=0.7983 gnorm=5.530
+[train-gpt2] step 10290 loss 0.7983
+  [train-gpt2] loss=0.7656 gnorm=5.181
+[train-gpt2] step 10291 loss 0.7656
+  [train-gpt2] loss=0.9172 gnorm=6.185
+[train-gpt2] step 10292 loss 0.9172
+  [train-gpt2] loss=0.8674 gnorm=5.136
+[train-gpt2] step 10293 loss 0.8674
+  [train-gpt2] loss=0.8170 gnorm=5.471
+[train-gpt2] step 10294 loss 0.8170
+  [train-gpt2] loss=0.7716 gnorm=5.223
+[train-gpt2] step 10295 loss 0.7716
+  [train-gpt2] loss=0.8112 gnorm=4.475
+[train-gpt2] step 10296 loss 0.8112
+  [train-gpt2] loss=0.8252 gnorm=5.472
+[train-gpt2] step 10297 loss 0.8252
+  [train-gpt2] loss=0.8936 gnorm=5.376
+[train-gpt2] step 10298 loss 0.8936
+  [train-gpt2] loss=0.9458 gnorm=6.321
+[train-gpt2] step 10299 loss 0.9458
+  [train-gpt2] loss=0.9172 gnorm=4.834
+[train-gpt2] step 10300 loss 0.9172
+  [train-gpt2] loss=0.8057 gnorm=4.213
+[train-gpt2] step 10301 loss 0.8057
+  [train-gpt2] loss=0.8606 gnorm=5.201
+[train-gpt2] step 10302 loss 0.8606
+  [train-gpt2] loss=0.8857 gnorm=6.753
+[train-gpt2] step 10303 loss 0.8857
+  [train-gpt2] loss=0.8003 gnorm=4.955
+[train-gpt2] step 10304 loss 0.8003
+  [train-gpt2] loss=1.0075 gnorm=4.990
+[train-gpt2] step 10305 loss 1.0075
+  [train-gpt2] loss=0.8970 gnorm=4.317
+[train-gpt2] step 10306 loss 0.8970
+  [train-gpt2] loss=0.8961 gnorm=5.853
+[train-gpt2] step 10307 loss 0.8961
+  [train-gpt2] loss=0.8211 gnorm=4.737
+[train-gpt2] step 10308 loss 0.8211
+  [train-gpt2] loss=0.8734 gnorm=4.948
+[train-gpt2] step 10309 loss 0.8734
+  [train-gpt2] loss=0.8388 gnorm=3.939
+[train-gpt2] step 10310 loss 0.8388
+  [train-gpt2] loss=0.8526 gnorm=6.610
+[train-gpt2] step 10311 loss 0.8526
+  [train-gpt2] loss=0.8192 gnorm=5.438
+[train-gpt2] step 10312 loss 0.8192
+  [train-gpt2] loss=0.9683 gnorm=6.585
+[train-gpt2] step 10313 loss 0.9683
+  [train-gpt2] loss=0.8415 gnorm=4.681
+[train-gpt2] step 10314 loss 0.8415
+  [train-gpt2] loss=0.9356 gnorm=5.138
+[train-gpt2] step 10315 loss 0.9356
+  [train-gpt2] loss=0.7665 gnorm=3.505
+[train-gpt2] step 10316 loss 0.7665
+  [train-gpt2] loss=0.8308 gnorm=5.026
+[train-gpt2] step 10317 loss 0.8308
+  [train-gpt2] loss=0.8368 gnorm=5.112
+[train-gpt2] step 10318 loss 0.8368
+  [train-gpt2] loss=0.8128 gnorm=4.742
+[train-gpt2] step 10319 loss 0.8128
+  [train-gpt2] loss=0.8611 gnorm=5.589
+[train-gpt2] step 10320 loss 0.8611
+  [train-gpt2] loss=0.9026 gnorm=4.035
+[train-gpt2] step 10321 loss 0.9026
+  [train-gpt2] loss=0.9034 gnorm=4.755
+[train-gpt2] step 10322 loss 0.9034
+  [train-gpt2] loss=0.8554 gnorm=4.607
+[train-gpt2] step 10323 loss 0.8554
+  [train-gpt2] loss=0.9120 gnorm=4.739
+[train-gpt2] step 10324 loss 0.9120
+  [train-gpt2] loss=0.8008 gnorm=5.721
+[train-gpt2] step 10325 loss 0.8008
+  [train-gpt2] loss=0.9498 gnorm=4.374
+[train-gpt2] step 10326 loss 0.9498
+  [train-gpt2] loss=0.7928 gnorm=4.911
+[train-gpt2] step 10327 loss 0.7928
+  [train-gpt2] loss=0.9107 gnorm=5.066
+[train-gpt2] step 10328 loss 0.9107
+  [train-gpt2] loss=0.8667 gnorm=4.875
+[train-gpt2] step 10329 loss 0.8667
+  [train-gpt2] loss=0.7939 gnorm=6.375
+[train-gpt2] step 10330 loss 0.7939
+  [train-gpt2] loss=0.8385 gnorm=4.909
+[train-gpt2] step 10331 loss 0.8385
+  [train-gpt2] loss=0.8584 gnorm=5.444
+[train-gpt2] step 10332 loss 0.8584
+  [train-gpt2] loss=0.8720 gnorm=6.751
+[train-gpt2] step 10333 loss 0.8720
+  [train-gpt2] loss=0.8597 gnorm=3.974
+[train-gpt2] step 10334 loss 0.8597
+  [train-gpt2] loss=0.8773 gnorm=4.648
+[train-gpt2] step 10335 loss 0.8773
+  [train-gpt2] loss=0.8883 gnorm=4.773
+[train-gpt2] step 10336 loss 0.8883
+  [train-gpt2] loss=0.9067 gnorm=4.733
+[train-gpt2] step 10337 loss 0.9067
+  [train-gpt2] loss=0.9239 gnorm=4.545
+[train-gpt2] step 10338 loss 0.9239
+  [train-gpt2] loss=0.7766 gnorm=4.874
+[train-gpt2] step 10339 loss 0.7766
+  [train-gpt2] loss=0.8065 gnorm=5.460
+[train-gpt2] step 10340 loss 0.8065
+  [train-gpt2] loss=0.7587 gnorm=4.605
+[train-gpt2] step 10341 loss 0.7587
+  [train-gpt2] loss=0.7975 gnorm=4.607
+[train-gpt2] step 10342 loss 0.7975
+  [train-gpt2] loss=0.9369 gnorm=4.939
+[train-gpt2] step 10343 loss 0.9369
+  [train-gpt2] loss=0.8558 gnorm=5.364
+[train-gpt2] step 10344 loss 0.8558
+  [train-gpt2] loss=0.8170 gnorm=4.399
+[train-gpt2] step 10345 loss 0.8170
+  [train-gpt2] loss=0.8861 gnorm=5.431
+[train-gpt2] step 10346 loss 0.8861
+  [train-gpt2] loss=0.9296 gnorm=5.178
+[train-gpt2] step 10347 loss 0.9296
+  [train-gpt2] loss=0.9080 gnorm=4.647
+[train-gpt2] step 10348 loss 0.9080
+  [train-gpt2] loss=0.9096 gnorm=5.063
+[train-gpt2] step 10349 loss 0.9096
+  [train-gpt2] loss=0.8259 gnorm=4.723
+[train-gpt2] step 10350 loss 0.8259
+  [train-gpt2] loss=0.9115 gnorm=6.926
+[train-gpt2] step 10351 loss 0.9115
+  [train-gpt2] loss=0.7982 gnorm=5.393
+[train-gpt2] step 10352 loss 0.7982
+  [train-gpt2] loss=0.9627 gnorm=5.411
+[train-gpt2] step 10353 loss 0.9627
+  [train-gpt2] loss=0.9385 gnorm=4.197
+[train-gpt2] step 10354 loss 0.9385
+  [train-gpt2] loss=0.7588 gnorm=4.787
+[train-gpt2] step 10355 loss 0.7588
+  [train-gpt2] loss=0.7967 gnorm=4.616
+[train-gpt2] step 10356 loss 0.7967
+  [train-gpt2] loss=0.8955 gnorm=4.764
+[train-gpt2] step 10357 loss 0.8955
+  [train-gpt2] loss=0.9611 gnorm=4.714
+[train-gpt2] step 10358 loss 0.9611
+  [train-gpt2] loss=0.8355 gnorm=5.510
+[train-gpt2] step 10359 loss 0.8355
+  [train-gpt2] loss=0.8577 gnorm=5.124
+[train-gpt2] step 10360 loss 0.8577
+  [train-gpt2] loss=0.9311 gnorm=6.004
+[train-gpt2] step 10361 loss 0.9311
+  [train-gpt2] loss=0.8938 gnorm=4.780
+[train-gpt2] step 10362 loss 0.8938
+  [train-gpt2] loss=0.9065 gnorm=4.355
+[train-gpt2] step 10363 loss 0.9065
+  [train-gpt2] loss=0.8200 gnorm=4.124
+[train-gpt2] step 10364 loss 0.8200
+  [train-gpt2] loss=0.9040 gnorm=5.353
+[train-gpt2] step 10365 loss 0.9040
+  [train-gpt2] loss=0.8502 gnorm=5.530
+[train-gpt2] step 10366 loss 0.8502
+  [train-gpt2] loss=0.8880 gnorm=4.747
+[train-gpt2] step 10367 loss 0.8880
+  [train-gpt2] loss=0.8606 gnorm=4.764
+[train-gpt2] step 10368 loss 0.8606
+  [train-gpt2] loss=0.9134 gnorm=6.594
+[train-gpt2] step 10369 loss 0.9134
+  [train-gpt2] loss=0.8505 gnorm=5.297
+[train-gpt2] step 10370 loss 0.8505
+  [train-gpt2] loss=0.8637 gnorm=5.840
+[train-gpt2] step 10371 loss 0.8637
+  [train-gpt2] loss=0.9011 gnorm=5.240
+[train-gpt2] step 10372 loss 0.9011
+  [train-gpt2] loss=0.7995 gnorm=4.873
+[train-gpt2] step 10373 loss 0.7995
+  [train-gpt2] loss=0.8803 gnorm=5.231
+[train-gpt2] step 10374 loss 0.8803
+  [train-gpt2] loss=0.8168 gnorm=4.953
+[train-gpt2] step 10375 loss 0.8168
+  [train-gpt2] loss=0.8009 gnorm=4.911
+[train-gpt2] step 10376 loss 0.8009
+  [train-gpt2] loss=0.9073 gnorm=6.661
+[train-gpt2] step 10377 loss 0.9073
+  [train-gpt2] loss=0.8322 gnorm=4.941
+[train-gpt2] step 10378 loss 0.8322
+  [train-gpt2] loss=0.8559 gnorm=4.743
+[train-gpt2] step 10379 loss 0.8559
+  [train-gpt2] loss=0.8637 gnorm=4.185
+[train-gpt2] step 10380 loss 0.8637
+  [train-gpt2] loss=0.8074 gnorm=4.372
+[train-gpt2] step 10381 loss 0.8074
+  [train-gpt2] loss=0.9282 gnorm=5.379
+[train-gpt2] step 10382 loss 0.9282
+  [train-gpt2] loss=0.7562 gnorm=3.535
+[train-gpt2] step 10383 loss 0.7562
+  [train-gpt2] loss=0.8710 gnorm=5.702
+[train-gpt2] step 10384 loss 0.8710
+  [train-gpt2] loss=0.8468 gnorm=4.664
+[train-gpt2] step 10385 loss 0.8468
+  [train-gpt2] loss=0.8865 gnorm=5.709
+[train-gpt2] step 10386 loss 0.8865
+  [train-gpt2] loss=0.8031 gnorm=4.209
+[train-gpt2] step 10387 loss 0.8031
+  [train-gpt2] loss=0.8653 gnorm=5.499
+[train-gpt2] step 10388 loss 0.8653
+  [train-gpt2] loss=0.8581 gnorm=5.379
+[train-gpt2] step 10389 loss 0.8581
+  [train-gpt2] loss=0.9331 gnorm=5.431
+[train-gpt2] step 10390 loss 0.9331
+  [train-gpt2] loss=0.8796 gnorm=4.862
+[train-gpt2] step 10391 loss 0.8796
+  [train-gpt2] loss=0.8944 gnorm=4.599
+[train-gpt2] step 10392 loss 0.8944
+  [train-gpt2] loss=0.7530 gnorm=5.985
+[train-gpt2] step 10393 loss 0.7530
+  [train-gpt2] loss=0.8541 gnorm=5.563
+[train-gpt2] step 10394 loss 0.8541
+  [train-gpt2] loss=0.8233 gnorm=5.292
+[train-gpt2] step 10395 loss 0.8233
+  [train-gpt2] loss=0.9531 gnorm=5.418
+[train-gpt2] step 10396 loss 0.9531
+  [train-gpt2] loss=0.8833 gnorm=6.093
+[train-gpt2] step 10397 loss 0.8833
+  [train-gpt2] loss=0.9304 gnorm=4.871
+[train-gpt2] step 10398 loss 0.9304
+  [train-gpt2] loss=0.8746 gnorm=4.105
+[train-gpt2] step 10399 loss 0.8746
+  [train-gpt2] loss=0.8533 gnorm=4.665
+[train-gpt2] step 10400 loss 0.8533
+  [train-gpt2] loss=0.9557 gnorm=4.957
+[train-gpt2] step 10401 loss 0.9557
+  [train-gpt2] loss=0.9451 gnorm=4.718
+[train-gpt2] step 10402 loss 0.9451
+  [train-gpt2] loss=0.7950 gnorm=5.280
+[train-gpt2] step 10403 loss 0.7950
+  [train-gpt2] loss=0.8377 gnorm=5.181
+[train-gpt2] step 10404 loss 0.8377
+  [train-gpt2] loss=0.7677 gnorm=5.212
+[train-gpt2] step 10405 loss 0.7677
+  [train-gpt2] loss=0.8551 gnorm=3.708
+[train-gpt2] step 10406 loss 0.8551
+  [train-gpt2] loss=0.7473 gnorm=4.858
+[train-gpt2] step 10407 loss 0.7473
+  [train-gpt2] loss=0.8510 gnorm=5.746
+[train-gpt2] step 10408 loss 0.8510
+  [train-gpt2] loss=0.9428 gnorm=4.297
+[train-gpt2] step 10409 loss 0.9428
+  [train-gpt2] loss=0.8123 gnorm=5.024
+[train-gpt2] step 10410 loss 0.8123
+  [train-gpt2] loss=0.8154 gnorm=5.535
+[train-gpt2] step 10411 loss 0.8154
+  [train-gpt2] loss=0.9416 gnorm=5.968
+[train-gpt2] step 10412 loss 0.9416
+  [train-gpt2] loss=0.8389 gnorm=5.526
+[train-gpt2] step 10413 loss 0.8389
+  [train-gpt2] loss=0.8272 gnorm=7.051
+[train-gpt2] step 10414 loss 0.8272
+  [train-gpt2] loss=0.9217 gnorm=6.342
+[train-gpt2] step 10415 loss 0.9217
+  [train-gpt2] loss=0.8772 gnorm=4.505
+[train-gpt2] step 10416 loss 0.8772
+  [train-gpt2] loss=0.8272 gnorm=4.961
+[train-gpt2] step 10417 loss 0.8272
+  [train-gpt2] loss=0.8405 gnorm=4.985
+[train-gpt2] step 10418 loss 0.8405
+  [train-gpt2] loss=0.9091 gnorm=5.874
+[train-gpt2] step 10419 loss 0.9091
+  [train-gpt2] loss=0.9367 gnorm=4.715
+[train-gpt2] step 10420 loss 0.9367
+  [train-gpt2] loss=0.8810 gnorm=5.454
+[train-gpt2] step 10421 loss 0.8810
+  [train-gpt2] loss=0.8928 gnorm=4.848
+[train-gpt2] step 10422 loss 0.8928
+  [train-gpt2] loss=0.8298 gnorm=4.161
+[train-gpt2] step 10423 loss 0.8298
+  [train-gpt2] loss=0.8534 gnorm=5.264
+[train-gpt2] step 10424 loss 0.8534
+  [train-gpt2] loss=0.9290 gnorm=5.839
+[train-gpt2] step 10425 loss 0.9290
+  [train-gpt2] loss=0.8941 gnorm=5.154
+[train-gpt2] step 10426 loss 0.8941
+  [train-gpt2] loss=0.8451 gnorm=5.826
+[train-gpt2] step 10427 loss 0.8451
+  [train-gpt2] loss=0.9405 gnorm=4.865
+[train-gpt2] step 10428 loss 0.9405
+  [train-gpt2] loss=0.8897 gnorm=3.481
+[train-gpt2] step 10429 loss 0.8897
+  [train-gpt2] loss=0.9005 gnorm=5.916
+[train-gpt2] step 10430 loss 0.9005
+  [train-gpt2] loss=0.8751 gnorm=5.226
+[train-gpt2] step 10431 loss 0.8751
+  [train-gpt2] loss=0.9203 gnorm=3.970
+[train-gpt2] step 10432 loss 0.9203
+  [train-gpt2] loss=0.8408 gnorm=4.221
+[train-gpt2] step 10433 loss 0.8408
+  [train-gpt2] loss=0.8357 gnorm=6.508
+[train-gpt2] step 10434 loss 0.8357
+  [train-gpt2] loss=0.8786 gnorm=4.740
+[train-gpt2] step 10435 loss 0.8786
+  [train-gpt2] loss=0.7952 gnorm=4.425
+[train-gpt2] step 10436 loss 0.7952
+  [train-gpt2] loss=0.8126 gnorm=4.767
+[train-gpt2] step 10437 loss 0.8126
+  [train-gpt2] loss=0.8624 gnorm=4.827
+[train-gpt2] step 10438 loss 0.8624
+  [train-gpt2] loss=0.9037 gnorm=5.517
+[train-gpt2] step 10439 loss 0.9037
+  [train-gpt2] loss=0.9084 gnorm=4.907
+[train-gpt2] step 10440 loss 0.9084
+  [train-gpt2] loss=0.7697 gnorm=3.972
+[train-gpt2] step 10441 loss 0.7697
+  [train-gpt2] loss=0.9752 gnorm=5.866
+[train-gpt2] step 10442 loss 0.9752
+  [train-gpt2] loss=0.8625 gnorm=5.160
+[train-gpt2] step 10443 loss 0.8625
+  [train-gpt2] loss=0.9331 gnorm=5.032
+[train-gpt2] step 10444 loss 0.9331
+  [train-gpt2] loss=0.8123 gnorm=5.355
+[train-gpt2] step 10445 loss 0.8123
+  [train-gpt2] loss=0.8922 gnorm=5.246
+[train-gpt2] step 10446 loss 0.8922
+  [train-gpt2] loss=0.8555 gnorm=5.534
+[train-gpt2] step 10447 loss 0.8555
+  [train-gpt2] loss=0.8347 gnorm=4.742
+[train-gpt2] step 10448 loss 0.8347
+  [train-gpt2] loss=0.7715 gnorm=4.977
+[train-gpt2] step 10449 loss 0.7715
+  [train-gpt2] loss=0.8812 gnorm=5.301
+[train-gpt2] step 10450 loss 0.8812
+  [train-gpt2] loss=0.7764 gnorm=4.910
+[train-gpt2] step 10451 loss 0.7764
+  [train-gpt2] loss=0.8201 gnorm=5.372
+[train-gpt2] step 10452 loss 0.8201
+  [train-gpt2] loss=0.8716 gnorm=5.439
+[train-gpt2] step 10453 loss 0.8716
+  [train-gpt2] loss=0.9366 gnorm=5.035
+[train-gpt2] step 10454 loss 0.9366
+  [train-gpt2] loss=0.9342 gnorm=5.292
+[train-gpt2] step 10455 loss 0.9342
+  [train-gpt2] loss=0.8030 gnorm=4.980
+[train-gpt2] step 10456 loss 0.8030
+  [train-gpt2] loss=0.9314 gnorm=4.940
+[train-gpt2] step 10457 loss 0.9314
+  [train-gpt2] loss=0.8947 gnorm=5.054
+[train-gpt2] step 10458 loss 0.8947
+  [train-gpt2] loss=0.8566 gnorm=4.149
+[train-gpt2] step 10459 loss 0.8566
+  [train-gpt2] loss=0.9349 gnorm=5.658
+[train-gpt2] step 10460 loss 0.9349
+  [train-gpt2] loss=0.8718 gnorm=4.826
+[train-gpt2] step 10461 loss 0.8718
+  [train-gpt2] loss=0.8738 gnorm=4.715
+[train-gpt2] step 10462 loss 0.8738
+  [train-gpt2] loss=0.8079 gnorm=4.532
+[train-gpt2] step 10463 loss 0.8079
+  [train-gpt2] loss=0.8722 gnorm=4.408
+[train-gpt2] step 10464 loss 0.8722
+  [train-gpt2] loss=0.8300 gnorm=4.313
+[train-gpt2] step 10465 loss 0.8300
+  [train-gpt2] loss=0.8661 gnorm=4.162
+[train-gpt2] step 10466 loss 0.8661
+  [train-gpt2] loss=0.9358 gnorm=6.309
+[train-gpt2] step 10467 loss 0.9358
+  [train-gpt2] loss=0.8050 gnorm=5.567
+[train-gpt2] step 10468 loss 0.8050
+  [train-gpt2] loss=0.9251 gnorm=4.844
+[train-gpt2] step 10469 loss 0.9251
+  [train-gpt2] loss=0.7524 gnorm=5.557
+[train-gpt2] step 10470 loss 0.7524
+  [train-gpt2] loss=0.8606 gnorm=5.260
+[train-gpt2] step 10471 loss 0.8606
+  [train-gpt2] loss=0.9153 gnorm=4.637
+[train-gpt2] step 10472 loss 0.9153
+  [train-gpt2] loss=0.8370 gnorm=4.875
+[train-gpt2] step 10473 loss 0.8370
+  [train-gpt2] loss=0.7912 gnorm=4.407
+[train-gpt2] step 10474 loss 0.7912
+  [train-gpt2] loss=0.8892 gnorm=4.943
+[train-gpt2] step 10475 loss 0.8892
+  [train-gpt2] loss=0.8793 gnorm=4.245
+[train-gpt2] step 10476 loss 0.8793
+  [train-gpt2] loss=0.8544 gnorm=4.803
+[train-gpt2] step 10477 loss 0.8544
+  [train-gpt2] loss=0.8320 gnorm=4.213
+[train-gpt2] step 10478 loss 0.8320
+  [train-gpt2] loss=0.8828 gnorm=5.197
+[train-gpt2] step 10479 loss 0.8828
+  [train-gpt2] loss=0.8917 gnorm=4.228
+[train-gpt2] step 10480 loss 0.8917
+  [train-gpt2] loss=0.8703 gnorm=5.589
+[train-gpt2] step 10481 loss 0.8703
+  [train-gpt2] loss=0.9743 gnorm=5.186
+[train-gpt2] step 10482 loss 0.9743
+  [train-gpt2] loss=0.8098 gnorm=4.747
+[train-gpt2] step 10483 loss 0.8098
+  [train-gpt2] loss=0.9802 gnorm=4.577
+[train-gpt2] step 10484 loss 0.9802
+  [train-gpt2] loss=0.8284 gnorm=4.294
+[train-gpt2] step 10485 loss 0.8284
+  [train-gpt2] loss=0.8823 gnorm=4.994
+[train-gpt2] step 10486 loss 0.8823
+  [train-gpt2] loss=0.9395 gnorm=5.334
+[train-gpt2] step 10487 loss 0.9395
+  [train-gpt2] loss=0.8524 gnorm=4.916
+[train-gpt2] step 10488 loss 0.8524
+  [train-gpt2] loss=0.9026 gnorm=4.674
+[train-gpt2] step 10489 loss 0.9026
+  [train-gpt2] loss=0.8830 gnorm=4.837
+[train-gpt2] step 10490 loss 0.8830
+  [train-gpt2] loss=0.9561 gnorm=4.556
+[train-gpt2] step 10491 loss 0.9561
+  [train-gpt2] loss=0.8983 gnorm=4.841
+[train-gpt2] step 10492 loss 0.8983
+  [train-gpt2] loss=0.7567 gnorm=6.208
+[train-gpt2] step 10493 loss 0.7567
+  [train-gpt2] loss=0.8697 gnorm=4.667
+[train-gpt2] step 10494 loss 0.8697
+  [train-gpt2] loss=0.8075 gnorm=5.207
+[train-gpt2] step 10495 loss 0.8075
+  [train-gpt2] loss=0.9329 gnorm=5.106
+[train-gpt2] step 10496 loss 0.9329
+  [train-gpt2] loss=0.8357 gnorm=4.910
+[train-gpt2] step 10497 loss 0.8357
+  [train-gpt2] loss=0.9521 gnorm=4.881
+[train-gpt2] step 10498 loss 0.9521
+  [train-gpt2] loss=0.8785 gnorm=5.113
+[train-gpt2] step 10499 loss 0.8785
+  [train-gpt2] loss=0.9076 gnorm=5.309
+[train-gpt2] step 10500 loss 0.9076
+  [train-gpt2] loss=0.8992 gnorm=5.678
+[train-gpt2] step 10501 loss 0.8992
+  [train-gpt2] loss=0.8267 gnorm=4.622
+[train-gpt2] step 10502 loss 0.8267
+  [train-gpt2] loss=0.7916 gnorm=4.269
+[train-gpt2] step 10503 loss 0.7916
+  [train-gpt2] loss=0.7268 gnorm=5.327
+[train-gpt2] step 10504 loss 0.7268
+  [train-gpt2] loss=0.9022 gnorm=4.656
+[train-gpt2] step 10505 loss 0.9022
+  [train-gpt2] loss=0.9280 gnorm=5.155
+[train-gpt2] step 10506 loss 0.9280
+  [train-gpt2] loss=0.9297 gnorm=6.266
+[train-gpt2] step 10507 loss 0.9297
+  [train-gpt2] loss=0.8456 gnorm=5.748
+[train-gpt2] step 10508 loss 0.8456
+  [train-gpt2] loss=0.8957 gnorm=5.664
+[train-gpt2] step 10509 loss 0.8957
+  [train-gpt2] loss=0.8360 gnorm=5.375
+[train-gpt2] step 10510 loss 0.8360
+  [train-gpt2] loss=0.9040 gnorm=4.603
+[train-gpt2] step 10511 loss 0.9040
+  [train-gpt2] loss=0.8415 gnorm=5.950
+[train-gpt2] step 10512 loss 0.8415
+  [train-gpt2] loss=0.9007 gnorm=6.448
+[train-gpt2] step 10513 loss 0.9007
+  [train-gpt2] loss=0.9350 gnorm=5.451
+[train-gpt2] step 10514 loss 0.9350
+  [train-gpt2] loss=0.9302 gnorm=4.083
+[train-gpt2] step 10515 loss 0.9302
+  [train-gpt2] loss=0.9474 gnorm=5.006
+[train-gpt2] step 10516 loss 0.9474
+  [train-gpt2] loss=0.8778 gnorm=4.409
+[train-gpt2] step 10517 loss 0.8778
+  [train-gpt2] loss=0.8772 gnorm=4.617
+[train-gpt2] step 10518 loss 0.8772
+  [train-gpt2] loss=0.8347 gnorm=4.817
+[train-gpt2] step 10519 loss 0.8347
+  [train-gpt2] loss=0.8784 gnorm=4.489
+[train-gpt2] step 10520 loss 0.8784
+  [train-gpt2] loss=0.8155 gnorm=5.199
+[train-gpt2] step 10521 loss 0.8155
+  [train-gpt2] loss=0.8698 gnorm=3.556
+[train-gpt2] step 10522 loss 0.8698
+  [train-gpt2] loss=0.8912 gnorm=4.721
+[train-gpt2] step 10523 loss 0.8912
+  [train-gpt2] loss=0.7821 gnorm=4.992
+[train-gpt2] step 10524 loss 0.7821
+  [train-gpt2] loss=0.8537 gnorm=4.444
+[train-gpt2] step 10525 loss 0.8537
+  [train-gpt2] loss=0.8930 gnorm=5.235
+[train-gpt2] step 10526 loss 0.8930
+  [train-gpt2] loss=0.8324 gnorm=5.358
+[train-gpt2] step 10527 loss 0.8324
+  [train-gpt2] loss=0.7495 gnorm=5.613
+[train-gpt2] step 10528 loss 0.7495
+  [train-gpt2] loss=0.8797 gnorm=4.255
+[train-gpt2] step 10529 loss 0.8797
+  [train-gpt2] loss=0.8335 gnorm=4.722
+[train-gpt2] step 10530 loss 0.8335
+  [train-gpt2] loss=0.9070 gnorm=4.584
+[train-gpt2] step 10531 loss 0.9070
+  [train-gpt2] loss=0.8870 gnorm=5.046
+[train-gpt2] step 10532 loss 0.8870
+  [train-gpt2] loss=0.8518 gnorm=3.696
+[train-gpt2] step 10533 loss 0.8518
+  [train-gpt2] loss=0.7774 gnorm=4.542
+[train-gpt2] step 10534 loss 0.7774
+  [train-gpt2] loss=0.8317 gnorm=5.118
+[train-gpt2] step 10535 loss 0.8317
+  [train-gpt2] loss=0.8515 gnorm=4.888
+[train-gpt2] step 10536 loss 0.8515
+  [train-gpt2] loss=0.8749 gnorm=4.340
+[train-gpt2] step 10537 loss 0.8749
+  [train-gpt2] loss=0.7693 gnorm=4.949
+[train-gpt2] step 10538 loss 0.7693
+  [train-gpt2] loss=0.8294 gnorm=4.979
+[train-gpt2] step 10539 loss 0.8294
+  [train-gpt2] loss=0.7974 gnorm=5.577
+[train-gpt2] step 10540 loss 0.7974
+  [train-gpt2] loss=0.8161 gnorm=4.846
+[train-gpt2] step 10541 loss 0.8161
+  [train-gpt2] loss=0.9894 gnorm=5.227
+[train-gpt2] step 10542 loss 0.9894
+  [train-gpt2] loss=0.9186 gnorm=4.710
+[train-gpt2] step 10543 loss 0.9186
+  [train-gpt2] loss=0.9004 gnorm=4.928
+[train-gpt2] step 10544 loss 0.9004
+  [train-gpt2] loss=0.8798 gnorm=4.746
+[train-gpt2] step 10545 loss 0.8798
+  [train-gpt2] loss=0.8950 gnorm=6.139
+[train-gpt2] step 10546 loss 0.8950
+  [train-gpt2] loss=0.8557 gnorm=5.711
+[train-gpt2] step 10547 loss 0.8557
+  [train-gpt2] loss=0.8939 gnorm=6.118
+[train-gpt2] step 10548 loss 0.8939
+  [train-gpt2] loss=0.8360 gnorm=5.128
+[train-gpt2] step 10549 loss 0.8360
+  [train-gpt2] loss=0.8866 gnorm=3.908
+[train-gpt2] step 10550 loss 0.8866
+  [train-gpt2] loss=0.8661 gnorm=3.872
+[train-gpt2] step 10551 loss 0.8661
+  [train-gpt2] loss=0.9436 gnorm=4.858
+[train-gpt2] step 10552 loss 0.9436
+  [train-gpt2] loss=0.7556 gnorm=4.777
+[train-gpt2] step 10553 loss 0.7556
+  [train-gpt2] loss=0.8694 gnorm=5.778
+[train-gpt2] step 10554 loss 0.8694
+  [train-gpt2] loss=0.7853 gnorm=4.991
+[train-gpt2] step 10555 loss 0.7853
+  [train-gpt2] loss=0.8141 gnorm=4.222
+[train-gpt2] step 10556 loss 0.8141
+  [train-gpt2] loss=0.7999 gnorm=4.980
+[train-gpt2] step 10557 loss 0.7999
+  [train-gpt2] loss=0.9719 gnorm=4.628
+[train-gpt2] step 10558 loss 0.9719
+  [train-gpt2] loss=0.9428 gnorm=5.835
+[train-gpt2] step 10559 loss 0.9428
+  [train-gpt2] loss=0.8711 gnorm=4.521
+[train-gpt2] step 10560 loss 0.8711
+  [train-gpt2] loss=0.9374 gnorm=4.806
+[train-gpt2] step 10561 loss 0.9374
+  [train-gpt2] loss=0.8048 gnorm=5.369
+[train-gpt2] step 10562 loss 0.8048
+  [train-gpt2] loss=0.8142 gnorm=5.914
+[train-gpt2] step 10563 loss 0.8142
+  [train-gpt2] loss=0.8288 gnorm=5.088
+[train-gpt2] step 10564 loss 0.8288
+  [train-gpt2] loss=0.8633 gnorm=5.377
+[train-gpt2] step 10565 loss 0.8633
+  [train-gpt2] loss=0.8102 gnorm=5.745
+[train-gpt2] step 10566 loss 0.8102
+  [train-gpt2] loss=0.8488 gnorm=5.549
+[train-gpt2] step 10567 loss 0.8488
+  [train-gpt2] loss=0.9356 gnorm=5.984
+[train-gpt2] step 10568 loss 0.9356
+  [train-gpt2] loss=0.8467 gnorm=4.855
+[train-gpt2] step 10569 loss 0.8467
+  [train-gpt2] loss=0.8779 gnorm=5.109
+[train-gpt2] step 10570 loss 0.8779
+  [train-gpt2] loss=0.9258 gnorm=6.154
+[train-gpt2] step 10571 loss 0.9258
+  [train-gpt2] loss=0.8124 gnorm=5.081
+[train-gpt2] step 10572 loss 0.8124
+  [train-gpt2] loss=0.8323 gnorm=4.981
+[train-gpt2] step 10573 loss 0.8323
+  [train-gpt2] loss=0.8020 gnorm=4.902
+[train-gpt2] step 10574 loss 0.8020
+  [train-gpt2] loss=0.9082 gnorm=4.275
+[train-gpt2] step 10575 loss 0.9082
+  [train-gpt2] loss=0.8932 gnorm=5.312
+[train-gpt2] step 10576 loss 0.8932
+  [train-gpt2] loss=0.7462 gnorm=4.502
+[train-gpt2] step 10577 loss 0.7462
+  [train-gpt2] loss=0.8978 gnorm=4.758
+[train-gpt2] step 10578 loss 0.8978
+  [train-gpt2] loss=0.9651 gnorm=5.832
+[train-gpt2] step 10579 loss 0.9651
+  [train-gpt2] loss=0.8544 gnorm=5.678
+[train-gpt2] step 10580 loss 0.8544
+  [train-gpt2] loss=0.8649 gnorm=6.329
+[train-gpt2] step 10581 loss 0.8649
+  [train-gpt2] loss=0.8211 gnorm=4.963
+[train-gpt2] step 10582 loss 0.8211
+  [train-gpt2] loss=0.8774 gnorm=4.941
+[train-gpt2] step 10583 loss 0.8774
+  [train-gpt2] loss=0.9389 gnorm=5.836
+[train-gpt2] step 10584 loss 0.9389
+  [train-gpt2] loss=0.8645 gnorm=5.266
+[train-gpt2] step 10585 loss 0.8645
+  [train-gpt2] loss=0.8818 gnorm=4.825
+[train-gpt2] step 10586 loss 0.8818
+  [train-gpt2] loss=0.8941 gnorm=5.352
+[train-gpt2] step 10587 loss 0.8941
+  [train-gpt2] loss=0.8490 gnorm=4.020
+[train-gpt2] step 10588 loss 0.8490
+  [train-gpt2] loss=0.9813 gnorm=4.893
+[train-gpt2] step 10589 loss 0.9813
+  [train-gpt2] loss=0.8952 gnorm=5.196
+[train-gpt2] step 10590 loss 0.8952
+  [train-gpt2] loss=0.7997 gnorm=4.748
+[train-gpt2] step 10591 loss 0.7997
+  [train-gpt2] loss=0.8909 gnorm=6.377
+[train-gpt2] step 10592 loss 0.8909
+  [train-gpt2] loss=0.9229 gnorm=4.767
+[train-gpt2] step 10593 loss 0.9229
+  [train-gpt2] loss=0.9784 gnorm=4.708
+[train-gpt2] step 10594 loss 0.9784
+  [train-gpt2] loss=0.8337 gnorm=5.316
+[train-gpt2] step 10595 loss 0.8337
+  [train-gpt2] loss=0.9118 gnorm=4.384
+[train-gpt2] step 10596 loss 0.9118
+  [train-gpt2] loss=0.9359 gnorm=4.554
+[train-gpt2] step 10597 loss 0.9359
+  [train-gpt2] loss=0.8756 gnorm=4.608
+[train-gpt2] step 10598 loss 0.8756
+  [train-gpt2] loss=0.8700 gnorm=4.719
+[train-gpt2] step 10599 loss 0.8700
+  [train-gpt2] loss=0.8228 gnorm=5.331
+[train-gpt2] step 10600 loss 0.8228
+  [train-gpt2] loss=0.9098 gnorm=5.624
+[train-gpt2] step 10601 loss 0.9098
+  [train-gpt2] loss=0.8535 gnorm=5.150
+[train-gpt2] step 10602 loss 0.8535
+  [train-gpt2] loss=0.8761 gnorm=4.338
+[train-gpt2] step 10603 loss 0.8761
+  [train-gpt2] loss=0.8612 gnorm=6.759
+[train-gpt2] step 10604 loss 0.8612
+  [train-gpt2] loss=0.7942 gnorm=4.896
+[train-gpt2] step 10605 loss 0.7942
+  [train-gpt2] loss=0.9423 gnorm=5.275
+[train-gpt2] step 10606 loss 0.9423
+  [train-gpt2] loss=0.8251 gnorm=5.484
+[train-gpt2] step 10607 loss 0.8251
+  [train-gpt2] loss=0.8114 gnorm=4.216
+[train-gpt2] step 10608 loss 0.8114
+  [train-gpt2] loss=0.8710 gnorm=4.862
+[train-gpt2] step 10609 loss 0.8710
+  [train-gpt2] loss=0.7810 gnorm=4.138
+[train-gpt2] step 10610 loss 0.7810
+  [train-gpt2] loss=0.7911 gnorm=4.510
+[train-gpt2] step 10611 loss 0.7911
+  [train-gpt2] loss=0.8368 gnorm=4.257
+[train-gpt2] step 10612 loss 0.8368
+  [train-gpt2] loss=0.8643 gnorm=5.160
+[train-gpt2] step 10613 loss 0.8643
+  [train-gpt2] loss=0.7812 gnorm=4.599
+[train-gpt2] step 10614 loss 0.7812
+  [train-gpt2] loss=0.7726 gnorm=6.119
+[train-gpt2] step 10615 loss 0.7726
+  [train-gpt2] loss=0.9224 gnorm=4.758
+[train-gpt2] step 10616 loss 0.9224
+  [train-gpt2] loss=0.8895 gnorm=6.566
+[train-gpt2] step 10617 loss 0.8895
+  [train-gpt2] loss=0.7701 gnorm=5.578
+[train-gpt2] step 10618 loss 0.7701
+  [train-gpt2] loss=0.8159 gnorm=4.843
+[train-gpt2] step 10619 loss 0.8159
+  [train-gpt2] loss=0.8229 gnorm=5.253
+[train-gpt2] step 10620 loss 0.8229
+  [train-gpt2] loss=0.9276 gnorm=4.911
+[train-gpt2] step 10621 loss 0.9276
+  [train-gpt2] loss=0.8322 gnorm=4.022
+[train-gpt2] step 10622 loss 0.8322
+  [train-gpt2] loss=0.7546 gnorm=5.031
+[train-gpt2] step 10623 loss 0.7546
+  [train-gpt2] loss=0.9546 gnorm=4.689
+[train-gpt2] step 10624 loss 0.9546
+  [train-gpt2] loss=0.7533 gnorm=4.538
+[train-gpt2] step 10625 loss 0.7533
+  [train-gpt2] loss=0.8348 gnorm=6.233
+[train-gpt2] step 10626 loss 0.8348
+  [train-gpt2] loss=0.8507 gnorm=4.378
+[train-gpt2] step 10627 loss 0.8507
+  [train-gpt2] loss=0.9128 gnorm=6.084
+[train-gpt2] step 10628 loss 0.9128
+  [train-gpt2] loss=0.8913 gnorm=5.031
+[train-gpt2] step 10629 loss 0.8913
+  [train-gpt2] loss=0.8991 gnorm=5.030
+[train-gpt2] step 10630 loss 0.8991
+  [train-gpt2] loss=0.8662 gnorm=5.172
+[train-gpt2] step 10631 loss 0.8662
+  [train-gpt2] loss=0.8249 gnorm=4.602
+[train-gpt2] step 10632 loss 0.8249
+  [train-gpt2] loss=0.8463 gnorm=5.125
+[train-gpt2] step 10633 loss 0.8463
+  [train-gpt2] loss=0.7950 gnorm=5.340
+[train-gpt2] step 10634 loss 0.7950
+  [train-gpt2] loss=0.8089 gnorm=5.032
+[train-gpt2] step 10635 loss 0.8089
+  [train-gpt2] loss=0.8706 gnorm=4.980
+[train-gpt2] step 10636 loss 0.8706
+  [train-gpt2] loss=0.9707 gnorm=4.342
+[train-gpt2] step 10637 loss 0.9707
+  [train-gpt2] loss=0.8789 gnorm=5.275
+[train-gpt2] step 10638 loss 0.8789
+  [train-gpt2] loss=0.7370 gnorm=4.852
+[train-gpt2] step 10639 loss 0.7370
+  [train-gpt2] loss=0.9629 gnorm=4.338
+[train-gpt2] step 10640 loss 0.9629
+  [train-gpt2] loss=0.9899 gnorm=5.537
+[train-gpt2] step 10641 loss 0.9899
+  [train-gpt2] loss=0.8971 gnorm=4.377
+[train-gpt2] step 10642 loss 0.8971
+  [train-gpt2] loss=0.8644 gnorm=4.839
+[train-gpt2] step 10643 loss 0.8644
+  [train-gpt2] loss=0.8731 gnorm=4.457
+[train-gpt2] step 10644 loss 0.8731
+  [train-gpt2] loss=0.7631 gnorm=5.000
+[train-gpt2] step 10645 loss 0.7631
+  [train-gpt2] loss=0.8415 gnorm=4.848
+[train-gpt2] step 10646 loss 0.8415
+  [train-gpt2] loss=0.9257 gnorm=5.974
+[train-gpt2] step 10647 loss 0.9257
+  [train-gpt2] loss=0.8445 gnorm=5.589
+[train-gpt2] step 10648 loss 0.8445
+  [train-gpt2] loss=0.8177 gnorm=5.025
+[train-gpt2] step 10649 loss 0.8177
+  [train-gpt2] loss=0.8590 gnorm=5.069
+[train-gpt2] step 10650 loss 0.8590
+  [train-gpt2] loss=0.9241 gnorm=5.430
+[train-gpt2] step 10651 loss 0.9241
+  [train-gpt2] loss=0.8331 gnorm=5.113
+[train-gpt2] step 10652 loss 0.8331
+  [train-gpt2] loss=0.8564 gnorm=4.900
+[train-gpt2] step 10653 loss 0.8564
+  [train-gpt2] loss=0.7547 gnorm=5.844
+[train-gpt2] step 10654 loss 0.7547
+  [train-gpt2] loss=0.9228 gnorm=4.882
+[train-gpt2] step 10655 loss 0.9228
+  [train-gpt2] loss=0.8828 gnorm=5.672
+[train-gpt2] step 10656 loss 0.8828
+  [train-gpt2] loss=1.0117 gnorm=6.212
+[train-gpt2] step 10657 loss 1.0117
+  [train-gpt2] loss=0.8472 gnorm=7.295
+[train-gpt2] step 10658 loss 0.8472
+  [train-gpt2] loss=0.8128 gnorm=6.058
+[train-gpt2] step 10659 loss 0.8128
+  [train-gpt2] loss=0.9156 gnorm=4.171
+[train-gpt2] step 10660 loss 0.9156
+  [train-gpt2] loss=0.8814 gnorm=4.774
+[train-gpt2] step 10661 loss 0.8814
+  [train-gpt2] loss=0.9079 gnorm=6.379
+[train-gpt2] step 10662 loss 0.9079
+  [train-gpt2] loss=0.7375 gnorm=5.557
+[train-gpt2] step 10663 loss 0.7375
+  [train-gpt2] loss=0.8732 gnorm=5.265
+[train-gpt2] step 10664 loss 0.8732
+  [train-gpt2] loss=0.9412 gnorm=4.730
+[train-gpt2] step 10665 loss 0.9412
+  [train-gpt2] loss=0.8596 gnorm=4.713
+[train-gpt2] step 10666 loss 0.8596
+  [train-gpt2] loss=0.9409 gnorm=5.319
+[train-gpt2] step 10667 loss 0.9409
+  [train-gpt2] loss=0.8359 gnorm=5.444
+[train-gpt2] step 10668 loss 0.8359
+  [train-gpt2] loss=0.8828 gnorm=5.304
+[train-gpt2] step 10669 loss 0.8828
+  [train-gpt2] loss=0.9396 gnorm=4.831
+[train-gpt2] step 10670 loss 0.9396
+  [train-gpt2] loss=0.8459 gnorm=4.357
+[train-gpt2] step 10671 loss 0.8459
+  [train-gpt2] loss=0.7954 gnorm=4.973
+[train-gpt2] step 10672 loss 0.7954
+  [train-gpt2] loss=0.9388 gnorm=5.415
+[train-gpt2] step 10673 loss 0.9388
+  [train-gpt2] loss=0.8951 gnorm=5.242
+[train-gpt2] step 10674 loss 0.8951
+  [train-gpt2] loss=0.8553 gnorm=5.842
+[train-gpt2] step 10675 loss 0.8553
+  [train-gpt2] loss=0.9844 gnorm=4.524
+[train-gpt2] step 10676 loss 0.9844
+  [train-gpt2] loss=0.8219 gnorm=4.288
+[train-gpt2] step 10677 loss 0.8219
+  [train-gpt2] loss=0.9847 gnorm=5.064
+[train-gpt2] step 10678 loss 0.9847
+  [train-gpt2] loss=0.9404 gnorm=5.149
+[train-gpt2] step 10679 loss 0.9404
+  [train-gpt2] loss=0.8434 gnorm=5.268
+[train-gpt2] step 10680 loss 0.8434
+  [train-gpt2] loss=0.8882 gnorm=4.908
+[train-gpt2] step 10681 loss 0.8882
+  [train-gpt2] loss=0.8520 gnorm=5.814
+[train-gpt2] step 10682 loss 0.8520
+  [train-gpt2] loss=0.7839 gnorm=5.676
+[train-gpt2] step 10683 loss 0.7839
+  [train-gpt2] loss=0.8676 gnorm=5.119
+[train-gpt2] step 10684 loss 0.8676
+  [train-gpt2] loss=0.8513 gnorm=4.234
+[train-gpt2] step 10685 loss 0.8513
+  [train-gpt2] loss=0.8700 gnorm=5.272
+[train-gpt2] step 10686 loss 0.8700
+  [train-gpt2] loss=0.8769 gnorm=4.930
+[train-gpt2] step 10687 loss 0.8769
+  [train-gpt2] loss=0.8060 gnorm=7.003
+[train-gpt2] step 10688 loss 0.8060
+  [train-gpt2] loss=0.8525 gnorm=4.190
+[train-gpt2] step 10689 loss 0.8525
+  [train-gpt2] loss=0.9376 gnorm=4.437
+[train-gpt2] step 10690 loss 0.9376
+  [train-gpt2] loss=0.8400 gnorm=4.251
+[train-gpt2] step 10691 loss 0.8400
+  [train-gpt2] loss=0.9071 gnorm=5.117
+[train-gpt2] step 10692 loss 0.9071
+  [train-gpt2] loss=0.8313 gnorm=6.289
+[train-gpt2] step 10693 loss 0.8313
+  [train-gpt2] loss=0.9445 gnorm=4.222
+[train-gpt2] step 10694 loss 0.9445
+  [train-gpt2] loss=0.9789 gnorm=4.685
+[train-gpt2] step 10695 loss 0.9789
+  [train-gpt2] loss=0.8111 gnorm=5.155
+[train-gpt2] step 10696 loss 0.8111
+  [train-gpt2] loss=0.9216 gnorm=5.927
+[train-gpt2] step 10697 loss 0.9216
+  [train-gpt2] loss=0.7889 gnorm=5.730
+[train-gpt2] step 10698 loss 0.7889
+  [train-gpt2] loss=0.8457 gnorm=4.727
+[train-gpt2] step 10699 loss 0.8457
+  [train-gpt2] loss=0.8046 gnorm=5.249
+[train-gpt2] step 10700 loss 0.8046
+  [train-gpt2] loss=0.7530 gnorm=3.461
+[train-gpt2] step 10701 loss 0.7530
+  [train-gpt2] loss=0.8601 gnorm=4.958
+[train-gpt2] step 10702 loss 0.8601
+  [train-gpt2] loss=0.7699 gnorm=4.901
+[train-gpt2] step 10703 loss 0.7699
+  [train-gpt2] loss=0.8961 gnorm=6.437
+[train-gpt2] step 10704 loss 0.8961
+  [train-gpt2] loss=0.8635 gnorm=6.027
+[train-gpt2] step 10705 loss 0.8635
+  [train-gpt2] loss=0.9047 gnorm=4.636
+[train-gpt2] step 10706 loss 0.9047
+  [train-gpt2] loss=0.7435 gnorm=5.269
+[train-gpt2] step 10707 loss 0.7435
+  [train-gpt2] loss=0.8554 gnorm=4.784
+[train-gpt2] step 10708 loss 0.8554
+  [train-gpt2] loss=0.9406 gnorm=5.195
+[train-gpt2] step 10709 loss 0.9406
+  [train-gpt2] loss=0.8091 gnorm=6.107
+[train-gpt2] step 10710 loss 0.8091
+  [train-gpt2] loss=0.9269 gnorm=5.469
+[train-gpt2] step 10711 loss 0.9269
+  [train-gpt2] loss=0.8307 gnorm=4.897
+[train-gpt2] step 10712 loss 0.8307
+  [train-gpt2] loss=0.7330 gnorm=4.804
+[train-gpt2] step 10713 loss 0.7330
+  [train-gpt2] loss=0.8968 gnorm=4.617
+[train-gpt2] step 10714 loss 0.8968
+  [train-gpt2] loss=0.8412 gnorm=4.740
+[train-gpt2] step 10715 loss 0.8412
+  [train-gpt2] loss=0.8923 gnorm=5.323
+[train-gpt2] step 10716 loss 0.8923
+  [train-gpt2] loss=0.7929 gnorm=5.525
+[train-gpt2] step 10717 loss 0.7929
+  [train-gpt2] loss=0.8637 gnorm=4.931
+[train-gpt2] step 10718 loss 0.8637
+  [train-gpt2] loss=0.7442 gnorm=4.844
+[train-gpt2] step 10719 loss 0.7442
+  [train-gpt2] loss=0.8472 gnorm=4.104
+[train-gpt2] step 10720 loss 0.8472
+  [train-gpt2] loss=0.8521 gnorm=7.317
+[train-gpt2] step 10721 loss 0.8521
+  [train-gpt2] loss=0.8332 gnorm=4.895
+[train-gpt2] step 10722 loss 0.8332
+  [train-gpt2] loss=0.8943 gnorm=6.849
+[train-gpt2] step 10723 loss 0.8943
+  [train-gpt2] loss=0.8364 gnorm=5.273
+[train-gpt2] step 10724 loss 0.8364
+  [train-gpt2] loss=0.8781 gnorm=5.766
+[train-gpt2] step 10725 loss 0.8781
+  [train-gpt2] loss=0.7910 gnorm=5.085
+[train-gpt2] step 10726 loss 0.7910
+  [train-gpt2] loss=0.8701 gnorm=5.731
+[train-gpt2] step 10727 loss 0.8701
+  [train-gpt2] loss=0.8301 gnorm=5.299
+[train-gpt2] step 10728 loss 0.8301
+  [train-gpt2] loss=0.8886 gnorm=6.342
+[train-gpt2] step 10729 loss 0.8886
+  [train-gpt2] loss=1.0051 gnorm=4.079
+[train-gpt2] step 10730 loss 1.0051
+  [train-gpt2] loss=0.9673 gnorm=6.160
+[train-gpt2] step 10731 loss 0.9673
+  [train-gpt2] loss=0.8093 gnorm=4.466
+[train-gpt2] step 10732 loss 0.8093
+  [train-gpt2] loss=0.9146 gnorm=3.867
+[train-gpt2] step 10733 loss 0.9146
+  [train-gpt2] loss=0.9178 gnorm=4.866
+[train-gpt2] step 10734 loss 0.9178
+  [train-gpt2] loss=0.9245 gnorm=4.487
+[train-gpt2] step 10735 loss 0.9245
+  [train-gpt2] loss=0.7583 gnorm=4.935
+[train-gpt2] step 10736 loss 0.7583
+  [train-gpt2] loss=0.8135 gnorm=5.499
+[train-gpt2] step 10737 loss 0.8135
+  [train-gpt2] loss=0.7803 gnorm=5.639
+[train-gpt2] step 10738 loss 0.7803
+  [train-gpt2] loss=0.9563 gnorm=4.966
+[train-gpt2] step 10739 loss 0.9563
+  [train-gpt2] loss=0.8786 gnorm=5.906
+[train-gpt2] step 10740 loss 0.8786
+  [train-gpt2] loss=0.8010 gnorm=4.329
+[train-gpt2] step 10741 loss 0.8010
+  [train-gpt2] loss=0.7753 gnorm=5.850
+[train-gpt2] step 10742 loss 0.7753
+  [train-gpt2] loss=0.9233 gnorm=5.821
+[train-gpt2] step 10743 loss 0.9233
+  [train-gpt2] loss=0.9954 gnorm=5.211
+[train-gpt2] step 10744 loss 0.9954
+  [train-gpt2] loss=0.8202 gnorm=4.701
+[train-gpt2] step 10745 loss 0.8202
+  [train-gpt2] loss=0.9057 gnorm=5.062
+[train-gpt2] step 10746 loss 0.9057
+  [train-gpt2] loss=0.9001 gnorm=5.232
+[train-gpt2] step 10747 loss 0.9001
+  [train-gpt2] loss=0.8838 gnorm=3.989
+[train-gpt2] step 10748 loss 0.8838
+  [train-gpt2] loss=0.7874 gnorm=5.784
+[train-gpt2] step 10749 loss 0.7874
+  [train-gpt2] loss=0.8700 gnorm=4.126
+[train-gpt2] step 10750 loss 0.8700
+  [train-gpt2] loss=0.7625 gnorm=4.357
+[train-gpt2] step 10751 loss 0.7625
+  [train-gpt2] loss=0.8552 gnorm=4.259
+[train-gpt2] step 10752 loss 0.8552
+  [train-gpt2] loss=0.8748 gnorm=5.614
+[train-gpt2] step 10753 loss 0.8748
+  [train-gpt2] loss=0.8656 gnorm=4.722
+[train-gpt2] step 10754 loss 0.8656
+  [train-gpt2] loss=0.9658 gnorm=5.524
+[train-gpt2] step 10755 loss 0.9658
+  [train-gpt2] loss=0.8426 gnorm=5.274
+[train-gpt2] step 10756 loss 0.8426
+  [train-gpt2] loss=0.9050 gnorm=5.538
+[train-gpt2] step 10757 loss 0.9050
+  [train-gpt2] loss=0.7152 gnorm=4.564
+[train-gpt2] step 10758 loss 0.7152
+  [train-gpt2] loss=0.8866 gnorm=5.079
+[train-gpt2] step 10759 loss 0.8866
+  [train-gpt2] loss=0.9369 gnorm=5.091
+[train-gpt2] step 10760 loss 0.9369
+  [train-gpt2] loss=0.9437 gnorm=4.962
+[train-gpt2] step 10761 loss 0.9437
+  [train-gpt2] loss=0.8489 gnorm=4.718
+[train-gpt2] step 10762 loss 0.8489
+  [train-gpt2] loss=0.8882 gnorm=4.978
+[train-gpt2] step 10763 loss 0.8882
+  [train-gpt2] loss=0.9092 gnorm=6.975
+[train-gpt2] step 10764 loss 0.9092
+  [train-gpt2] loss=0.8796 gnorm=4.709
+[train-gpt2] step 10765 loss 0.8796
+  [train-gpt2] loss=0.9101 gnorm=4.695
+[train-gpt2] step 10766 loss 0.9101
+  [train-gpt2] loss=0.8457 gnorm=4.135
+[train-gpt2] step 10767 loss 0.8457
+  [train-gpt2] loss=0.8244 gnorm=5.080
+[train-gpt2] step 10768 loss 0.8244
+  [train-gpt2] loss=0.7658 gnorm=5.624
+[train-gpt2] step 10769 loss 0.7658
+  [train-gpt2] loss=0.8203 gnorm=5.935
+[train-gpt2] step 10770 loss 0.8203
+  [train-gpt2] loss=0.8701 gnorm=3.571
+[train-gpt2] step 10771 loss 0.8701
+  [train-gpt2] loss=0.9078 gnorm=5.001
+[train-gpt2] step 10772 loss 0.9078
+  [train-gpt2] loss=0.8449 gnorm=3.962
+[train-gpt2] step 10773 loss 0.8449
+  [train-gpt2] loss=0.8788 gnorm=5.029
+[train-gpt2] step 10774 loss 0.8788
+  [train-gpt2] loss=0.8422 gnorm=5.094
+[train-gpt2] step 10775 loss 0.8422
+  [train-gpt2] loss=0.7842 gnorm=5.023
+[train-gpt2] step 10776 loss 0.7842
+  [train-gpt2] loss=0.8494 gnorm=4.586
+[train-gpt2] step 10777 loss 0.8494
+  [train-gpt2] loss=0.7064 gnorm=4.207
+[train-gpt2] step 10778 loss 0.7064
+  [train-gpt2] loss=0.8713 gnorm=4.593
+[train-gpt2] step 10779 loss 0.8713
+  [train-gpt2] loss=0.9076 gnorm=5.198
+[train-gpt2] step 10780 loss 0.9076
+  [train-gpt2] loss=0.9333 gnorm=5.487
+[train-gpt2] step 10781 loss 0.9333
+  [train-gpt2] loss=0.8768 gnorm=5.772
+[train-gpt2] step 10782 loss 0.8768
+  [train-gpt2] loss=0.8634 gnorm=5.117
+[train-gpt2] step 10783 loss 0.8634
+  [train-gpt2] loss=0.8405 gnorm=4.860
+[train-gpt2] step 10784 loss 0.8405
+  [train-gpt2] loss=0.9617 gnorm=5.532
+[train-gpt2] step 10785 loss 0.9617
+  [train-gpt2] loss=0.8561 gnorm=6.399
+[train-gpt2] step 10786 loss 0.8561
+  [train-gpt2] loss=0.8574 gnorm=4.508
+[train-gpt2] step 10787 loss 0.8574
+  [train-gpt2] loss=0.8147 gnorm=5.415
+[train-gpt2] step 10788 loss 0.8147
+  [train-gpt2] loss=0.8767 gnorm=4.671
+[train-gpt2] step 10789 loss 0.8767
+  [train-gpt2] loss=0.8195 gnorm=5.179
+[train-gpt2] step 10790 loss 0.8195
+  [train-gpt2] loss=0.8617 gnorm=4.998
+[train-gpt2] step 10791 loss 0.8617
+  [train-gpt2] loss=0.8232 gnorm=4.322
+[train-gpt2] step 10792 loss 0.8232
+  [train-gpt2] loss=0.8502 gnorm=4.622
+[train-gpt2] step 10793 loss 0.8502
+  [train-gpt2] loss=0.9397 gnorm=4.512
+[train-gpt2] step 10794 loss 0.9397
+  [train-gpt2] loss=0.8493 gnorm=6.025
+[train-gpt2] step 10795 loss 0.8493
+  [train-gpt2] loss=0.8465 gnorm=4.843
+[train-gpt2] step 10796 loss 0.8465
+  [train-gpt2] loss=0.9290 gnorm=4.454
+[train-gpt2] step 10797 loss 0.9290
+  [train-gpt2] loss=0.7831 gnorm=5.218
+[train-gpt2] step 10798 loss 0.7831
+  [train-gpt2] loss=0.9038 gnorm=4.240
+[train-gpt2] step 10799 loss 0.9038
+  [train-gpt2] loss=0.8301 gnorm=5.554
+[train-gpt2] step 10800 loss 0.8301
+  [train-gpt2] loss=0.8075 gnorm=4.733
+[train-gpt2] step 10801 loss 0.8075
+  [train-gpt2] loss=0.7513 gnorm=5.735
+[train-gpt2] step 10802 loss 0.7513
+  [train-gpt2] loss=0.8670 gnorm=7.776
+[train-gpt2] step 10803 loss 0.8670
+  [train-gpt2] loss=0.9548 gnorm=4.151
+[train-gpt2] step 10804 loss 0.9548
+  [train-gpt2] loss=0.8790 gnorm=4.869
+[train-gpt2] step 10805 loss 0.8790
+  [train-gpt2] loss=0.8691 gnorm=3.848
+[train-gpt2] step 10806 loss 0.8691
+  [train-gpt2] loss=0.9316 gnorm=4.325
+[train-gpt2] step 10807 loss 0.9316
+  [train-gpt2] loss=0.7917 gnorm=5.984
+[train-gpt2] step 10808 loss 0.7917
+  [train-gpt2] loss=0.9193 gnorm=5.258
+[train-gpt2] step 10809 loss 0.9193
+  [train-gpt2] loss=0.8156 gnorm=4.854
+[train-gpt2] step 10810 loss 0.8156
+  [train-gpt2] loss=0.8072 gnorm=4.580
+[train-gpt2] step 10811 loss 0.8072
+  [train-gpt2] loss=0.8396 gnorm=4.275
+[train-gpt2] step 10812 loss 0.8396
+  [train-gpt2] loss=0.8721 gnorm=4.713
+[train-gpt2] step 10813 loss 0.8721
+  [train-gpt2] loss=0.9133 gnorm=4.760
+[train-gpt2] step 10814 loss 0.9133
+  [train-gpt2] loss=0.8499 gnorm=4.264
+[train-gpt2] step 10815 loss 0.8499
+  [train-gpt2] loss=0.8566 gnorm=3.947
+[train-gpt2] step 10816 loss 0.8566
+  [train-gpt2] loss=0.7974 gnorm=4.371
+[train-gpt2] step 10817 loss 0.7974
+  [train-gpt2] loss=0.8970 gnorm=4.168
+[train-gpt2] step 10818 loss 0.8970
+  [train-gpt2] loss=0.8692 gnorm=4.542
+[train-gpt2] step 10819 loss 0.8692
+  [train-gpt2] loss=0.9317 gnorm=5.342
+[train-gpt2] step 10820 loss 0.9317
+  [train-gpt2] loss=0.8714 gnorm=5.465
+[train-gpt2] step 10821 loss 0.8714
+  [train-gpt2] loss=0.8482 gnorm=5.343
+[train-gpt2] step 10822 loss 0.8482
+  [train-gpt2] loss=0.7806 gnorm=5.260
+[train-gpt2] step 10823 loss 0.7806
+  [train-gpt2] loss=0.8567 gnorm=4.581
+[train-gpt2] step 10824 loss 0.8567
+  [train-gpt2] loss=0.7980 gnorm=4.567
+[train-gpt2] step 10825 loss 0.7980
+  [train-gpt2] loss=0.9085 gnorm=3.723
+[train-gpt2] step 10826 loss 0.9085
+  [train-gpt2] loss=0.8414 gnorm=5.895
+[train-gpt2] step 10827 loss 0.8414
+  [train-gpt2] loss=0.8593 gnorm=5.777
+[train-gpt2] step 10828 loss 0.8593
+  [train-gpt2] loss=0.8594 gnorm=5.223
+[train-gpt2] step 10829 loss 0.8594
+  [train-gpt2] loss=0.9458 gnorm=6.516
+[train-gpt2] step 10830 loss 0.9458
+  [train-gpt2] loss=0.8478 gnorm=4.373
+[train-gpt2] step 10831 loss 0.8478
+  [train-gpt2] loss=0.8140 gnorm=5.395
+[train-gpt2] step 10832 loss 0.8140
+  [train-gpt2] loss=0.9722 gnorm=4.748
+[train-gpt2] step 10833 loss 0.9722
+  [train-gpt2] loss=0.9000 gnorm=5.116
+[train-gpt2] step 10834 loss 0.9000
+  [train-gpt2] loss=0.7240 gnorm=5.383
+[train-gpt2] step 10835 loss 0.7240
+  [train-gpt2] loss=0.8011 gnorm=4.423
+[train-gpt2] step 10836 loss 0.8011
+  [train-gpt2] loss=0.8426 gnorm=5.683
+[train-gpt2] step 10837 loss 0.8426
+  [train-gpt2] loss=0.8982 gnorm=4.850
+[train-gpt2] step 10838 loss 0.8982
+  [train-gpt2] loss=0.8726 gnorm=4.432
+[train-gpt2] step 10839 loss 0.8726
+  [train-gpt2] loss=0.9523 gnorm=5.274
+[train-gpt2] step 10840 loss 0.9523
+  [train-gpt2] loss=0.9397 gnorm=4.831
+[train-gpt2] step 10841 loss 0.9397
+  [train-gpt2] loss=0.8709 gnorm=4.831
+[train-gpt2] step 10842 loss 0.8709
+  [train-gpt2] loss=0.8984 gnorm=5.109
+[train-gpt2] step 10843 loss 0.8984
+  [train-gpt2] loss=0.9218 gnorm=5.121
+[train-gpt2] step 10844 loss 0.9218
+  [train-gpt2] loss=0.8575 gnorm=3.985
+[train-gpt2] step 10845 loss 0.8575
+  [train-gpt2] loss=0.8727 gnorm=4.680
+[train-gpt2] step 10846 loss 0.8727
+  [train-gpt2] loss=0.8506 gnorm=5.962
+[train-gpt2] step 10847 loss 0.8506
+  [train-gpt2] loss=0.9211 gnorm=6.298
+[train-gpt2] step 10848 loss 0.9211
+  [train-gpt2] loss=0.8763 gnorm=5.128
+[train-gpt2] step 10849 loss 0.8763
+  [train-gpt2] loss=0.8462 gnorm=5.330
+[train-gpt2] step 10850 loss 0.8462
+  [train-gpt2] loss=0.8823 gnorm=4.391
+[train-gpt2] step 10851 loss 0.8823
+  [train-gpt2] loss=0.8279 gnorm=4.936
+[train-gpt2] step 10852 loss 0.8279
+  [train-gpt2] loss=0.8507 gnorm=4.927
+[train-gpt2] step 10853 loss 0.8507
+  [train-gpt2] loss=0.8993 gnorm=5.755
+[train-gpt2] step 10854 loss 0.8993
+  [train-gpt2] loss=0.8364 gnorm=4.526
+[train-gpt2] step 10855 loss 0.8364
+  [train-gpt2] loss=0.8528 gnorm=5.750
+[train-gpt2] step 10856 loss 0.8528
+  [train-gpt2] loss=0.8544 gnorm=4.677
+[train-gpt2] step 10857 loss 0.8544
+  [train-gpt2] loss=0.8282 gnorm=4.217
+[train-gpt2] step 10858 loss 0.8282
+  [train-gpt2] loss=0.8707 gnorm=5.915
+[train-gpt2] step 10859 loss 0.8707
+  [train-gpt2] loss=0.7871 gnorm=4.926
+[train-gpt2] step 10860 loss 0.7871
+  [train-gpt2] loss=0.7869 gnorm=4.924
+[train-gpt2] step 10861 loss 0.7869
+  [train-gpt2] loss=0.8163 gnorm=4.945
+[train-gpt2] step 10862 loss 0.8163
+  [train-gpt2] loss=0.8050 gnorm=4.989
+[train-gpt2] step 10863 loss 0.8050
+  [train-gpt2] loss=0.8510 gnorm=5.725
+[train-gpt2] step 10864 loss 0.8510
+  [train-gpt2] loss=0.9164 gnorm=6.076
+[train-gpt2] step 10865 loss 0.9164
+  [train-gpt2] loss=0.9063 gnorm=3.536
+[train-gpt2] step 10866 loss 0.9063
+  [train-gpt2] loss=0.8112 gnorm=6.158
+[train-gpt2] step 10867 loss 0.8112
+  [train-gpt2] loss=0.8295 gnorm=5.446
+[train-gpt2] step 10868 loss 0.8295
+  [train-gpt2] loss=0.9240 gnorm=4.858
+[train-gpt2] step 10869 loss 0.9240
+  [train-gpt2] loss=0.9229 gnorm=5.506
+[train-gpt2] step 10870 loss 0.9229
+  [train-gpt2] loss=0.8866 gnorm=4.528
+[train-gpt2] step 10871 loss 0.8866
+  [train-gpt2] loss=0.8569 gnorm=5.745
+[train-gpt2] step 10872 loss 0.8569
+  [train-gpt2] loss=0.8733 gnorm=5.453
+[train-gpt2] step 10873 loss 0.8733
+  [train-gpt2] loss=0.9300 gnorm=3.723
+[train-gpt2] step 10874 loss 0.9300
+  [train-gpt2] loss=0.8783 gnorm=5.726
+[train-gpt2] step 10875 loss 0.8783
+  [train-gpt2] loss=0.9916 gnorm=4.373
+[train-gpt2] step 10876 loss 0.9916
+  [train-gpt2] loss=0.8924 gnorm=4.024
+[train-gpt2] step 10877 loss 0.8924
+  [train-gpt2] loss=0.7880 gnorm=4.847
+[train-gpt2] step 10878 loss 0.7880
+  [train-gpt2] loss=0.8745 gnorm=5.693
+[train-gpt2] step 10879 loss 0.8745
+  [train-gpt2] loss=0.8037 gnorm=4.931
+[train-gpt2] step 10880 loss 0.8037
+  [train-gpt2] loss=0.9799 gnorm=4.049
+[train-gpt2] step 10881 loss 0.9799
+  [train-gpt2] loss=0.9413 gnorm=6.450
+[train-gpt2] step 10882 loss 0.9413
+  [train-gpt2] loss=0.8482 gnorm=5.221
+[train-gpt2] step 10883 loss 0.8482
+  [train-gpt2] loss=0.9058 gnorm=3.694
+[train-gpt2] step 10884 loss 0.9058
+  [train-gpt2] loss=0.7999 gnorm=5.061
+[train-gpt2] step 10885 loss 0.7999
+  [train-gpt2] loss=0.8161 gnorm=5.062
+[train-gpt2] step 10886 loss 0.8161
+  [train-gpt2] loss=0.8726 gnorm=5.170
+[train-gpt2] step 10887 loss 0.8726
+  [train-gpt2] loss=0.7558 gnorm=4.949
+[train-gpt2] step 10888 loss 0.7558
+  [train-gpt2] loss=0.8376 gnorm=5.073
+[train-gpt2] step 10889 loss 0.8376
+  [train-gpt2] loss=0.9661 gnorm=3.914
+[train-gpt2] step 10890 loss 0.9661
+  [train-gpt2] loss=0.8938 gnorm=4.538
+[train-gpt2] step 10891 loss 0.8938
+  [train-gpt2] loss=0.8096 gnorm=5.235
+[train-gpt2] step 10892 loss 0.8096
+  [train-gpt2] loss=0.8871 gnorm=3.464
+[train-gpt2] step 10893 loss 0.8871
+  [train-gpt2] loss=0.8789 gnorm=4.667
+[train-gpt2] step 10894 loss 0.8789
+  [train-gpt2] loss=0.8939 gnorm=5.611
+[train-gpt2] step 10895 loss 0.8939
+  [train-gpt2] loss=0.8535 gnorm=5.128
+[train-gpt2] step 10896 loss 0.8535
+  [train-gpt2] loss=0.8689 gnorm=5.005
+[train-gpt2] step 10897 loss 0.8689
+  [train-gpt2] loss=0.8622 gnorm=4.959
+[train-gpt2] step 10898 loss 0.8622
+  [train-gpt2] loss=0.8851 gnorm=5.481
+[train-gpt2] step 10899 loss 0.8851
+  [train-gpt2] loss=0.8623 gnorm=5.433
+[train-gpt2] step 10900 loss 0.8623
+  [train-gpt2] loss=0.9058 gnorm=5.271
+[train-gpt2] step 10901 loss 0.9058
+  [train-gpt2] loss=0.8177 gnorm=5.522
+[train-gpt2] step 10902 loss 0.8177
+  [train-gpt2] loss=0.8432 gnorm=3.936
+[train-gpt2] step 10903 loss 0.8432
+  [train-gpt2] loss=0.8149 gnorm=5.326
+[train-gpt2] step 10904 loss 0.8149
+  [train-gpt2] loss=0.9842 gnorm=5.390
+[train-gpt2] step 10905 loss 0.9842
+  [train-gpt2] loss=0.8019 gnorm=5.386
+[train-gpt2] step 10906 loss 0.8019
+  [train-gpt2] loss=0.9301 gnorm=5.212
+[train-gpt2] step 10907 loss 0.9301
+  [train-gpt2] loss=0.8630 gnorm=5.591
+[train-gpt2] step 10908 loss 0.8630
+  [train-gpt2] loss=0.8314 gnorm=4.619
+[train-gpt2] step 10909 loss 0.8314
+  [train-gpt2] loss=0.8404 gnorm=5.823
+[train-gpt2] step 10910 loss 0.8404
+  [train-gpt2] loss=0.8959 gnorm=4.318
+[train-gpt2] step 10911 loss 0.8959
+  [train-gpt2] loss=0.9007 gnorm=4.664
+[train-gpt2] step 10912 loss 0.9007
+  [train-gpt2] loss=0.8488 gnorm=4.226
+[train-gpt2] step 10913 loss 0.8488
+  [train-gpt2] loss=0.8529 gnorm=4.959
+[train-gpt2] step 10914 loss 0.8529
+  [train-gpt2] loss=0.7632 gnorm=5.783
+[train-gpt2] step 10915 loss 0.7632
+  [train-gpt2] loss=0.8135 gnorm=4.624
+[train-gpt2] step 10916 loss 0.8135
+  [train-gpt2] loss=0.7556 gnorm=6.246
+[train-gpt2] step 10917 loss 0.7556
+  [train-gpt2] loss=0.8400 gnorm=4.772
+[train-gpt2] step 10918 loss 0.8400
+  [train-gpt2] loss=0.9520 gnorm=5.191
+[train-gpt2] step 10919 loss 0.9520
+  [train-gpt2] loss=0.8292 gnorm=5.746
+[train-gpt2] step 10920 loss 0.8292
+  [train-gpt2] loss=0.8277 gnorm=4.906
+[train-gpt2] step 10921 loss 0.8277
+  [train-gpt2] loss=0.8886 gnorm=5.548
+[train-gpt2] step 10922 loss 0.8886
+  [train-gpt2] loss=0.8163 gnorm=4.687
+[train-gpt2] step 10923 loss 0.8163
+  [train-gpt2] loss=0.7851 gnorm=5.623
+[train-gpt2] step 10924 loss 0.7851
+  [train-gpt2] loss=0.8322 gnorm=4.748
+[train-gpt2] step 10925 loss 0.8322
+  [train-gpt2] loss=0.8997 gnorm=6.634
+[train-gpt2] step 10926 loss 0.8997
+  [train-gpt2] loss=0.8305 gnorm=4.333
+[train-gpt2] step 10927 loss 0.8305
+  [train-gpt2] loss=0.8764 gnorm=4.762
+[train-gpt2] step 10928 loss 0.8764
+  [train-gpt2] loss=0.8850 gnorm=5.191
+[train-gpt2] step 10929 loss 0.8850
+  [train-gpt2] loss=0.8649 gnorm=5.528
+[train-gpt2] step 10930 loss 0.8649
+  [train-gpt2] loss=0.8634 gnorm=4.217
+[train-gpt2] step 10931 loss 0.8634
+  [train-gpt2] loss=0.8071 gnorm=4.455
+[train-gpt2] step 10932 loss 0.8071
+  [train-gpt2] loss=0.8124 gnorm=6.761
+[train-gpt2] step 10933 loss 0.8124
+  [train-gpt2] loss=0.8447 gnorm=5.399
+[train-gpt2] step 10934 loss 0.8447
+  [train-gpt2] loss=0.8549 gnorm=4.658
+[train-gpt2] step 10935 loss 0.8549
+  [train-gpt2] loss=0.8569 gnorm=3.229
+[train-gpt2] step 10936 loss 0.8569
+  [train-gpt2] loss=0.8232 gnorm=4.915
+[train-gpt2] step 10937 loss 0.8232
+  [train-gpt2] loss=0.8813 gnorm=5.078
+[train-gpt2] step 10938 loss 0.8813
+  [train-gpt2] loss=0.9075 gnorm=5.308
+[train-gpt2] step 10939 loss 0.9075
+  [train-gpt2] loss=0.8258 gnorm=4.484
+[train-gpt2] step 10940 loss 0.8258
+  [train-gpt2] loss=0.8539 gnorm=5.370
+[train-gpt2] step 10941 loss 0.8539
+  [train-gpt2] loss=0.8499 gnorm=5.291
+[train-gpt2] step 10942 loss 0.8499
+  [train-gpt2] loss=0.8288 gnorm=5.618
+[train-gpt2] step 10943 loss 0.8288
+  [train-gpt2] loss=0.8537 gnorm=4.647
+[train-gpt2] step 10944 loss 0.8537
+  [train-gpt2] loss=0.8950 gnorm=4.762
+[train-gpt2] step 10945 loss 0.8950
+  [train-gpt2] loss=0.7872 gnorm=4.283
+[train-gpt2] step 10946 loss 0.7872
+  [train-gpt2] loss=0.8512 gnorm=4.638
+[train-gpt2] step 10947 loss 0.8512
+  [train-gpt2] loss=0.8292 gnorm=6.019
+[train-gpt2] step 10948 loss 0.8292
+  [train-gpt2] loss=0.8474 gnorm=5.184
+[train-gpt2] step 10949 loss 0.8474
+  [train-gpt2] loss=0.8359 gnorm=5.101
+[train-gpt2] step 10950 loss 0.8359
+  [train-gpt2] loss=0.9003 gnorm=6.693
+[train-gpt2] step 10951 loss 0.9003
+  [train-gpt2] loss=0.8725 gnorm=7.169
+[train-gpt2] step 10952 loss 0.8725
+  [train-gpt2] loss=0.8720 gnorm=4.758
+[train-gpt2] step 10953 loss 0.8720
+  [train-gpt2] loss=0.8574 gnorm=5.287
+[train-gpt2] step 10954 loss 0.8574
+  [train-gpt2] loss=0.8897 gnorm=4.709
+[train-gpt2] step 10955 loss 0.8897
+  [train-gpt2] loss=0.8158 gnorm=4.724
+[train-gpt2] step 10956 loss 0.8158
+  [train-gpt2] loss=0.9132 gnorm=5.066
+[train-gpt2] step 10957 loss 0.9132
+  [train-gpt2] loss=0.8761 gnorm=5.364
+[train-gpt2] step 10958 loss 0.8761
+  [train-gpt2] loss=0.9852 gnorm=5.558
+[train-gpt2] step 10959 loss 0.9852
+  [train-gpt2] loss=0.9393 gnorm=5.125
+[train-gpt2] step 10960 loss 0.9393
+  [train-gpt2] loss=0.7849 gnorm=6.126
+[train-gpt2] step 10961 loss 0.7849
+  [train-gpt2] loss=0.8383 gnorm=5.691
+[train-gpt2] step 10962 loss 0.8383
+  [train-gpt2] loss=0.8250 gnorm=5.025
+[train-gpt2] step 10963 loss 0.8250
+  [train-gpt2] loss=0.7306 gnorm=4.722
+[train-gpt2] step 10964 loss 0.7306
+  [train-gpt2] loss=0.8111 gnorm=3.952
+[train-gpt2] step 10965 loss 0.8111
+  [train-gpt2] loss=0.8754 gnorm=4.295
+[train-gpt2] step 10966 loss 0.8754
+  [train-gpt2] loss=0.8553 gnorm=4.798
+[train-gpt2] step 10967 loss 0.8553
+  [train-gpt2] loss=0.7833 gnorm=6.637
+[train-gpt2] step 10968 loss 0.7833
+  [train-gpt2] loss=0.8110 gnorm=4.818
+[train-gpt2] step 10969 loss 0.8110
+  [train-gpt2] loss=0.8832 gnorm=5.734
+[train-gpt2] step 10970 loss 0.8832
+  [train-gpt2] loss=0.8523 gnorm=5.394
+[train-gpt2] step 10971 loss 0.8523
+  [train-gpt2] loss=0.8243 gnorm=4.467
+[train-gpt2] step 10972 loss 0.8243
+  [train-gpt2] loss=0.8872 gnorm=3.810
+[train-gpt2] step 10973 loss 0.8872
+  [train-gpt2] loss=0.8120 gnorm=4.836
+[train-gpt2] step 10974 loss 0.8120
+  [train-gpt2] loss=0.8850 gnorm=5.252
+[train-gpt2] step 10975 loss 0.8850
+  [train-gpt2] loss=0.8397 gnorm=6.053
+[train-gpt2] step 10976 loss 0.8397
+  [train-gpt2] loss=0.8258 gnorm=4.759
+[train-gpt2] step 10977 loss 0.8258
+  [train-gpt2] loss=0.9159 gnorm=5.574
+[train-gpt2] step 10978 loss 0.9159
+  [train-gpt2] loss=0.9165 gnorm=6.207
+[train-gpt2] step 10979 loss 0.9165
+  [train-gpt2] loss=0.9237 gnorm=4.796
+[train-gpt2] step 10980 loss 0.9237
+  [train-gpt2] loss=0.8297 gnorm=5.118
+[train-gpt2] step 10981 loss 0.8297
+  [train-gpt2] loss=0.8461 gnorm=5.322
+[train-gpt2] step 10982 loss 0.8461
+  [train-gpt2] loss=0.9115 gnorm=4.776
+[train-gpt2] step 10983 loss 0.9115
+  [train-gpt2] loss=0.8731 gnorm=4.892
+[train-gpt2] step 10984 loss 0.8731
+  [train-gpt2] loss=0.8948 gnorm=4.477
+[train-gpt2] step 10985 loss 0.8948
+  [train-gpt2] loss=0.9361 gnorm=4.822
+[train-gpt2] step 10986 loss 0.9361
+  [train-gpt2] loss=0.9005 gnorm=4.509
+[train-gpt2] step 10987 loss 0.9005
+  [train-gpt2] loss=0.9306 gnorm=5.373
+[train-gpt2] step 10988 loss 0.9306
+  [train-gpt2] loss=0.8899 gnorm=5.305
+[train-gpt2] step 10989 loss 0.8899
+  [train-gpt2] loss=0.8558 gnorm=5.865
+[train-gpt2] step 10990 loss 0.8558
+  [train-gpt2] loss=0.9017 gnorm=4.756
+[train-gpt2] step 10991 loss 0.9017
+  [train-gpt2] loss=0.8909 gnorm=5.174
+[train-gpt2] step 10992 loss 0.8909
+  [train-gpt2] loss=0.7577 gnorm=4.103
+[train-gpt2] step 10993 loss 0.7577
+  [train-gpt2] loss=0.8328 gnorm=4.397
+[train-gpt2] step 10994 loss 0.8328
+  [train-gpt2] loss=0.8468 gnorm=5.406
+[train-gpt2] step 10995 loss 0.8468
+  [train-gpt2] loss=0.8559 gnorm=5.211
+[train-gpt2] step 10996 loss 0.8559
+  [train-gpt2] loss=0.8834 gnorm=4.736
+[train-gpt2] step 10997 loss 0.8834
+  [train-gpt2] loss=0.7830 gnorm=4.405
+[train-gpt2] step 10998 loss 0.7830
+  [train-gpt2] loss=0.8213 gnorm=4.553
+[train-gpt2] checkpoint saved in 3.32s
+[train-gpt2] step 10999 loss 0.8213 (saved ckpt-gpt2-step11000.nckpt)
+  [train-gpt2] loss=0.9132 gnorm=5.032
+[train-gpt2] step 11000 loss 0.9132
+  [train-gpt2] loss=0.8261 gnorm=6.561
+[train-gpt2] step 11001 loss 0.8261
+  [train-gpt2] loss=0.9886 gnorm=4.776
+[train-gpt2] step 11002 loss 0.9886
+  [train-gpt2] loss=0.9172 gnorm=4.651
+[train-gpt2] step 11003 loss 0.9172
+  [train-gpt2] loss=0.8483 gnorm=4.776
+[train-gpt2] step 11004 loss 0.8483
+  [train-gpt2] loss=0.8996 gnorm=6.912
+[train-gpt2] step 11005 loss 0.8996
+  [train-gpt2] loss=0.8526 gnorm=5.652
+[train-gpt2] step 11006 loss 0.8526
+  [train-gpt2] loss=0.9115 gnorm=5.220
+[train-gpt2] step 11007 loss 0.9115
+  [train-gpt2] loss=0.9474 gnorm=4.650
+[train-gpt2] step 11008 loss 0.9474
+  [train-gpt2] loss=0.8893 gnorm=5.332
+[train-gpt2] step 11009 loss 0.8893
+  [train-gpt2] loss=0.8439 gnorm=4.648
+[train-gpt2] step 11010 loss 0.8439
+  [train-gpt2] loss=0.7284 gnorm=4.706
+[train-gpt2] step 11011 loss 0.7284
+  [train-gpt2] loss=0.7656 gnorm=5.267
+[train-gpt2] step 11012 loss 0.7656
+  [train-gpt2] loss=0.8727 gnorm=5.197
+[train-gpt2] step 11013 loss 0.8727
+  [train-gpt2] loss=0.9619 gnorm=5.137
+[train-gpt2] step 11014 loss 0.9619
+  [train-gpt2] loss=0.9285 gnorm=4.635
+[train-gpt2] step 11015 loss 0.9285
+  [train-gpt2] loss=0.8325 gnorm=5.589
+[train-gpt2] step 11016 loss 0.8325
+  [train-gpt2] loss=0.8606 gnorm=5.492
+[train-gpt2] step 11017 loss 0.8606
+  [train-gpt2] loss=0.9225 gnorm=4.557
+[train-gpt2] step 11018 loss 0.9225
+  [train-gpt2] loss=0.8279 gnorm=4.953
+[train-gpt2] step 11019 loss 0.8279
+  [train-gpt2] loss=0.8882 gnorm=3.686
+[train-gpt2] step 11020 loss 0.8882
+  [train-gpt2] loss=0.9348 gnorm=5.334
+[train-gpt2] step 11021 loss 0.9348
+  [train-gpt2] loss=0.9865 gnorm=5.040
+[train-gpt2] step 11022 loss 0.9865
+  [train-gpt2] loss=0.7805 gnorm=4.436
+[train-gpt2] step 11023 loss 0.7805
+  [train-gpt2] loss=0.8402 gnorm=5.109
+[train-gpt2] step 11024 loss 0.8402
+  [train-gpt2] loss=0.8108 gnorm=5.481
+[train-gpt2] step 11025 loss 0.8108
+  [train-gpt2] loss=0.8493 gnorm=4.803
+[train-gpt2] step 11026 loss 0.8493
+  [train-gpt2] loss=0.8396 gnorm=4.567
+[train-gpt2] step 11027 loss 0.8396
+  [train-gpt2] loss=0.8247 gnorm=5.482
+[train-gpt2] step 11028 loss 0.8247
+  [train-gpt2] loss=0.9508 gnorm=5.583
+[train-gpt2] step 11029 loss 0.9508
+  [train-gpt2] loss=0.8870 gnorm=4.839
+[train-gpt2] step 11030 loss 0.8870
+  [train-gpt2] loss=0.7863 gnorm=5.192
+[train-gpt2] step 11031 loss 0.7863
+  [train-gpt2] loss=0.8330 gnorm=4.516
+[train-gpt2] step 11032 loss 0.8330
+  [train-gpt2] loss=0.9337 gnorm=5.014
+[train-gpt2] step 11033 loss 0.9337
+  [train-gpt2] loss=0.9405 gnorm=5.242
+[train-gpt2] step 11034 loss 0.9405
+  [train-gpt2] loss=0.8716 gnorm=4.544
+[train-gpt2] step 11035 loss 0.8716
+  [train-gpt2] loss=0.9011 gnorm=4.905
+[train-gpt2] step 11036 loss 0.9011
+  [train-gpt2] loss=0.8849 gnorm=6.066
+[train-gpt2] step 11037 loss 0.8849
+  [train-gpt2] loss=0.8524 gnorm=4.959
+[train-gpt2] step 11038 loss 0.8524
+  [train-gpt2] loss=0.7948 gnorm=4.914
+[train-gpt2] step 11039 loss 0.7948
+  [train-gpt2] loss=0.7769 gnorm=5.770
+[train-gpt2] step 11040 loss 0.7769
+  [train-gpt2] loss=0.8571 gnorm=6.052
+[train-gpt2] step 11041 loss 0.8571
+  [train-gpt2] loss=0.7841 gnorm=5.093
+[train-gpt2] step 11042 loss 0.7841
+  [train-gpt2] loss=0.8957 gnorm=4.889
+[train-gpt2] step 11043 loss 0.8957
+  [train-gpt2] loss=0.9025 gnorm=4.905
+[train-gpt2] step 11044 loss 0.9025
+  [train-gpt2] loss=0.8164 gnorm=4.995
+[train-gpt2] step 11045 loss 0.8164
+  [train-gpt2] loss=0.8966 gnorm=5.674
+[train-gpt2] step 11046 loss 0.8966
+  [train-gpt2] loss=0.8905 gnorm=4.344
+[train-gpt2] step 11047 loss 0.8905
+  [train-gpt2] loss=0.9149 gnorm=5.233
+[train-gpt2] step 11048 loss 0.9149
+  [train-gpt2] loss=0.9150 gnorm=5.776
+[train-gpt2] step 11049 loss 0.9150
+  [train-gpt2] loss=0.9355 gnorm=5.564
+[train-gpt2] step 11050 loss 0.9355
+  [train-gpt2] loss=0.8282 gnorm=5.139
+[train-gpt2] step 11051 loss 0.8282
+  [train-gpt2] loss=0.8609 gnorm=4.415
+[train-gpt2] step 11052 loss 0.8609
+  [train-gpt2] loss=0.7941 gnorm=4.147
+[train-gpt2] step 11053 loss 0.7941
+  [train-gpt2] loss=0.9023 gnorm=4.091
+[train-gpt2] step 11054 loss 0.9023
+  [train-gpt2] loss=0.9266 gnorm=4.375
+[train-gpt2] step 11055 loss 0.9266
+  [train-gpt2] loss=0.8460 gnorm=4.328
+[train-gpt2] step 11056 loss 0.8460
+  [train-gpt2] loss=0.7816 gnorm=4.987
+[train-gpt2] step 11057 loss 0.7816
+  [train-gpt2] loss=0.8497 gnorm=4.787
+[train-gpt2] step 11058 loss 0.8497
+  [train-gpt2] loss=0.8743 gnorm=5.548
+[train-gpt2] step 11059 loss 0.8743
+  [train-gpt2] loss=0.8135 gnorm=5.517
+[train-gpt2] step 11060 loss 0.8135
+  [train-gpt2] loss=1.0191 gnorm=5.110
+[train-gpt2] step 11061 loss 1.0191
+  [train-gpt2] loss=0.9327 gnorm=4.768
+[train-gpt2] step 11062 loss 0.9327
+  [train-gpt2] loss=0.8154 gnorm=5.578
+[train-gpt2] step 11063 loss 0.8154
+  [train-gpt2] loss=0.8434 gnorm=5.382
+[train-gpt2] step 11064 loss 0.8434
+  [train-gpt2] loss=0.8891 gnorm=6.133
+[train-gpt2] step 11065 loss 0.8891
+  [train-gpt2] loss=0.8711 gnorm=3.811
+[train-gpt2] step 11066 loss 0.8711
+  [train-gpt2] loss=0.8370 gnorm=5.035
+[train-gpt2] step 11067 loss 0.8370
+  [train-gpt2] loss=0.8010 gnorm=4.584
+[train-gpt2] step 11068 loss 0.8010
+  [train-gpt2] loss=0.8133 gnorm=5.643
+[train-gpt2] step 11069 loss 0.8133
+  [train-gpt2] loss=0.8380 gnorm=4.418
+[train-gpt2] step 11070 loss 0.8380
+  [train-gpt2] loss=0.8631 gnorm=5.084
+[train-gpt2] step 11071 loss 0.8631
+  [train-gpt2] loss=0.8390 gnorm=5.212
+[train-gpt2] step 11072 loss 0.8390
+  [train-gpt2] loss=0.8779 gnorm=5.299
+[train-gpt2] step 11073 loss 0.8779
+  [train-gpt2] loss=0.7986 gnorm=4.570
+[train-gpt2] step 11074 loss 0.7986
+  [train-gpt2] loss=0.7747 gnorm=5.624
+[train-gpt2] step 11075 loss 0.7747
+  [train-gpt2] loss=0.9185 gnorm=6.023
+[train-gpt2] step 11076 loss 0.9185
+  [train-gpt2] loss=0.8936 gnorm=4.566
+[train-gpt2] step 11077 loss 0.8936
+  [train-gpt2] loss=0.8164 gnorm=4.966
+[train-gpt2] step 11078 loss 0.8164
+  [train-gpt2] loss=0.8530 gnorm=4.874
+[train-gpt2] step 11079 loss 0.8530
+  [train-gpt2] loss=0.9245 gnorm=4.993
+[train-gpt2] step 11080 loss 0.9245
+  [train-gpt2] loss=0.8144 gnorm=4.978
+[train-gpt2] step 11081 loss 0.8144
+  [train-gpt2] loss=0.9426 gnorm=4.750
+[train-gpt2] step 11082 loss 0.9426
+  [train-gpt2] loss=0.8566 gnorm=5.447
+[train-gpt2] step 11083 loss 0.8566
+  [train-gpt2] loss=0.8387 gnorm=5.114
+[train-gpt2] step 11084 loss 0.8387
+  [train-gpt2] loss=0.9625 gnorm=4.868
+[train-gpt2] step 11085 loss 0.9625
+  [train-gpt2] loss=0.8129 gnorm=4.331
+[train-gpt2] step 11086 loss 0.8129
+  [train-gpt2] loss=0.9546 gnorm=4.611
+[train-gpt2] step 11087 loss 0.9546
+  [train-gpt2] loss=0.8270 gnorm=5.760
+[train-gpt2] step 11088 loss 0.8270
+  [train-gpt2] loss=0.8351 gnorm=5.100
+[train-gpt2] step 11089 loss 0.8351
+  [train-gpt2] loss=0.8460 gnorm=5.228
+[train-gpt2] step 11090 loss 0.8460
+  [train-gpt2] loss=0.8082 gnorm=4.900
+[train-gpt2] step 11091 loss 0.8082
+  [train-gpt2] loss=0.8385 gnorm=5.308
+[train-gpt2] step 11092 loss 0.8385
+  [train-gpt2] loss=0.7990 gnorm=5.472
+[train-gpt2] step 11093 loss 0.7990
+  [train-gpt2] loss=0.9284 gnorm=5.197
+[train-gpt2] step 11094 loss 0.9284
+  [train-gpt2] loss=0.8960 gnorm=4.189
+[train-gpt2] step 11095 loss 0.8960
+  [train-gpt2] loss=0.8316 gnorm=5.093
+[train-gpt2] step 11096 loss 0.8316
+  [train-gpt2] loss=0.8519 gnorm=4.221
+[train-gpt2] step 11097 loss 0.8519
+  [train-gpt2] loss=0.8582 gnorm=4.930
+[train-gpt2] step 11098 loss 0.8582
+  [train-gpt2] loss=0.9287 gnorm=7.932
+[train-gpt2] step 11099 loss 0.9287
+  [train-gpt2] loss=0.8988 gnorm=3.494
+[train-gpt2] step 11100 loss 0.8988
+  [train-gpt2] loss=0.9564 gnorm=4.746
+[train-gpt2] step 11101 loss 0.9564
+  [train-gpt2] loss=0.8895 gnorm=4.611
+[train-gpt2] step 11102 loss 0.8895
+  [train-gpt2] loss=0.8580 gnorm=5.871
+[train-gpt2] step 11103 loss 0.8580
+  [train-gpt2] loss=0.8249 gnorm=4.313
+[train-gpt2] step 11104 loss 0.8249
+  [train-gpt2] loss=0.8924 gnorm=5.231
+[train-gpt2] step 11105 loss 0.8924
+  [train-gpt2] loss=0.8137 gnorm=6.057
+[train-gpt2] step 11106 loss 0.8137
+  [train-gpt2] loss=0.8908 gnorm=4.528
+[train-gpt2] step 11107 loss 0.8908
+  [train-gpt2] loss=0.8011 gnorm=5.316
+[train-gpt2] step 11108 loss 0.8011
+  [train-gpt2] loss=0.9063 gnorm=4.624
+[train-gpt2] step 11109 loss 0.9063
+  [train-gpt2] loss=0.8775 gnorm=4.884
+[train-gpt2] step 11110 loss 0.8775
+  [train-gpt2] loss=0.9028 gnorm=6.086
+[train-gpt2] step 11111 loss 0.9028
+  [train-gpt2] loss=0.8988 gnorm=6.226
+[train-gpt2] step 11112 loss 0.8988
+  [train-gpt2] loss=0.9583 gnorm=5.656
+[train-gpt2] step 11113 loss 0.9583
+  [train-gpt2] loss=0.8119 gnorm=4.546
+[train-gpt2] step 11114 loss 0.8119
+  [train-gpt2] loss=0.8509 gnorm=4.974
+[train-gpt2] step 11115 loss 0.8509
+  [train-gpt2] loss=0.8617 gnorm=6.661
+[train-gpt2] step 11116 loss 0.8617
+  [train-gpt2] loss=0.8218 gnorm=5.022
+[train-gpt2] step 11117 loss 0.8218
+  [train-gpt2] loss=0.8649 gnorm=4.765
+[train-gpt2] step 11118 loss 0.8649
+  [train-gpt2] loss=0.8812 gnorm=5.719
+[train-gpt2] step 11119 loss 0.8812
+  [train-gpt2] loss=0.9185 gnorm=4.574
+[train-gpt2] step 11120 loss 0.9185
+  [train-gpt2] loss=0.8528 gnorm=4.302
+[train-gpt2] step 11121 loss 0.8528
+  [train-gpt2] loss=0.7989 gnorm=5.684
+[train-gpt2] step 11122 loss 0.7989
+  [train-gpt2] loss=0.9142 gnorm=6.182
+[train-gpt2] step 11123 loss 0.9142
+  [train-gpt2] loss=0.9709 gnorm=4.607
+[train-gpt2] step 11124 loss 0.9709
+  [train-gpt2] loss=0.7623 gnorm=4.694
+[train-gpt2] step 11125 loss 0.7623
+  [train-gpt2] loss=0.8613 gnorm=4.886
+[train-gpt2] step 11126 loss 0.8613
+  [train-gpt2] loss=0.8677 gnorm=5.992
+[train-gpt2] step 11127 loss 0.8677
+  [train-gpt2] loss=0.7765 gnorm=4.572
+[train-gpt2] step 11128 loss 0.7765
+  [train-gpt2] loss=0.9105 gnorm=4.627
+[train-gpt2] step 11129 loss 0.9105
+  [train-gpt2] loss=0.9128 gnorm=5.428
+[train-gpt2] step 11130 loss 0.9128
+  [train-gpt2] loss=0.8450 gnorm=4.732
+[train-gpt2] step 11131 loss 0.8450
+  [train-gpt2] loss=0.9030 gnorm=4.261
+[train-gpt2] step 11132 loss 0.9030
+  [train-gpt2] loss=0.8130 gnorm=4.567
+[train-gpt2] step 11133 loss 0.8130
+  [train-gpt2] loss=0.8558 gnorm=4.742
+[train-gpt2] step 11134 loss 0.8558
+  [train-gpt2] loss=0.9244 gnorm=5.264
+[train-gpt2] step 11135 loss 0.9244
+  [train-gpt2] loss=0.8782 gnorm=5.344
+[train-gpt2] step 11136 loss 0.8782
+  [train-gpt2] loss=0.8725 gnorm=4.130
+[train-gpt2] step 11137 loss 0.8725
+  [train-gpt2] loss=0.8503 gnorm=4.748
+[train-gpt2] step 11138 loss 0.8503
+  [train-gpt2] loss=0.9040 gnorm=5.232
+[train-gpt2] step 11139 loss 0.9040
+  [train-gpt2] loss=0.9415 gnorm=5.008
+[train-gpt2] step 11140 loss 0.9415
+  [train-gpt2] loss=0.8825 gnorm=4.687
+[train-gpt2] step 11141 loss 0.8825
+  [train-gpt2] loss=0.9162 gnorm=4.679
+[train-gpt2] step 11142 loss 0.9162
+  [train-gpt2] loss=0.7951 gnorm=4.218
+[train-gpt2] step 11143 loss 0.7951
+  [train-gpt2] loss=0.9100 gnorm=4.512
+[train-gpt2] step 11144 loss 0.9100
+  [train-gpt2] loss=0.9019 gnorm=5.031
+[train-gpt2] step 11145 loss 0.9019
+  [train-gpt2] loss=0.8406 gnorm=4.772
+[train-gpt2] step 11146 loss 0.8406
+  [train-gpt2] loss=0.7312 gnorm=5.606
+[train-gpt2] step 11147 loss 0.7312
+  [train-gpt2] loss=0.8900 gnorm=5.577
+[train-gpt2] step 11148 loss 0.8900
+  [train-gpt2] loss=0.7995 gnorm=4.392
+[train-gpt2] step 11149 loss 0.7995
+  [train-gpt2] loss=0.8401 gnorm=5.856
+[train-gpt2] step 11150 loss 0.8401
+  [train-gpt2] loss=0.9085 gnorm=6.428
+[train-gpt2] step 11151 loss 0.9085
+  [train-gpt2] loss=0.8421 gnorm=4.249
+[train-gpt2] step 11152 loss 0.8421
+  [train-gpt2] loss=0.7914 gnorm=4.633
+[train-gpt2] step 11153 loss 0.7914
+  [train-gpt2] loss=0.8278 gnorm=5.257
+[train-gpt2] step 11154 loss 0.8278
+  [train-gpt2] loss=0.8336 gnorm=5.264
+[train-gpt2] step 11155 loss 0.8336
+  [train-gpt2] loss=0.7869 gnorm=3.926
+[train-gpt2] step 11156 loss 0.7869
+  [train-gpt2] loss=0.8073 gnorm=4.044
+[train-gpt2] step 11157 loss 0.8073
+  [train-gpt2] loss=0.8993 gnorm=4.490
+[train-gpt2] step 11158 loss 0.8993
+  [train-gpt2] loss=0.8221 gnorm=4.880
+[train-gpt2] step 11159 loss 0.8221
+  [train-gpt2] loss=0.8453 gnorm=4.679
+[train-gpt2] step 11160 loss 0.8453
+  [train-gpt2] loss=0.7735 gnorm=4.850
+[train-gpt2] step 11161 loss 0.7735
+  [train-gpt2] loss=0.9137 gnorm=4.121
+[train-gpt2] step 11162 loss 0.9137
+  [train-gpt2] loss=0.8499 gnorm=4.619
+[train-gpt2] step 11163 loss 0.8499
+  [train-gpt2] loss=0.8872 gnorm=5.625
+[train-gpt2] step 11164 loss 0.8872
+  [train-gpt2] loss=0.8895 gnorm=5.558
+[train-gpt2] step 11165 loss 0.8895
+  [train-gpt2] loss=0.8945 gnorm=4.891
+[train-gpt2] step 11166 loss 0.8945
+  [train-gpt2] loss=0.8087 gnorm=6.159
+[train-gpt2] step 11167 loss 0.8087
+  [train-gpt2] loss=0.9106 gnorm=4.614
+[train-gpt2] step 11168 loss 0.9106
+  [train-gpt2] loss=0.8090 gnorm=4.952
+[train-gpt2] step 11169 loss 0.8090
+  [train-gpt2] loss=0.8049 gnorm=5.184
+[train-gpt2] step 11170 loss 0.8049
+  [train-gpt2] loss=0.8738 gnorm=4.005
+[train-gpt2] step 11171 loss 0.8738
+  [train-gpt2] loss=0.8205 gnorm=4.908
+[train-gpt2] step 11172 loss 0.8205
+  [train-gpt2] loss=0.9063 gnorm=5.583
+[train-gpt2] step 11173 loss 0.9063
+  [train-gpt2] loss=0.8323 gnorm=5.244
+[train-gpt2] step 11174 loss 0.8323
+  [train-gpt2] loss=0.8937 gnorm=5.195
+[train-gpt2] step 11175 loss 0.8937
+  [train-gpt2] loss=0.9215 gnorm=5.313
+[train-gpt2] step 11176 loss 0.9215
+  [train-gpt2] loss=0.9155 gnorm=5.571
+[train-gpt2] step 11177 loss 0.9155
+  [train-gpt2] loss=0.8867 gnorm=5.351
+[train-gpt2] step 11178 loss 0.8867
+  [train-gpt2] loss=0.8532 gnorm=4.425
+[train-gpt2] step 11179 loss 0.8532
+  [train-gpt2] loss=0.9179 gnorm=4.423
+[train-gpt2] step 11180 loss 0.9179
+  [train-gpt2] loss=0.8893 gnorm=5.239
+[train-gpt2] step 11181 loss 0.8893
+  [train-gpt2] loss=0.9501 gnorm=4.625
+[train-gpt2] step 11182 loss 0.9501
+  [train-gpt2] loss=0.8583 gnorm=5.008
+[train-gpt2] step 11183 loss 0.8583
+  [train-gpt2] loss=0.8987 gnorm=3.894
+[train-gpt2] step 11184 loss 0.8987
+  [train-gpt2] loss=0.9163 gnorm=5.126
+[train-gpt2] step 11185 loss 0.9163
+  [train-gpt2] loss=0.8667 gnorm=5.525
+[train-gpt2] step 11186 loss 0.8667
+  [train-gpt2] loss=0.9298 gnorm=4.337
+[train-gpt2] step 11187 loss 0.9298
+  [train-gpt2] loss=0.8821 gnorm=4.411
+[train-gpt2] step 11188 loss 0.8821
+  [train-gpt2] loss=0.9338 gnorm=5.401
+[train-gpt2] step 11189 loss 0.9338
+  [train-gpt2] loss=0.7973 gnorm=4.802
+[train-gpt2] step 11190 loss 0.7973
+  [train-gpt2] loss=0.8563 gnorm=4.876
+[train-gpt2] step 11191 loss 0.8563
+  [train-gpt2] loss=0.8923 gnorm=5.183
+[train-gpt2] step 11192 loss 0.8923
+  [train-gpt2] loss=0.7990 gnorm=5.412
+[train-gpt2] step 11193 loss 0.7990
+  [train-gpt2] loss=0.8982 gnorm=4.274
+[train-gpt2] step 11194 loss 0.8982
+  [train-gpt2] loss=0.8156 gnorm=4.637
+[train-gpt2] step 11195 loss 0.8156
+  [train-gpt2] loss=0.9059 gnorm=4.842
+[train-gpt2] step 11196 loss 0.9059
+  [train-gpt2] loss=0.8726 gnorm=5.000
+[train-gpt2] step 11197 loss 0.8726
+  [train-gpt2] loss=0.8549 gnorm=5.298
+[train-gpt2] step 11198 loss 0.8549
+  [train-gpt2] loss=0.9349 gnorm=6.337
+[train-gpt2] step 11199 loss 0.9349
+  [train-gpt2] loss=0.7763 gnorm=5.585
+[train-gpt2] step 11200 loss 0.7763
+  [train-gpt2] loss=0.7918 gnorm=4.895
+[train-gpt2] step 11201 loss 0.7918
+  [train-gpt2] loss=0.9684 gnorm=6.563
+[train-gpt2] step 11202 loss 0.9684
+  [train-gpt2] loss=0.7860 gnorm=5.392
+[train-gpt2] step 11203 loss 0.7860
+  [train-gpt2] loss=0.9596 gnorm=5.448
+[train-gpt2] step 11204 loss 0.9596
+  [train-gpt2] loss=0.8149 gnorm=5.460
+[train-gpt2] step 11205 loss 0.8149
+  [train-gpt2] loss=0.9009 gnorm=4.227
+[train-gpt2] step 11206 loss 0.9009
+  [train-gpt2] loss=0.9136 gnorm=4.603
+[train-gpt2] step 11207 loss 0.9136
+  [train-gpt2] loss=0.8713 gnorm=5.572
+[train-gpt2] step 11208 loss 0.8713
+  [train-gpt2] loss=0.8467 gnorm=4.737
+[train-gpt2] step 11209 loss 0.8467
+  [train-gpt2] loss=0.7588 gnorm=4.064
+[train-gpt2] step 11210 loss 0.7588
+  [train-gpt2] loss=0.8353 gnorm=5.072
+[train-gpt2] step 11211 loss 0.8353
+  [train-gpt2] loss=0.8711 gnorm=4.466
+[train-gpt2] step 11212 loss 0.8711
+  [train-gpt2] loss=0.9159 gnorm=5.033
+[train-gpt2] step 11213 loss 0.9159
+  [train-gpt2] loss=0.7828 gnorm=6.414
+[train-gpt2] step 11214 loss 0.7828
+  [train-gpt2] loss=0.8909 gnorm=4.372
+[train-gpt2] step 11215 loss 0.8909
+  [train-gpt2] loss=0.8206 gnorm=5.260
+[train-gpt2] step 11216 loss 0.8206
+  [train-gpt2] loss=0.8339 gnorm=5.614
+[train-gpt2] step 11217 loss 0.8339
+  [train-gpt2] loss=0.7273 gnorm=4.718
+[train-gpt2] step 11218 loss 0.7273
+  [train-gpt2] loss=0.7901 gnorm=5.475
+[train-gpt2] step 11219 loss 0.7901
+  [train-gpt2] loss=0.8706 gnorm=5.772
+[train-gpt2] step 11220 loss 0.8706
+  [train-gpt2] loss=0.9843 gnorm=7.586
+[train-gpt2] step 11221 loss 0.9843
+  [train-gpt2] loss=0.9272 gnorm=4.963
+[train-gpt2] step 11222 loss 0.9272
+  [train-gpt2] loss=0.8973 gnorm=6.522
+[train-gpt2] step 11223 loss 0.8973
+  [train-gpt2] loss=0.8071 gnorm=5.379
+[train-gpt2] step 11224 loss 0.8071
+  [train-gpt2] loss=0.8295 gnorm=4.659
+[train-gpt2] step 11225 loss 0.8295
+  [train-gpt2] loss=0.9240 gnorm=5.261
+[train-gpt2] step 11226 loss 0.9240
+  [train-gpt2] loss=0.7531 gnorm=4.639
+[train-gpt2] step 11227 loss 0.7531
+  [train-gpt2] loss=0.8927 gnorm=5.408
+[train-gpt2] step 11228 loss 0.8927
+  [train-gpt2] loss=0.9106 gnorm=4.474
+[train-gpt2] step 11229 loss 0.9106
+  [train-gpt2] loss=0.8553 gnorm=7.151
+[train-gpt2] step 11230 loss 0.8553
+  [train-gpt2] loss=0.9069 gnorm=4.755
+[train-gpt2] step 11231 loss 0.9069
+  [train-gpt2] loss=0.8659 gnorm=4.644
+[train-gpt2] step 11232 loss 0.8659
+  [train-gpt2] loss=0.8476 gnorm=5.287
+[train-gpt2] step 11233 loss 0.8476
+  [train-gpt2] loss=0.8301 gnorm=4.953
+[train-gpt2] step 11234 loss 0.8301
+  [train-gpt2] loss=0.8000 gnorm=4.485
+[train-gpt2] step 11235 loss 0.8000
+  [train-gpt2] loss=0.8941 gnorm=5.117
+[train-gpt2] step 11236 loss 0.8941
+  [train-gpt2] loss=0.9173 gnorm=4.992
+[train-gpt2] step 11237 loss 0.9173
+  [train-gpt2] loss=0.8484 gnorm=4.012
+[train-gpt2] step 11238 loss 0.8484
+  [train-gpt2] loss=0.9213 gnorm=4.322
+[train-gpt2] step 11239 loss 0.9213
+  [train-gpt2] loss=0.8414 gnorm=4.983
+[train-gpt2] step 11240 loss 0.8414
+  [train-gpt2] loss=0.8571 gnorm=5.027
+[train-gpt2] step 11241 loss 0.8571
+  [train-gpt2] loss=0.8067 gnorm=5.015
+[train-gpt2] step 11242 loss 0.8067
+  [train-gpt2] loss=0.9473 gnorm=4.344
+[train-gpt2] step 11243 loss 0.9473
+  [train-gpt2] loss=0.9127 gnorm=6.068
+[train-gpt2] step 11244 loss 0.9127
+  [train-gpt2] loss=0.9242 gnorm=4.510
+[train-gpt2] step 11245 loss 0.9242
+  [train-gpt2] loss=0.9192 gnorm=4.310
+[train-gpt2] step 11246 loss 0.9192
+  [train-gpt2] loss=0.8090 gnorm=5.830
+[train-gpt2] step 11247 loss 0.8090
+  [train-gpt2] loss=0.7888 gnorm=5.104
+[train-gpt2] step 11248 loss 0.7888
+  [train-gpt2] loss=0.8310 gnorm=5.132
+[train-gpt2] step 11249 loss 0.8310
+  [train-gpt2] loss=0.7360 gnorm=5.105
+[train-gpt2] step 11250 loss 0.7360
+  [train-gpt2] loss=0.8798 gnorm=4.790
+[train-gpt2] step 11251 loss 0.8798
+  [train-gpt2] loss=0.8056 gnorm=4.742
+[train-gpt2] step 11252 loss 0.8056
+  [train-gpt2] loss=0.9171 gnorm=7.668
+[train-gpt2] step 11253 loss 0.9171
+  [train-gpt2] loss=0.8207 gnorm=5.986
+[train-gpt2] step 11254 loss 0.8207
+  [train-gpt2] loss=0.9401 gnorm=5.136
+[train-gpt2] step 11255 loss 0.9401
+  [train-gpt2] loss=0.8830 gnorm=4.873
+[train-gpt2] step 11256 loss 0.8830
+  [train-gpt2] loss=0.7809 gnorm=5.052
+[train-gpt2] step 11257 loss 0.7809
+  [train-gpt2] loss=0.9660 gnorm=5.535
+[train-gpt2] step 11258 loss 0.9660
+  [train-gpt2] loss=0.8682 gnorm=4.792
+[train-gpt2] step 11259 loss 0.8682
+  [train-gpt2] loss=0.8579 gnorm=4.860
+[train-gpt2] step 11260 loss 0.8579
+  [train-gpt2] loss=0.8534 gnorm=4.232
+[train-gpt2] step 11261 loss 0.8534
+  [train-gpt2] loss=0.8587 gnorm=5.288
+[train-gpt2] step 11262 loss 0.8587
+  [train-gpt2] loss=0.7870 gnorm=4.988
+[train-gpt2] step 11263 loss 0.7870
+  [train-gpt2] loss=0.8565 gnorm=4.984
+[train-gpt2] step 11264 loss 0.8565
+  [train-gpt2] loss=0.9305 gnorm=4.755
+[train-gpt2] step 11265 loss 0.9305
+  [train-gpt2] loss=0.8988 gnorm=5.533
+[train-gpt2] step 11266 loss 0.8988
+  [train-gpt2] loss=0.7844 gnorm=5.132
+[train-gpt2] step 11267 loss 0.7844
+  [train-gpt2] loss=0.8174 gnorm=4.640
+[train-gpt2] step 11268 loss 0.8174
+  [train-gpt2] loss=0.9079 gnorm=4.208
+[train-gpt2] step 11269 loss 0.9079
+  [train-gpt2] loss=0.9423 gnorm=4.653
+[train-gpt2] step 11270 loss 0.9423
+  [train-gpt2] loss=0.8752 gnorm=4.348
+[train-gpt2] step 11271 loss 0.8752
+  [train-gpt2] loss=0.9306 gnorm=6.048
+[train-gpt2] step 11272 loss 0.9306
+  [train-gpt2] loss=0.8995 gnorm=6.481
+[train-gpt2] step 11273 loss 0.8995
+  [train-gpt2] loss=0.9602 gnorm=6.142
+[train-gpt2] step 11274 loss 0.9602
+  [train-gpt2] loss=0.7447 gnorm=4.690
+[train-gpt2] step 11275 loss 0.7447
+  [train-gpt2] loss=0.8448 gnorm=5.161
+[train-gpt2] step 11276 loss 0.8448
+  [train-gpt2] loss=0.8982 gnorm=4.722
+[train-gpt2] step 11277 loss 0.8982
+  [train-gpt2] loss=0.8853 gnorm=4.118
+[train-gpt2] step 11278 loss 0.8853
+  [train-gpt2] loss=0.8517 gnorm=4.945
+[train-gpt2] step 11279 loss 0.8517
+  [train-gpt2] loss=0.7674 gnorm=5.065
+[train-gpt2] step 11280 loss 0.7674
+  [train-gpt2] loss=0.9239 gnorm=4.611
+[train-gpt2] step 11281 loss 0.9239
+  [train-gpt2] loss=0.7907 gnorm=5.982
+[train-gpt2] step 11282 loss 0.7907
+  [train-gpt2] loss=0.9192 gnorm=4.485
+[train-gpt2] step 11283 loss 0.9192
+  [train-gpt2] loss=0.8065 gnorm=4.892
+[train-gpt2] step 11284 loss 0.8065
+  [train-gpt2] loss=0.8922 gnorm=4.493
+[train-gpt2] step 11285 loss 0.8922
+  [train-gpt2] loss=0.9379 gnorm=5.839
+[train-gpt2] step 11286 loss 0.9379
+  [train-gpt2] loss=0.9182 gnorm=3.968
+[train-gpt2] step 11287 loss 0.9182
+  [train-gpt2] loss=0.9151 gnorm=4.666
+[train-gpt2] step 11288 loss 0.9151
+  [train-gpt2] loss=0.7984 gnorm=4.321
+[train-gpt2] step 11289 loss 0.7984
+  [train-gpt2] loss=0.8671 gnorm=5.243
+[train-gpt2] step 11290 loss 0.8671
+  [train-gpt2] loss=0.8747 gnorm=6.681
+[train-gpt2] step 11291 loss 0.8747
+  [train-gpt2] loss=0.8513 gnorm=3.995
+[train-gpt2] step 11292 loss 0.8513
+  [train-gpt2] loss=0.8870 gnorm=4.541
+[train-gpt2] step 11293 loss 0.8870
+  [train-gpt2] loss=0.7789 gnorm=6.410
+[train-gpt2] step 11294 loss 0.7789
+  [train-gpt2] loss=0.8560 gnorm=4.718
+[train-gpt2] step 11295 loss 0.8560
+  [train-gpt2] loss=0.8678 gnorm=5.204
+[train-gpt2] step 11296 loss 0.8678
+  [train-gpt2] loss=0.8153 gnorm=4.022
+[train-gpt2] step 11297 loss 0.8153
+  [train-gpt2] loss=0.8972 gnorm=4.444
+[train-gpt2] step 11298 loss 0.8972
+  [train-gpt2] loss=0.8301 gnorm=6.384
+[train-gpt2] step 11299 loss 0.8301
+  [train-gpt2] loss=0.9179 gnorm=4.737
+[train-gpt2] step 11300 loss 0.9179
+  [train-gpt2] loss=0.9629 gnorm=4.909
+[train-gpt2] step 11301 loss 0.9629
+  [train-gpt2] loss=0.8845 gnorm=4.514
+[train-gpt2] step 11302 loss 0.8845
+  [train-gpt2] loss=0.9043 gnorm=5.570
+[train-gpt2] step 11303 loss 0.9043
+  [train-gpt2] loss=0.8430 gnorm=4.193
+[train-gpt2] step 11304 loss 0.8430
+  [train-gpt2] loss=0.7912 gnorm=4.440
+[train-gpt2] step 11305 loss 0.7912
+  [train-gpt2] loss=0.9133 gnorm=4.948
+[train-gpt2] step 11306 loss 0.9133
+  [train-gpt2] loss=0.9058 gnorm=5.073
+[train-gpt2] step 11307 loss 0.9058
+  [train-gpt2] loss=0.8698 gnorm=4.124
+[train-gpt2] step 11308 loss 0.8698
+  [train-gpt2] loss=0.8930 gnorm=5.365
+[train-gpt2] step 11309 loss 0.8930
+  [train-gpt2] loss=0.9471 gnorm=4.789
+[train-gpt2] step 11310 loss 0.9471
+  [train-gpt2] loss=0.8695 gnorm=4.754
+[train-gpt2] step 11311 loss 0.8695
+  [train-gpt2] loss=0.8787 gnorm=5.311
+[train-gpt2] step 11312 loss 0.8787
+  [train-gpt2] loss=0.9141 gnorm=4.211
+[train-gpt2] step 11313 loss 0.9141
+  [train-gpt2] loss=0.7815 gnorm=5.713
+[train-gpt2] step 11314 loss 0.7815
+  [train-gpt2] loss=0.8344 gnorm=4.084
+[train-gpt2] step 11315 loss 0.8344
+  [train-gpt2] loss=0.7856 gnorm=5.592
+[train-gpt2] step 11316 loss 0.7856
+  [train-gpt2] loss=0.8645 gnorm=3.943
+[train-gpt2] step 11317 loss 0.8645
+  [train-gpt2] loss=0.7236 gnorm=5.487
+[train-gpt2] step 11318 loss 0.7236
+  [train-gpt2] loss=0.8475 gnorm=5.940
+[train-gpt2] step 11319 loss 0.8475
+  [train-gpt2] loss=0.7717 gnorm=4.199
+[train-gpt2] step 11320 loss 0.7717
+  [train-gpt2] loss=0.8990 gnorm=5.310
+[train-gpt2] step 11321 loss 0.8990
+  [train-gpt2] loss=0.9211 gnorm=5.697
+[train-gpt2] step 11322 loss 0.9211
+  [train-gpt2] loss=0.8248 gnorm=4.808
+[train-gpt2] step 11323 loss 0.8248
+  [train-gpt2] loss=0.9018 gnorm=5.143
+[train-gpt2] step 11324 loss 0.9018
+  [train-gpt2] loss=0.9414 gnorm=4.849
+[train-gpt2] step 11325 loss 0.9414
+  [train-gpt2] loss=0.7554 gnorm=4.651
+[train-gpt2] step 11326 loss 0.7554
+  [train-gpt2] loss=0.8754 gnorm=4.749
+[train-gpt2] step 11327 loss 0.8754
+  [train-gpt2] loss=0.8058 gnorm=4.669
+[train-gpt2] step 11328 loss 0.8058
+  [train-gpt2] loss=0.8808 gnorm=4.094
+[train-gpt2] step 11329 loss 0.8808
+  [train-gpt2] loss=0.8605 gnorm=4.516
+[train-gpt2] step 11330 loss 0.8605
+  [train-gpt2] loss=0.8337 gnorm=4.556
+[train-gpt2] step 11331 loss 0.8337
+  [train-gpt2] loss=0.8148 gnorm=5.058
+[train-gpt2] step 11332 loss 0.8148
+  [train-gpt2] loss=0.7620 gnorm=4.871
+[train-gpt2] step 11333 loss 0.7620
+  [train-gpt2] loss=0.8645 gnorm=5.458
+[train-gpt2] step 11334 loss 0.8645
+  [train-gpt2] loss=0.9175 gnorm=5.493
+[train-gpt2] step 11335 loss 0.9175
+  [train-gpt2] loss=0.7970 gnorm=5.657
+[train-gpt2] step 11336 loss 0.7970
+  [train-gpt2] loss=0.8543 gnorm=5.707
+[train-gpt2] step 11337 loss 0.8543
+  [train-gpt2] loss=0.8488 gnorm=4.714
+[train-gpt2] step 11338 loss 0.8488
+  [train-gpt2] loss=0.7716 gnorm=5.522
+[train-gpt2] step 11339 loss 0.7716
+  [train-gpt2] loss=0.8208 gnorm=4.673
+[train-gpt2] step 11340 loss 0.8208
+  [train-gpt2] loss=0.8140 gnorm=4.564
+[train-gpt2] step 11341 loss 0.8140
+  [train-gpt2] loss=0.8336 gnorm=4.527
+[train-gpt2] step 11342 loss 0.8336
+  [train-gpt2] loss=0.8927 gnorm=7.926
+[train-gpt2] step 11343 loss 0.8927
+  [train-gpt2] loss=0.9295 gnorm=6.482
+[train-gpt2] step 11344 loss 0.9295
+  [train-gpt2] loss=0.8936 gnorm=4.835
+[train-gpt2] step 11345 loss 0.8936
+  [train-gpt2] loss=0.9219 gnorm=5.346
+[train-gpt2] step 11346 loss 0.9219
+  [train-gpt2] loss=0.8788 gnorm=5.926
+[train-gpt2] step 11347 loss 0.8788
+  [train-gpt2] loss=0.8825 gnorm=6.111
+[train-gpt2] step 11348 loss 0.8825
+  [train-gpt2] loss=0.7717 gnorm=4.526
+[train-gpt2] step 11349 loss 0.7717
+  [train-gpt2] loss=0.7527 gnorm=5.087
+[train-gpt2] step 11350 loss 0.7527
+  [train-gpt2] loss=0.8487 gnorm=4.635
+[train-gpt2] step 11351 loss 0.8487
+  [train-gpt2] loss=0.9082 gnorm=4.603
+[train-gpt2] step 11352 loss 0.9082
+  [train-gpt2] loss=0.8569 gnorm=5.511
+[train-gpt2] step 11353 loss 0.8569
+  [train-gpt2] loss=0.8484 gnorm=4.932
+[train-gpt2] step 11354 loss 0.8484
+  [train-gpt2] loss=0.8433 gnorm=4.347
+[train-gpt2] step 11355 loss 0.8433
+  [train-gpt2] loss=0.8354 gnorm=4.582
+[train-gpt2] step 11356 loss 0.8354
+  [train-gpt2] loss=0.8122 gnorm=4.950
+[train-gpt2] step 11357 loss 0.8122
+  [train-gpt2] loss=0.8118 gnorm=5.349
+[train-gpt2] step 11358 loss 0.8118
+  [train-gpt2] loss=0.8394 gnorm=5.934
+[train-gpt2] step 11359 loss 0.8394
+  [train-gpt2] loss=0.8449 gnorm=5.660
+[train-gpt2] step 11360 loss 0.8449
+  [train-gpt2] loss=0.8671 gnorm=6.013
+[train-gpt2] step 11361 loss 0.8671
+  [train-gpt2] loss=0.7304 gnorm=5.388
+[train-gpt2] step 11362 loss 0.7304
+  [train-gpt2] loss=0.8678 gnorm=5.732
+[train-gpt2] step 11363 loss 0.8678
+  [train-gpt2] loss=0.8370 gnorm=5.095
+[train-gpt2] step 11364 loss 0.8370
+  [train-gpt2] loss=0.9272 gnorm=5.105
+[train-gpt2] step 11365 loss 0.9272
+  [train-gpt2] loss=0.7975 gnorm=4.308
+[train-gpt2] step 11366 loss 0.7975
+  [train-gpt2] loss=0.9429 gnorm=4.924
+[train-gpt2] step 11367 loss 0.9429
+  [train-gpt2] loss=0.8385 gnorm=5.255
+[train-gpt2] step 11368 loss 0.8385
+  [train-gpt2] loss=0.9094 gnorm=4.385
+[train-gpt2] step 11369 loss 0.9094
+  [train-gpt2] loss=0.8876 gnorm=4.546
+[train-gpt2] step 11370 loss 0.8876
+  [train-gpt2] loss=0.9011 gnorm=5.532
+[train-gpt2] step 11371 loss 0.9011
+  [train-gpt2] loss=0.8089 gnorm=5.269
+[train-gpt2] step 11372 loss 0.8089
+  [train-gpt2] loss=0.8373 gnorm=5.695
+[train-gpt2] step 11373 loss 0.8373
+  [train-gpt2] loss=0.9267 gnorm=5.194
+[train-gpt2] step 11374 loss 0.9267
+  [train-gpt2] loss=0.8476 gnorm=4.295
+[train-gpt2] step 11375 loss 0.8476
+  [train-gpt2] loss=0.8577 gnorm=5.741
+[train-gpt2] step 11376 loss 0.8577
+  [train-gpt2] loss=0.9318 gnorm=5.710
+[train-gpt2] step 11377 loss 0.9318
+  [train-gpt2] loss=0.9122 gnorm=5.228
+[train-gpt2] step 11378 loss 0.9122
+  [train-gpt2] loss=0.8158 gnorm=5.702
+[train-gpt2] step 11379 loss 0.8158
+  [train-gpt2] loss=0.8409 gnorm=5.105
+[train-gpt2] step 11380 loss 0.8409
+  [train-gpt2] loss=0.8515 gnorm=4.275
+[train-gpt2] step 11381 loss 0.8515
+  [train-gpt2] loss=0.7662 gnorm=5.260
+[train-gpt2] step 11382 loss 0.7662
+  [train-gpt2] loss=0.9036 gnorm=4.572
+[train-gpt2] step 11383 loss 0.9036
+  [train-gpt2] loss=0.8970 gnorm=5.040
+[train-gpt2] step 11384 loss 0.8970
+  [train-gpt2] loss=0.9072 gnorm=4.186
+[train-gpt2] step 11385 loss 0.9072
+  [train-gpt2] loss=0.8244 gnorm=5.228
+[train-gpt2] step 11386 loss 0.8244
+  [train-gpt2] loss=0.8805 gnorm=5.736
+[train-gpt2] step 11387 loss 0.8805
+  [train-gpt2] loss=0.8112 gnorm=5.907
+[train-gpt2] step 11388 loss 0.8112
+  [train-gpt2] loss=0.8761 gnorm=5.711
+[train-gpt2] step 11389 loss 0.8761
+  [train-gpt2] loss=0.7572 gnorm=4.040
+[train-gpt2] step 11390 loss 0.7572
+  [train-gpt2] loss=0.7541 gnorm=5.277
+[train-gpt2] step 11391 loss 0.7541
+  [train-gpt2] loss=0.8927 gnorm=4.939
+[train-gpt2] step 11392 loss 0.8927
+  [train-gpt2] loss=0.9462 gnorm=4.885
+[train-gpt2] step 11393 loss 0.9462
+  [train-gpt2] loss=0.9377 gnorm=4.173
+[train-gpt2] step 11394 loss 0.9377
+  [train-gpt2] loss=0.9957 gnorm=4.001
+[train-gpt2] step 11395 loss 0.9957
+  [train-gpt2] loss=0.9956 gnorm=4.001
+[train-gpt2] step 11396 loss 0.9956
+  [train-gpt2] loss=0.9092 gnorm=4.426
+[train-gpt2] step 11397 loss 0.9092
+  [train-gpt2] loss=0.8721 gnorm=5.077
+[train-gpt2] step 11398 loss 0.8721
+  [train-gpt2] loss=0.9079 gnorm=4.979
+[train-gpt2] step 11399 loss 0.9079
+  [train-gpt2] loss=0.8896 gnorm=5.716
+[train-gpt2] step 11400 loss 0.8896
+  [train-gpt2] loss=0.8639 gnorm=6.447
+[train-gpt2] step 11401 loss 0.8639
+  [train-gpt2] loss=0.9202 gnorm=4.301
+[train-gpt2] step 11402 loss 0.9202
+  [train-gpt2] loss=0.9127 gnorm=5.129
+[train-gpt2] step 11403 loss 0.9127
+  [train-gpt2] loss=0.8598 gnorm=4.583
+[train-gpt2] step 11404 loss 0.8598
+  [train-gpt2] loss=0.9069 gnorm=5.779
+[train-gpt2] step 11405 loss 0.9069
+  [train-gpt2] loss=0.8557 gnorm=5.147
+[train-gpt2] step 11406 loss 0.8557
+  [train-gpt2] loss=0.8619 gnorm=5.383
+[train-gpt2] step 11407 loss 0.8619
+  [train-gpt2] loss=0.9276 gnorm=5.700
+[train-gpt2] step 11408 loss 0.9276
+  [train-gpt2] loss=0.8057 gnorm=5.735
+[train-gpt2] step 11409 loss 0.8057
+  [train-gpt2] loss=0.7593 gnorm=4.172
+[train-gpt2] step 11410 loss 0.7593
+  [train-gpt2] loss=0.8416 gnorm=4.083
+[train-gpt2] step 11411 loss 0.8416
+  [train-gpt2] loss=0.8342 gnorm=5.374
+[train-gpt2] step 11412 loss 0.8342
+  [train-gpt2] loss=0.8339 gnorm=4.880
+[train-gpt2] step 11413 loss 0.8339
+  [train-gpt2] loss=0.7970 gnorm=4.506
+[train-gpt2] step 11414 loss 0.7970
+  [train-gpt2] loss=0.7899 gnorm=5.435
+[train-gpt2] step 11415 loss 0.7899
+  [train-gpt2] loss=0.8566 gnorm=5.098
+[train-gpt2] step 11416 loss 0.8566
+  [train-gpt2] loss=0.8547 gnorm=6.048
+[train-gpt2] step 11417 loss 0.8547
+  [train-gpt2] loss=0.8555 gnorm=4.701
+[train-gpt2] step 11418 loss 0.8555
+  [train-gpt2] loss=0.8494 gnorm=5.336
+[train-gpt2] step 11419 loss 0.8494
+  [train-gpt2] loss=0.8208 gnorm=4.575
+[train-gpt2] step 11420 loss 0.8208
+  [train-gpt2] loss=0.8356 gnorm=3.998
+[train-gpt2] step 11421 loss 0.8356
+  [train-gpt2] loss=0.9768 gnorm=6.839
+[train-gpt2] step 11422 loss 0.9768
+  [train-gpt2] loss=0.8846 gnorm=4.463
+[train-gpt2] step 11423 loss 0.8846
+  [train-gpt2] loss=0.9129 gnorm=5.033
+[train-gpt2] step 11424 loss 0.9129
+  [train-gpt2] loss=0.8720 gnorm=5.505
+[train-gpt2] step 11425 loss 0.8720
+  [train-gpt2] loss=0.9175 gnorm=5.858
+[train-gpt2] step 11426 loss 0.9175
+  [train-gpt2] loss=0.9082 gnorm=5.080
+[train-gpt2] step 11427 loss 0.9082
+  [train-gpt2] loss=0.9091 gnorm=5.330
+[train-gpt2] step 11428 loss 0.9091
+  [train-gpt2] loss=0.9125 gnorm=5.816
+[train-gpt2] step 11429 loss 0.9125
+  [train-gpt2] loss=0.8088 gnorm=4.620
+[train-gpt2] step 11430 loss 0.8088
+  [train-gpt2] loss=0.9476 gnorm=4.673
+[train-gpt2] step 11431 loss 0.9476
+  [train-gpt2] loss=0.8901 gnorm=5.111
+[train-gpt2] step 11432 loss 0.8901
+  [train-gpt2] loss=0.9202 gnorm=5.101
+[train-gpt2] step 11433 loss 0.9202
+  [train-gpt2] loss=0.8218 gnorm=4.942
+[train-gpt2] step 11434 loss 0.8218
+  [train-gpt2] loss=0.8709 gnorm=4.126
+[train-gpt2] step 11435 loss 0.8709
+  [train-gpt2] loss=0.8553 gnorm=4.593
+[train-gpt2] step 11436 loss 0.8553
+  [train-gpt2] loss=0.8679 gnorm=5.145
+[train-gpt2] step 11437 loss 0.8679
+  [train-gpt2] loss=0.8922 gnorm=5.409
+[train-gpt2] step 11438 loss 0.8922
+  [train-gpt2] loss=0.8732 gnorm=5.734
+[train-gpt2] step 11439 loss 0.8732
+  [train-gpt2] loss=0.8641 gnorm=5.190
+[train-gpt2] step 11440 loss 0.8641
+  [train-gpt2] loss=0.8640 gnorm=5.190
+[train-gpt2] step 11441 loss 0.8640
+  [train-gpt2] loss=0.8303 gnorm=5.376
+[train-gpt2] step 11442 loss 0.8303
+  [train-gpt2] loss=0.8686 gnorm=4.434
+[train-gpt2] step 11443 loss 0.8686
+  [train-gpt2] loss=0.8700 gnorm=4.845
+[train-gpt2] step 11444 loss 0.8700
+  [train-gpt2] loss=0.8080 gnorm=5.035
+[train-gpt2] step 11445 loss 0.8080
+  [train-gpt2] loss=0.8169 gnorm=4.523
+[train-gpt2] step 11446 loss 0.8169
+  [train-gpt2] loss=0.9044 gnorm=4.304
+[train-gpt2] step 11447 loss 0.9044
+  [train-gpt2] loss=0.8716 gnorm=4.911
+[train-gpt2] step 11448 loss 0.8716
+  [train-gpt2] loss=0.9467 gnorm=5.371
+[train-gpt2] step 11449 loss 0.9467
+  [train-gpt2] loss=0.9257 gnorm=5.116
+[train-gpt2] step 11450 loss 0.9257
+  [train-gpt2] loss=0.8840 gnorm=4.642
+[train-gpt2] step 11451 loss 0.8840
+  [train-gpt2] loss=0.8578 gnorm=5.331
+[train-gpt2] step 11452 loss 0.8578
+  [train-gpt2] loss=0.8209 gnorm=5.616
+[train-gpt2] step 11453 loss 0.8209
+  [train-gpt2] loss=0.8093 gnorm=5.606
+[train-gpt2] step 11454 loss 0.8093
+  [train-gpt2] loss=0.8545 gnorm=4.568
+[train-gpt2] step 11455 loss 0.8545
+  [train-gpt2] loss=0.7881 gnorm=5.327
+[train-gpt2] step 11456 loss 0.7881
+  [train-gpt2] loss=0.8779 gnorm=5.273
+[train-gpt2] step 11457 loss 0.8779
+  [train-gpt2] loss=0.8042 gnorm=4.743
+[train-gpt2] step 11458 loss 0.8042
+  [train-gpt2] loss=0.8764 gnorm=4.753
+[train-gpt2] step 11459 loss 0.8764
+  [train-gpt2] loss=0.8034 gnorm=4.662
+[train-gpt2] step 11460 loss 0.8034
+  [train-gpt2] loss=0.8924 gnorm=5.185
+[train-gpt2] step 11461 loss 0.8924
+  [train-gpt2] loss=0.9087 gnorm=4.377
+[train-gpt2] step 11462 loss 0.9087
+  [train-gpt2] loss=0.8085 gnorm=4.496
+[train-gpt2] step 11463 loss 0.8085
+  [train-gpt2] loss=0.9116 gnorm=5.941
+[train-gpt2] step 11464 loss 0.9116
+  [train-gpt2] loss=0.7800 gnorm=5.665
+[train-gpt2] step 11465 loss 0.7800
+  [train-gpt2] loss=0.7922 gnorm=5.793
+[train-gpt2] step 11466 loss 0.7922
+  [train-gpt2] loss=0.8169 gnorm=6.589
+[train-gpt2] step 11467 loss 0.8169
+  [train-gpt2] loss=0.8148 gnorm=3.764
+[train-gpt2] step 11468 loss 0.8148
+  [train-gpt2] loss=0.8453 gnorm=4.080
+[train-gpt2] step 11469 loss 0.8453
+  [train-gpt2] loss=0.8899 gnorm=4.040
+[train-gpt2] step 11470 loss 0.8899
+  [train-gpt2] loss=0.9483 gnorm=5.680
+[train-gpt2] step 11471 loss 0.9483
+  [train-gpt2] loss=0.8208 gnorm=6.528
+[train-gpt2] step 11472 loss 0.8208
+  [train-gpt2] loss=0.9031 gnorm=4.770
+[train-gpt2] step 11473 loss 0.9031
+  [train-gpt2] loss=0.8019 gnorm=5.119
+[train-gpt2] step 11474 loss 0.8019
+  [train-gpt2] loss=0.8475 gnorm=5.017
+[train-gpt2] step 11475 loss 0.8475
+  [train-gpt2] loss=0.7747 gnorm=3.853
+[train-gpt2] step 11476 loss 0.7747
+  [train-gpt2] loss=0.8960 gnorm=5.226
+[train-gpt2] step 11477 loss 0.8960
+  [train-gpt2] loss=0.8495 gnorm=5.183
+[train-gpt2] step 11478 loss 0.8495
+  [train-gpt2] loss=0.8133 gnorm=4.780
+[train-gpt2] step 11479 loss 0.8133
+  [train-gpt2] loss=0.8973 gnorm=4.491
+[train-gpt2] step 11480 loss 0.8973
+  [train-gpt2] loss=0.8754 gnorm=5.930
+[train-gpt2] step 11481 loss 0.8754
+  [train-gpt2] loss=0.7995 gnorm=5.856
+[train-gpt2] step 11482 loss 0.7995
+  [train-gpt2] loss=0.8546 gnorm=4.989
+[train-gpt2] step 11483 loss 0.8546
+  [train-gpt2] loss=0.9109 gnorm=4.526
+[train-gpt2] step 11484 loss 0.9109
+  [train-gpt2] loss=0.8577 gnorm=4.504
+[train-gpt2] step 11485 loss 0.8577
+  [train-gpt2] loss=0.9311 gnorm=4.989
+[train-gpt2] step 11486 loss 0.9311
+  [train-gpt2] loss=0.9299 gnorm=4.760
+[train-gpt2] step 11487 loss 0.9299
+  [train-gpt2] loss=0.8260 gnorm=4.774
+[train-gpt2] step 11488 loss 0.8260
+  [train-gpt2] loss=0.8294 gnorm=5.734
+[train-gpt2] step 11489 loss 0.8294
+  [train-gpt2] loss=0.8958 gnorm=3.641
+[train-gpt2] step 11490 loss 0.8958
+  [train-gpt2] loss=0.8098 gnorm=4.711
+[train-gpt2] step 11491 loss 0.8098
+  [train-gpt2] loss=0.8151 gnorm=4.150
+[train-gpt2] step 11492 loss 0.8151
+  [train-gpt2] loss=0.9015 gnorm=4.606
+[train-gpt2] step 11493 loss 0.9015
+  [train-gpt2] loss=0.9568 gnorm=6.199
+[train-gpt2] step 11494 loss 0.9568
+  [train-gpt2] loss=0.8755 gnorm=5.457
+[train-gpt2] step 11495 loss 0.8755
+  [train-gpt2] loss=0.9030 gnorm=4.755
+[train-gpt2] step 11496 loss 0.9030
+  [train-gpt2] loss=0.8753 gnorm=5.888
+[train-gpt2] step 11497 loss 0.8753
+  [train-gpt2] loss=0.7862 gnorm=5.221
+[train-gpt2] step 11498 loss 0.7862
+  [train-gpt2] loss=0.8522 gnorm=6.225
+[train-gpt2] step 11499 loss 0.8522
+  [train-gpt2] loss=0.8302 gnorm=4.716
+[train-gpt2] step 11500 loss 0.8302
+  [train-gpt2] loss=0.8126 gnorm=4.580
+[train-gpt2] step 11501 loss 0.8126
+  [train-gpt2] loss=0.8030 gnorm=5.155
+[train-gpt2] step 11502 loss 0.8030
+  [train-gpt2] loss=0.9541 gnorm=5.116
+[train-gpt2] step 11503 loss 0.9541
+  [train-gpt2] loss=0.9495 gnorm=4.404
+[train-gpt2] step 11504 loss 0.9495
+  [train-gpt2] loss=0.8262 gnorm=6.590
+[train-gpt2] step 11505 loss 0.8262
+  [train-gpt2] loss=0.9813 gnorm=4.573
+[train-gpt2] step 11506 loss 0.9813
+  [train-gpt2] loss=0.9533 gnorm=4.489
+[train-gpt2] step 11507 loss 0.9533
+  [train-gpt2] loss=0.8562 gnorm=5.397
+[train-gpt2] step 11508 loss 0.8562
+  [train-gpt2] loss=0.9501 gnorm=4.994
+[train-gpt2] step 11509 loss 0.9501
+  [train-gpt2] loss=0.8566 gnorm=6.399
+[train-gpt2] step 11510 loss 0.8566
+  [train-gpt2] loss=0.8381 gnorm=5.319
+[train-gpt2] step 11511 loss 0.8381
+  [train-gpt2] loss=0.8156 gnorm=5.416
+[train-gpt2] step 11512 loss 0.8156
+  [train-gpt2] loss=0.8826 gnorm=5.012
+[train-gpt2] step 11513 loss 0.8826
+  [train-gpt2] loss=0.8579 gnorm=4.856
+[train-gpt2] step 11514 loss 0.8579
+  [train-gpt2] loss=0.8004 gnorm=5.594
+[train-gpt2] step 11515 loss 0.8004
+  [train-gpt2] loss=0.8837 gnorm=5.305
+[train-gpt2] step 11516 loss 0.8837
+  [train-gpt2] loss=0.8967 gnorm=4.487
+[train-gpt2] step 11517 loss 0.8967
+  [train-gpt2] loss=0.8791 gnorm=5.658
+[train-gpt2] step 11518 loss 0.8791
+  [train-gpt2] loss=0.9370 gnorm=4.649
+[train-gpt2] step 11519 loss 0.9370
+  [train-gpt2] loss=0.9075 gnorm=5.001
+[train-gpt2] step 11520 loss 0.9075
+  [train-gpt2] loss=0.9272 gnorm=5.313
+[train-gpt2] step 11521 loss 0.9272
+  [train-gpt2] loss=0.8181 gnorm=5.173
+[train-gpt2] step 11522 loss 0.8181
+  [train-gpt2] loss=0.8099 gnorm=4.815
+[train-gpt2] step 11523 loss 0.8099
+  [train-gpt2] loss=0.8301 gnorm=5.882
+[train-gpt2] step 11524 loss 0.8301
+  [train-gpt2] loss=0.9008 gnorm=6.927
+[train-gpt2] step 11525 loss 0.9008
+  [train-gpt2] loss=0.9093 gnorm=5.673
+[train-gpt2] step 11526 loss 0.9093
+  [train-gpt2] loss=0.8262 gnorm=7.518
+[train-gpt2] step 11527 loss 0.8262
+  [train-gpt2] loss=0.9167 gnorm=5.876
+[train-gpt2] step 11528 loss 0.9167
+  [train-gpt2] loss=0.8753 gnorm=4.518
+[train-gpt2] step 11529 loss 0.8753
+  [train-gpt2] loss=0.9005 gnorm=4.770
+[train-gpt2] step 11530 loss 0.9005
+  [train-gpt2] loss=0.9823 gnorm=7.439
+[train-gpt2] step 11531 loss 0.9823
+  [train-gpt2] loss=0.9629 gnorm=5.312
+[train-gpt2] step 11532 loss 0.9629
+  [train-gpt2] loss=0.7843 gnorm=5.126
+[train-gpt2] step 11533 loss 0.7843
+  [train-gpt2] loss=0.8683 gnorm=4.743
+[train-gpt2] step 11534 loss 0.8683
+  [train-gpt2] loss=0.8788 gnorm=3.997
+[train-gpt2] step 11535 loss 0.8788
+  [train-gpt2] loss=0.8876 gnorm=5.244
+[train-gpt2] step 11536 loss 0.8876
+  [train-gpt2] loss=0.8207 gnorm=3.629
+[train-gpt2] step 11537 loss 0.8207
+  [train-gpt2] loss=0.8391 gnorm=5.668
+[train-gpt2] step 11538 loss 0.8391
+  [train-gpt2] loss=0.8820 gnorm=5.005
+[train-gpt2] step 11539 loss 0.8820
+  [train-gpt2] loss=0.8072 gnorm=4.201
+[train-gpt2] step 11540 loss 0.8072
+  [train-gpt2] loss=0.8721 gnorm=4.345
+[train-gpt2] step 11541 loss 0.8721
+  [train-gpt2] loss=0.9002 gnorm=5.518
+[train-gpt2] step 11542 loss 0.9002
+  [train-gpt2] loss=0.8978 gnorm=5.842
+[train-gpt2] step 11543 loss 0.8978
+  [train-gpt2] loss=0.9185 gnorm=5.628
+[train-gpt2] step 11544 loss 0.9185
+  [train-gpt2] loss=0.8674 gnorm=4.160
+[train-gpt2] step 11545 loss 0.8674
+  [train-gpt2] loss=0.7946 gnorm=5.863
+[train-gpt2] step 11546 loss 0.7946
+  [train-gpt2] loss=0.9011 gnorm=4.673
+[train-gpt2] step 11547 loss 0.9011
+  [train-gpt2] loss=0.8289 gnorm=5.997
+[train-gpt2] step 11548 loss 0.8289
+  [train-gpt2] loss=0.8663 gnorm=5.177
+[train-gpt2] step 11549 loss 0.8663
+  [train-gpt2] loss=0.7990 gnorm=4.468
+[train-gpt2] step 11550 loss 0.7990
+  [train-gpt2] loss=0.7603 gnorm=5.556
+[train-gpt2] step 11551 loss 0.7603
+  [train-gpt2] loss=0.8816 gnorm=4.502
+[train-gpt2] step 11552 loss 0.8816
+  [train-gpt2] loss=0.8728 gnorm=5.166
+[train-gpt2] step 11553 loss 0.8728
+  [train-gpt2] loss=0.8702 gnorm=5.567
+[train-gpt2] step 11554 loss 0.8702
+  [train-gpt2] loss=0.7858 gnorm=5.669
+[train-gpt2] step 11555 loss 0.7858
+  [train-gpt2] loss=0.8383 gnorm=5.214
+[train-gpt2] step 11556 loss 0.8383
+  [train-gpt2] loss=0.8879 gnorm=4.774
+[train-gpt2] step 11557 loss 0.8879
+  [train-gpt2] loss=0.8655 gnorm=5.121
+[train-gpt2] step 11558 loss 0.8655
+  [train-gpt2] loss=0.8557 gnorm=3.938
+[train-gpt2] step 11559 loss 0.8557
+  [train-gpt2] loss=0.8316 gnorm=4.748
+[train-gpt2] step 11560 loss 0.8316
+  [train-gpt2] loss=0.8955 gnorm=5.178
+[train-gpt2] step 11561 loss 0.8955
+  [train-gpt2] loss=0.8458 gnorm=4.764
+[train-gpt2] step 11562 loss 0.8458
+  [train-gpt2] loss=0.9467 gnorm=5.161
+[train-gpt2] step 11563 loss 0.9467
+  [train-gpt2] loss=0.9430 gnorm=4.555
+[train-gpt2] step 11564 loss 0.9430
+  [train-gpt2] loss=0.8884 gnorm=5.259
+[train-gpt2] step 11565 loss 0.8884
+  [train-gpt2] loss=0.8207 gnorm=4.914
+[train-gpt2] step 11566 loss 0.8207
+  [train-gpt2] loss=0.8613 gnorm=5.586
+[train-gpt2] step 11567 loss 0.8613
+  [train-gpt2] loss=0.9011 gnorm=5.235
+[train-gpt2] step 11568 loss 0.9011
+  [train-gpt2] loss=0.9312 gnorm=5.480
+[train-gpt2] step 11569 loss 0.9312
+  [train-gpt2] loss=0.8750 gnorm=4.278
+[train-gpt2] step 11570 loss 0.8750
+  [train-gpt2] loss=0.9530 gnorm=4.041
+[train-gpt2] step 11571 loss 0.9530
+  [train-gpt2] loss=0.9839 gnorm=5.484
+[train-gpt2] step 11572 loss 0.9839
+  [train-gpt2] loss=0.8468 gnorm=6.006
+[train-gpt2] step 11573 loss 0.8468
+  [train-gpt2] loss=0.9173 gnorm=6.467
+[train-gpt2] step 11574 loss 0.9173
+  [train-gpt2] loss=0.8515 gnorm=5.685
+[train-gpt2] step 11575 loss 0.8515
+  [train-gpt2] loss=0.8536 gnorm=4.674
+[train-gpt2] step 11576 loss 0.8536
+  [train-gpt2] loss=0.9185 gnorm=6.371
+[train-gpt2] step 11577 loss 0.9185
+  [train-gpt2] loss=0.9371 gnorm=4.336
+[train-gpt2] step 11578 loss 0.9371
+  [train-gpt2] loss=0.8667 gnorm=5.668
+[train-gpt2] step 11579 loss 0.8667
+  [train-gpt2] loss=0.7694 gnorm=4.772
+[train-gpt2] step 11580 loss 0.7694
+  [train-gpt2] loss=0.8911 gnorm=5.048
+[train-gpt2] step 11581 loss 0.8911
+  [train-gpt2] loss=0.8927 gnorm=4.292
+[train-gpt2] step 11582 loss 0.8927
+  [train-gpt2] loss=0.8489 gnorm=4.711
+[train-gpt2] step 11583 loss 0.8489
+  [train-gpt2] loss=0.8075 gnorm=5.040
+[train-gpt2] step 11584 loss 0.8075
+  [train-gpt2] loss=0.7927 gnorm=4.623
+[train-gpt2] step 11585 loss 0.7927
+  [train-gpt2] loss=0.7724 gnorm=6.016
+[train-gpt2] step 11586 loss 0.7724
+  [train-gpt2] loss=0.8368 gnorm=5.070
+[train-gpt2] step 11587 loss 0.8368
+  [train-gpt2] loss=0.7531 gnorm=4.784
+[train-gpt2] step 11588 loss 0.7531
+  [train-gpt2] loss=0.8426 gnorm=4.144
+[train-gpt2] step 11589 loss 0.8426
+  [train-gpt2] loss=0.8801 gnorm=4.649
+[train-gpt2] step 11590 loss 0.8801
+  [train-gpt2] loss=0.8912 gnorm=4.925
+[train-gpt2] step 11591 loss 0.8912
+  [train-gpt2] loss=0.8952 gnorm=5.173
+[train-gpt2] step 11592 loss 0.8952
+  [train-gpt2] loss=0.8618 gnorm=4.729
+[train-gpt2] step 11593 loss 0.8618
+  [train-gpt2] loss=0.8726 gnorm=5.736
+[train-gpt2] step 11594 loss 0.8726
+  [train-gpt2] loss=0.9494 gnorm=5.123
+[train-gpt2] step 11595 loss 0.9494
+  [train-gpt2] loss=0.8981 gnorm=5.186
+[train-gpt2] step 11596 loss 0.8981
+  [train-gpt2] loss=0.7842 gnorm=4.652
+[train-gpt2] step 11597 loss 0.7842
+  [train-gpt2] loss=0.8751 gnorm=4.672
+[train-gpt2] step 11598 loss 0.8751
+  [train-gpt2] loss=0.9392 gnorm=4.856
+[train-gpt2] step 11599 loss 0.9392
+  [train-gpt2] loss=0.8797 gnorm=5.157
+[train-gpt2] step 11600 loss 0.8797
+  [train-gpt2] loss=0.9622 gnorm=5.310
+[train-gpt2] step 11601 loss 0.9622
+  [train-gpt2] loss=1.0065 gnorm=5.809
+[train-gpt2] step 11602 loss 1.0065
+  [train-gpt2] loss=0.8569 gnorm=5.472
+[train-gpt2] step 11603 loss 0.8569
+  [train-gpt2] loss=0.9155 gnorm=4.688
+[train-gpt2] step 11604 loss 0.9155
+  [train-gpt2] loss=0.7909 gnorm=4.859
+[train-gpt2] step 11605 loss 0.7909
+  [train-gpt2] loss=0.8511 gnorm=5.197
+[train-gpt2] step 11606 loss 0.8511
+  [train-gpt2] loss=0.8824 gnorm=5.112
+[train-gpt2] step 11607 loss 0.8824
+  [train-gpt2] loss=0.8254 gnorm=4.766
+[train-gpt2] step 11608 loss 0.8254
+  [train-gpt2] loss=0.9263 gnorm=5.436
+[train-gpt2] step 11609 loss 0.9263
+  [train-gpt2] loss=0.9467 gnorm=5.578
+[train-gpt2] step 11610 loss 0.9467
+  [train-gpt2] loss=0.7832 gnorm=4.861
+[train-gpt2] step 11611 loss 0.7832
+  [train-gpt2] loss=0.7664 gnorm=4.724
+[train-gpt2] step 11612 loss 0.7664
+  [train-gpt2] loss=0.9356 gnorm=4.908
+[train-gpt2] step 11613 loss 0.9356
+  [train-gpt2] loss=0.8345 gnorm=4.304
+[train-gpt2] step 11614 loss 0.8345
+  [train-gpt2] loss=0.9020 gnorm=5.937
+[train-gpt2] step 11615 loss 0.9020
+  [train-gpt2] loss=0.7979 gnorm=5.173
+[train-gpt2] step 11616 loss 0.7979
+  [train-gpt2] loss=0.8535 gnorm=4.676
+[train-gpt2] step 11617 loss 0.8535
+  [train-gpt2] loss=0.8541 gnorm=4.535
+[train-gpt2] step 11618 loss 0.8541
+  [train-gpt2] loss=0.7555 gnorm=4.954
+[train-gpt2] step 11619 loss 0.7555
+  [train-gpt2] loss=0.8930 gnorm=5.736
+[train-gpt2] step 11620 loss 0.8930
+  [train-gpt2] loss=0.9188 gnorm=5.320
+[train-gpt2] step 11621 loss 0.9188
+  [train-gpt2] loss=0.8757 gnorm=4.928
+[train-gpt2] step 11622 loss 0.8757
+  [train-gpt2] loss=0.8271 gnorm=5.729
+[train-gpt2] step 11623 loss 0.8271
+  [train-gpt2] loss=0.8540 gnorm=4.574
+[train-gpt2] step 11624 loss 0.8540
+  [train-gpt2] loss=0.9183 gnorm=6.018
+[train-gpt2] step 11625 loss 0.9183
+  [train-gpt2] loss=0.8948 gnorm=4.949
+[train-gpt2] step 11626 loss 0.8948
+  [train-gpt2] loss=0.8454 gnorm=5.226
+[train-gpt2] step 11627 loss 0.8454
+  [train-gpt2] loss=0.8595 gnorm=5.763
+[train-gpt2] step 11628 loss 0.8595
+  [train-gpt2] loss=0.8226 gnorm=6.213
+[train-gpt2] step 11629 loss 0.8226
+  [train-gpt2] loss=0.8993 gnorm=5.202
+[train-gpt2] step 11630 loss 0.8993
+  [train-gpt2] loss=0.7921 gnorm=6.211
+[train-gpt2] step 11631 loss 0.7921
+  [train-gpt2] loss=0.7572 gnorm=5.372
+[train-gpt2] step 11632 loss 0.7572
+  [train-gpt2] loss=0.8212 gnorm=4.577
+[train-gpt2] step 11633 loss 0.8212
+  [train-gpt2] loss=0.8409 gnorm=4.123
+[train-gpt2] step 11634 loss 0.8409
+  [train-gpt2] loss=0.8183 gnorm=5.096
+[train-gpt2] step 11635 loss 0.8183
+  [train-gpt2] loss=0.9023 gnorm=4.725
+[train-gpt2] step 11636 loss 0.9023
+  [train-gpt2] loss=0.8131 gnorm=4.867
+[train-gpt2] step 11637 loss 0.8131
+  [train-gpt2] loss=0.8793 gnorm=4.819
+[train-gpt2] step 11638 loss 0.8793
+  [train-gpt2] loss=0.9247 gnorm=4.912
+[train-gpt2] step 11639 loss 0.9247
+  [train-gpt2] loss=0.8142 gnorm=5.513
+[train-gpt2] step 11640 loss 0.8142
+  [train-gpt2] loss=0.8444 gnorm=5.402
+[train-gpt2] step 11641 loss 0.8444
+  [train-gpt2] loss=0.8885 gnorm=4.847
+[train-gpt2] step 11642 loss 0.8885
+  [train-gpt2] loss=0.9319 gnorm=5.353
+[train-gpt2] step 11643 loss 0.9319
+  [train-gpt2] loss=0.8979 gnorm=3.887
+[train-gpt2] step 11644 loss 0.8979
+  [train-gpt2] loss=0.9567 gnorm=6.053
+[train-gpt2] step 11645 loss 0.9567
+  [train-gpt2] loss=0.9072 gnorm=5.109
+[train-gpt2] step 11646 loss 0.9072
+  [train-gpt2] loss=0.8098 gnorm=5.053
+[train-gpt2] step 11647 loss 0.8098
+  [train-gpt2] loss=0.9138 gnorm=4.097
+[train-gpt2] step 11648 loss 0.9138
+  [train-gpt2] loss=0.8749 gnorm=4.847
+[train-gpt2] step 11649 loss 0.8749
+  [train-gpt2] loss=0.8825 gnorm=5.300
+[train-gpt2] step 11650 loss 0.8825
+  [train-gpt2] loss=0.8033 gnorm=5.056
+[train-gpt2] step 11651 loss 0.8033
+  [train-gpt2] loss=0.7521 gnorm=5.092
+[train-gpt2] step 11652 loss 0.7521
+  [train-gpt2] loss=0.8585 gnorm=4.548
+[train-gpt2] step 11653 loss 0.8585
+  [train-gpt2] loss=0.8598 gnorm=5.832
+[train-gpt2] step 11654 loss 0.8598
+  [train-gpt2] loss=0.8239 gnorm=5.294
+[train-gpt2] step 11655 loss 0.8239
+  [train-gpt2] loss=0.7996 gnorm=4.924
+[train-gpt2] step 11656 loss 0.7996
+  [train-gpt2] loss=0.9030 gnorm=4.054
+[train-gpt2] step 11657 loss 0.9030
+  [train-gpt2] loss=0.8519 gnorm=5.238
+[train-gpt2] step 11658 loss 0.8519
+  [train-gpt2] loss=0.7917 gnorm=5.075
+[train-gpt2] step 11659 loss 0.7917
+  [train-gpt2] loss=0.8377 gnorm=4.484
+[train-gpt2] step 11660 loss 0.8377
+  [train-gpt2] loss=0.9843 gnorm=4.231
+[train-gpt2] step 11661 loss 0.9843
+  [train-gpt2] loss=0.8700 gnorm=4.696
+[train-gpt2] step 11662 loss 0.8700
+  [train-gpt2] loss=0.8043 gnorm=4.414
+[train-gpt2] step 11663 loss 0.8043
+  [train-gpt2] loss=0.7774 gnorm=5.078
+[train-gpt2] step 11664 loss 0.7774
+  [train-gpt2] loss=0.9520 gnorm=4.686
+[train-gpt2] step 11665 loss 0.9520
+  [train-gpt2] loss=0.9213 gnorm=5.846
+[train-gpt2] step 11666 loss 0.9213
+  [train-gpt2] loss=0.8218 gnorm=4.444
+[train-gpt2] step 11667 loss 0.8218
+  [train-gpt2] loss=0.8293 gnorm=4.521
+[train-gpt2] step 11668 loss 0.8293
+  [train-gpt2] loss=0.8987 gnorm=5.344
+[train-gpt2] step 11669 loss 0.8987
+  [train-gpt2] loss=0.7744 gnorm=5.404
+[train-gpt2] step 11670 loss 0.7744
+  [train-gpt2] loss=0.7915 gnorm=4.908
+[train-gpt2] step 11671 loss 0.7915
+  [train-gpt2] loss=0.9198 gnorm=5.254
+[train-gpt2] step 11672 loss 0.9198
+  [train-gpt2] loss=0.8429 gnorm=4.105
+[train-gpt2] step 11673 loss 0.8429
+  [train-gpt2] loss=0.9150 gnorm=4.685
+[train-gpt2] step 11674 loss 0.9150
+  [train-gpt2] loss=0.8115 gnorm=5.979
+[train-gpt2] step 11675 loss 0.8115
+  [train-gpt2] loss=0.9356 gnorm=4.845
+[train-gpt2] step 11676 loss 0.9356
+  [train-gpt2] loss=0.9223 gnorm=5.196
+[train-gpt2] step 11677 loss 0.9223
+  [train-gpt2] loss=0.9127 gnorm=6.749
+[train-gpt2] step 11678 loss 0.9127
+  [train-gpt2] loss=0.8319 gnorm=5.164
+[train-gpt2] step 11679 loss 0.8319
+  [train-gpt2] loss=0.8655 gnorm=4.812
+[train-gpt2] step 11680 loss 0.8655
+  [train-gpt2] loss=0.8386 gnorm=4.113
+[train-gpt2] step 11681 loss 0.8386
+  [train-gpt2] loss=0.8352 gnorm=4.466
+[train-gpt2] step 11682 loss 0.8352
+  [train-gpt2] loss=0.7769 gnorm=4.486
+[train-gpt2] step 11683 loss 0.7769
+  [train-gpt2] loss=0.8976 gnorm=6.880
+[train-gpt2] step 11684 loss 0.8976
+  [train-gpt2] loss=0.9124 gnorm=3.987
+[train-gpt2] step 11685 loss 0.9124
+  [train-gpt2] loss=0.8491 gnorm=4.457
+[train-gpt2] step 11686 loss 0.8491
+  [train-gpt2] loss=0.9799 gnorm=6.644
+[train-gpt2] step 11687 loss 0.9799
+  [train-gpt2] loss=0.8933 gnorm=4.883
+[train-gpt2] step 11688 loss 0.8933
+  [train-gpt2] loss=0.9111 gnorm=4.693
+[train-gpt2] step 11689 loss 0.9111
+  [train-gpt2] loss=0.7817 gnorm=4.030
+[train-gpt2] step 11690 loss 0.7817
+  [train-gpt2] loss=0.8250 gnorm=4.745
+[train-gpt2] step 11691 loss 0.8250
+  [train-gpt2] loss=0.7556 gnorm=6.331
+[train-gpt2] step 11692 loss 0.7556
+  [train-gpt2] loss=0.7822 gnorm=4.406
+[train-gpt2] step 11693 loss 0.7822
+  [train-gpt2] loss=0.8532 gnorm=5.208
+[train-gpt2] step 11694 loss 0.8532
+  [train-gpt2] loss=0.9992 gnorm=5.136
+[train-gpt2] step 11695 loss 0.9992
+  [train-gpt2] loss=0.9109 gnorm=4.418
+[train-gpt2] step 11696 loss 0.9109
+  [train-gpt2] loss=0.8727 gnorm=3.995
+[train-gpt2] step 11697 loss 0.8727
+  [train-gpt2] loss=0.8262 gnorm=4.179
+[train-gpt2] step 11698 loss 0.8262
+  [train-gpt2] loss=0.8288 gnorm=4.583
+[train-gpt2] step 11699 loss 0.8288
+  [train-gpt2] loss=0.8576 gnorm=5.298
+[train-gpt2] step 11700 loss 0.8576
+  [train-gpt2] loss=0.8751 gnorm=5.754
+[train-gpt2] step 11701 loss 0.8751
+  [train-gpt2] loss=0.9111 gnorm=5.209
+[train-gpt2] step 11702 loss 0.9111
+  [train-gpt2] loss=0.8764 gnorm=5.905
+[train-gpt2] step 11703 loss 0.8764
+  [train-gpt2] loss=0.8484 gnorm=5.379
+[train-gpt2] step 11704 loss 0.8484
+  [train-gpt2] loss=0.9020 gnorm=4.981
+[train-gpt2] step 11705 loss 0.9020
+  [train-gpt2] loss=0.8331 gnorm=5.093
+[train-gpt2] step 11706 loss 0.8331
+  [train-gpt2] loss=0.8831 gnorm=5.605
+[train-gpt2] step 11707 loss 0.8831
+  [train-gpt2] loss=0.8858 gnorm=3.668
+[train-gpt2] step 11708 loss 0.8858
+  [train-gpt2] loss=0.9209 gnorm=4.561
+[train-gpt2] step 11709 loss 0.9209
+  [train-gpt2] loss=0.8514 gnorm=4.972
+[train-gpt2] step 11710 loss 0.8514
+  [train-gpt2] loss=0.8812 gnorm=5.900
+[train-gpt2] step 11711 loss 0.8812
+  [train-gpt2] loss=0.8358 gnorm=4.720
+[train-gpt2] step 11712 loss 0.8358
+  [train-gpt2] loss=0.9017 gnorm=4.919
+[train-gpt2] step 11713 loss 0.9017
+  [train-gpt2] loss=0.9156 gnorm=5.221
+[train-gpt2] step 11714 loss 0.9156
+  [train-gpt2] loss=0.8371 gnorm=4.480
+[train-gpt2] step 11715 loss 0.8371
+  [train-gpt2] loss=0.9688 gnorm=4.839
+[train-gpt2] step 11716 loss 0.9688
+  [train-gpt2] loss=0.8068 gnorm=4.345
+[train-gpt2] step 11717 loss 0.8068
+  [train-gpt2] loss=0.8179 gnorm=4.456
+[train-gpt2] step 11718 loss 0.8179
+  [train-gpt2] loss=0.9225 gnorm=4.892
+[train-gpt2] step 11719 loss 0.9225
+  [train-gpt2] loss=0.8932 gnorm=5.081
+[train-gpt2] step 11720 loss 0.8932
+  [train-gpt2] loss=0.8573 gnorm=5.284
+[train-gpt2] step 11721 loss 0.8573
+  [train-gpt2] loss=0.8555 gnorm=5.329
+[train-gpt2] step 11722 loss 0.8555
+  [train-gpt2] loss=0.8839 gnorm=5.554
+[train-gpt2] step 11723 loss 0.8839
+  [train-gpt2] loss=0.8899 gnorm=5.352
+[train-gpt2] step 11724 loss 0.8899
+  [train-gpt2] loss=0.8314 gnorm=5.431
+[train-gpt2] step 11725 loss 0.8314
+  [train-gpt2] loss=0.8342 gnorm=4.474
+[train-gpt2] step 11726 loss 0.8342
+  [train-gpt2] loss=0.8673 gnorm=4.825
+[train-gpt2] step 11727 loss 0.8673
+  [train-gpt2] loss=0.8461 gnorm=5.784
+[train-gpt2] step 11728 loss 0.8461
+  [train-gpt2] loss=0.8857 gnorm=5.335
+[train-gpt2] step 11729 loss 0.8857
+  [train-gpt2] loss=0.8550 gnorm=5.332
+[train-gpt2] step 11730 loss 0.8550
+  [train-gpt2] loss=0.8686 gnorm=4.927
+[train-gpt2] step 11731 loss 0.8686
+  [train-gpt2] loss=0.8739 gnorm=6.682
+[train-gpt2] step 11732 loss 0.8739
+  [train-gpt2] loss=0.8473 gnorm=4.318
+[train-gpt2] step 11733 loss 0.8473
+  [train-gpt2] loss=0.7530 gnorm=5.308
+[train-gpt2] step 11734 loss 0.7530
+  [train-gpt2] loss=0.8076 gnorm=6.677
+[train-gpt2] step 11735 loss 0.8076
+  [train-gpt2] loss=0.9863 gnorm=4.070
+[train-gpt2] step 11736 loss 0.9863
+  [train-gpt2] loss=0.9015 gnorm=5.391
+[train-gpt2] step 11737 loss 0.9015
+  [train-gpt2] loss=0.9531 gnorm=4.491
+[train-gpt2] step 11738 loss 0.9531
+  [train-gpt2] loss=0.6984 gnorm=4.872
+[train-gpt2] step 11739 loss 0.6984
+  [train-gpt2] loss=0.8736 gnorm=5.097
+[train-gpt2] step 11740 loss 0.8736
+  [train-gpt2] loss=0.8368 gnorm=5.033
+[train-gpt2] step 11741 loss 0.8368
+  [train-gpt2] loss=0.7201 gnorm=4.160
+[train-gpt2] step 11742 loss 0.7201
+  [train-gpt2] loss=0.8675 gnorm=4.734
+[train-gpt2] step 11743 loss 0.8675
+  [train-gpt2] loss=0.9175 gnorm=5.062
+[train-gpt2] step 11744 loss 0.9175
+  [train-gpt2] loss=0.8918 gnorm=5.495
+[train-gpt2] step 11745 loss 0.8918
+  [train-gpt2] loss=0.9098 gnorm=4.607
+[train-gpt2] step 11746 loss 0.9098
+  [train-gpt2] loss=0.8498 gnorm=5.204
+[train-gpt2] step 11747 loss 0.8498
+  [train-gpt2] loss=0.8679 gnorm=4.125
+[train-gpt2] step 11748 loss 0.8679
+  [train-gpt2] loss=0.8384 gnorm=4.802
+[train-gpt2] step 11749 loss 0.8384
+  [train-gpt2] loss=0.9806 gnorm=3.899
+[train-gpt2] step 11750 loss 0.9806
+  [train-gpt2] loss=0.9386 gnorm=4.386
+[train-gpt2] step 11751 loss 0.9386
+  [train-gpt2] loss=0.7986 gnorm=4.563
+[train-gpt2] step 11752 loss 0.7986
+  [train-gpt2] loss=0.9345 gnorm=5.805
+[train-gpt2] step 11753 loss 0.9345
+  [train-gpt2] loss=0.8866 gnorm=4.863
+[train-gpt2] step 11754 loss 0.8866
+  [train-gpt2] loss=0.8121 gnorm=5.478
+[train-gpt2] step 11755 loss 0.8121
+  [train-gpt2] loss=0.8814 gnorm=5.977
+[train-gpt2] step 11756 loss 0.8814
+  [train-gpt2] loss=0.8849 gnorm=4.738
+[train-gpt2] step 11757 loss 0.8849
+  [train-gpt2] loss=0.8258 gnorm=5.216
+[train-gpt2] step 11758 loss 0.8258
+  [train-gpt2] loss=0.8277 gnorm=4.897
+[train-gpt2] step 11759 loss 0.8277
+  [train-gpt2] loss=0.8189 gnorm=5.968
+[train-gpt2] step 11760 loss 0.8189
+  [train-gpt2] loss=0.9366 gnorm=5.163
+[train-gpt2] step 11761 loss 0.9366
+  [train-gpt2] loss=0.8303 gnorm=5.083
+[train-gpt2] step 11762 loss 0.8303
+  [train-gpt2] loss=0.8724 gnorm=5.728
+[train-gpt2] step 11763 loss 0.8724
+  [train-gpt2] loss=0.9306 gnorm=4.983
+[train-gpt2] step 11764 loss 0.9306
+  [train-gpt2] loss=0.8074 gnorm=5.264
+[train-gpt2] step 11765 loss 0.8074
+  [train-gpt2] loss=0.9625 gnorm=5.186
+[train-gpt2] step 11766 loss 0.9625
+  [train-gpt2] loss=0.9427 gnorm=5.422
+[train-gpt2] step 11767 loss 0.9427
+  [train-gpt2] loss=0.9391 gnorm=7.229
+[train-gpt2] step 11768 loss 0.9391
+  [train-gpt2] loss=0.8502 gnorm=6.236
+[train-gpt2] step 11769 loss 0.8502
+  [train-gpt2] loss=0.8700 gnorm=5.701
+[train-gpt2] step 11770 loss 0.8700
+  [train-gpt2] loss=0.8151 gnorm=5.330
+[train-gpt2] step 11771 loss 0.8151
+  [train-gpt2] loss=0.9215 gnorm=6.675
+[train-gpt2] step 11772 loss 0.9215
+  [train-gpt2] loss=0.7301 gnorm=5.595
+[train-gpt2] step 11773 loss 0.7301
+  [train-gpt2] loss=0.8708 gnorm=5.380
+[train-gpt2] step 11774 loss 0.8708
+  [train-gpt2] loss=0.8647 gnorm=5.731
+[train-gpt2] step 11775 loss 0.8647
+  [train-gpt2] loss=0.8848 gnorm=5.445
+[train-gpt2] step 11776 loss 0.8848
+  [train-gpt2] loss=0.7902 gnorm=4.620
+[train-gpt2] step 11777 loss 0.7902
+  [train-gpt2] loss=0.8854 gnorm=5.786
+[train-gpt2] step 11778 loss 0.8854
+  [train-gpt2] loss=0.8196 gnorm=5.254
+[train-gpt2] step 11779 loss 0.8196
+  [train-gpt2] loss=0.7301 gnorm=5.595
+[train-gpt2] step 11780 loss 0.7301
+  [train-gpt2] loss=0.8358 gnorm=5.464
+[train-gpt2] step 11781 loss 0.8358
+  [train-gpt2] loss=0.8514 gnorm=5.327
+[train-gpt2] step 11782 loss 0.8514
+  [train-gpt2] loss=0.8111 gnorm=5.386
+[train-gpt2] step 11783 loss 0.8111
+  [train-gpt2] loss=0.8522 gnorm=5.336
+[train-gpt2] step 11784 loss 0.8522
+  [train-gpt2] loss=0.9306 gnorm=5.655
+[train-gpt2] step 11785 loss 0.9306
+  [train-gpt2] loss=0.9595 gnorm=4.846
+[train-gpt2] step 11786 loss 0.9595
+  [train-gpt2] loss=0.7980 gnorm=5.228
+[train-gpt2] step 11787 loss 0.7980
+  [train-gpt2] loss=0.8501 gnorm=6.236
+[train-gpt2] step 11788 loss 0.8501
+  [train-gpt2] loss=0.8615 gnorm=4.906
+[train-gpt2] step 11789 loss 0.8615
+  [train-gpt2] loss=0.9112 gnorm=4.827
+[train-gpt2] step 11790 loss 0.9112
+  [train-gpt2] loss=0.8430 gnorm=5.265
+[train-gpt2] step 11791 loss 0.8430
+  [train-gpt2] loss=0.7969 gnorm=4.327
+[train-gpt2] step 11792 loss 0.7969
+  [train-gpt2] loss=0.9047 gnorm=5.028
+[train-gpt2] step 11793 loss 0.9047
+  [train-gpt2] loss=0.9619 gnorm=5.308
+[train-gpt2] step 11794 loss 0.9619
+  [train-gpt2] loss=0.8759 gnorm=5.590
+[train-gpt2] step 11795 loss 0.8759
+  [train-gpt2] loss=0.8593 gnorm=4.432
+[train-gpt2] step 11796 loss 0.8593
+  [train-gpt2] loss=0.9296 gnorm=5.701
+[train-gpt2] step 11797 loss 0.9296
+  [train-gpt2] loss=0.9211 gnorm=4.810
+[train-gpt2] step 11798 loss 0.9211
+  [train-gpt2] loss=0.9929 gnorm=4.493
+[train-gpt2] step 11799 loss 0.9929
+  [train-gpt2] loss=0.8382 gnorm=5.805
+[train-gpt2] step 11800 loss 0.8382
+  [train-gpt2] loss=0.8690 gnorm=5.478
+[train-gpt2] step 11801 loss 0.8690
+  [train-gpt2] loss=0.9168 gnorm=4.855
+[train-gpt2] step 11802 loss 0.9168
+  [train-gpt2] loss=0.8698 gnorm=4.694
+[train-gpt2] step 11803 loss 0.8698
+  [train-gpt2] loss=0.8610 gnorm=5.741
+[train-gpt2] step 11804 loss 0.8610
+  [train-gpt2] loss=0.8345 gnorm=4.105
+[train-gpt2] step 11805 loss 0.8345
+  [train-gpt2] loss=0.8677 gnorm=5.238
+[train-gpt2] step 11806 loss 0.8677
+  [train-gpt2] loss=0.7901 gnorm=4.422
+[train-gpt2] step 11807 loss 0.7901
+  [train-gpt2] loss=0.8756 gnorm=5.683
+[train-gpt2] step 11808 loss 0.8756
+  [train-gpt2] loss=0.9089 gnorm=4.420
+[train-gpt2] step 11809 loss 0.9089
+  [train-gpt2] loss=0.8999 gnorm=6.910
+[train-gpt2] step 11810 loss 0.8999
+  [train-gpt2] loss=0.7901 gnorm=4.422
+[train-gpt2] step 11811 loss 0.7901
+  [train-gpt2] loss=0.8634 gnorm=5.193
+[train-gpt2] step 11812 loss 0.8634
+  [train-gpt2] loss=0.8785 gnorm=3.993
+[train-gpt2] step 11813 loss 0.8785
+  [train-gpt2] loss=0.8694 gnorm=5.470
+[train-gpt2] step 11814 loss 0.8694
+  [train-gpt2] loss=0.8289 gnorm=5.256
+[train-gpt2] step 11815 loss 0.8289
+  [train-gpt2] loss=0.9516 gnorm=4.605
+[train-gpt2] step 11816 loss 0.9516
+  [train-gpt2] loss=0.8922 gnorm=4.586
+[train-gpt2] step 11817 loss 0.8922
+  [train-gpt2] loss=0.8411 gnorm=4.163
+[train-gpt2] step 11818 loss 0.8411
+  [train-gpt2] loss=0.8566 gnorm=4.280
+[train-gpt2] step 11819 loss 0.8566
+  [train-gpt2] loss=0.8258 gnorm=5.207
+[train-gpt2] step 11820 loss 0.8258
+  [train-gpt2] loss=0.8537 gnorm=4.761
+[train-gpt2] step 11821 loss 0.8537
+  [train-gpt2] loss=0.9228 gnorm=4.632
+[train-gpt2] step 11822 loss 0.9228
+  [train-gpt2] loss=0.8546 gnorm=5.126
+[train-gpt2] step 11823 loss 0.8546
+  [train-gpt2] loss=0.8525 gnorm=4.725
+[train-gpt2] step 11824 loss 0.8525
+  [train-gpt2] loss=0.8739 gnorm=5.097
+[train-gpt2] step 11825 loss 0.8739
+  [train-gpt2] loss=0.7813 gnorm=6.605
+[train-gpt2] step 11826 loss 0.7813
+  [train-gpt2] loss=0.9366 gnorm=4.632
+[train-gpt2] step 11827 loss 0.9366
+  [train-gpt2] loss=0.9696 gnorm=4.582
+[train-gpt2] step 11828 loss 0.9696
+  [train-gpt2] loss=0.8349 gnorm=4.246
+[train-gpt2] step 11829 loss 0.8349
+  [train-gpt2] loss=0.9260 gnorm=4.796
+[train-gpt2] step 11830 loss 0.9260
+  [train-gpt2] loss=0.8102 gnorm=5.129
+[train-gpt2] step 11831 loss 0.8102
+  [train-gpt2] loss=0.9414 gnorm=4.680
+[train-gpt2] step 11832 loss 0.9414
+  [train-gpt2] loss=0.8257 gnorm=5.835
+[train-gpt2] step 11833 loss 0.8257
+  [train-gpt2] loss=0.8569 gnorm=5.042
+[train-gpt2] step 11834 loss 0.8569
+  [train-gpt2] loss=0.8609 gnorm=5.740
+[train-gpt2] step 11835 loss 0.8609
+  [train-gpt2] loss=0.8894 gnorm=5.322
+[train-gpt2] step 11836 loss 0.8894
+  [train-gpt2] loss=0.8394 gnorm=5.075
+[train-gpt2] step 11837 loss 0.8394
+  [train-gpt2] loss=0.9168 gnorm=5.268
+[train-gpt2] step 11838 loss 0.9168
+  [train-gpt2] loss=0.8385 gnorm=5.083
+[train-gpt2] step 11839 loss 0.8385
+  [train-gpt2] loss=0.8973 gnorm=4.920
+[train-gpt2] step 11840 loss 0.8973
+  [train-gpt2] loss=0.9426 gnorm=4.431
+[train-gpt2] step 11841 loss 0.9426
+  [train-gpt2] loss=0.8691 gnorm=5.258
+[train-gpt2] step 11842 loss 0.8691
+  [train-gpt2] loss=0.9057 gnorm=5.247
+[train-gpt2] step 11843 loss 0.9057
+  [train-gpt2] loss=0.8219 gnorm=5.412
+[train-gpt2] step 11844 loss 0.8219
+  [train-gpt2] loss=0.8330 gnorm=5.093
+[train-gpt2] step 11845 loss 0.8330
+  [train-gpt2] loss=0.8902 gnorm=7.922
+[train-gpt2] step 11846 loss 0.8902
+  [train-gpt2] loss=0.8554 gnorm=5.517
+[train-gpt2] step 11847 loss 0.8554
+  [train-gpt2] loss=0.9057 gnorm=4.748
+[train-gpt2] step 11848 loss 0.9057
+  [train-gpt2] loss=0.8817 gnorm=6.092
+[train-gpt2] step 11849 loss 0.8817
+  [train-gpt2] loss=0.8238 gnorm=4.564
+[train-gpt2] step 11850 loss 0.8238
+  [train-gpt2] loss=0.8918 gnorm=5.394
+[train-gpt2] step 11851 loss 0.8918
+  [train-gpt2] loss=0.8030 gnorm=5.371
+[train-gpt2] step 11852 loss 0.8030
+  [train-gpt2] loss=0.8553 gnorm=5.074
+[train-gpt2] step 11853 loss 0.8553
+  [train-gpt2] loss=0.9392 gnorm=5.296
+[train-gpt2] step 11854 loss 0.9392
+  [train-gpt2] loss=0.8072 gnorm=4.922
+[train-gpt2] step 11855 loss 0.8072
+  [train-gpt2] loss=0.9242 gnorm=4.640
+[train-gpt2] step 11856 loss 0.9242
+  [train-gpt2] loss=0.9411 gnorm=6.471
+[train-gpt2] step 11857 loss 0.9411
+  [train-gpt2] loss=0.8759 gnorm=5.378
+[train-gpt2] step 11858 loss 0.8759
+  [train-gpt2] loss=0.9093 gnorm=7.033
+[train-gpt2] step 11859 loss 0.9093
+  [train-gpt2] loss=0.9601 gnorm=5.178
+[train-gpt2] step 11860 loss 0.9601
+  [train-gpt2] loss=0.9114 gnorm=4.578
+[train-gpt2] step 11861 loss 0.9114
+  [train-gpt2] loss=0.8821 gnorm=4.508
+[train-gpt2] step 11862 loss 0.8821
+  [train-gpt2] loss=0.8267 gnorm=5.392
+[train-gpt2] step 11863 loss 0.8267
+  [train-gpt2] loss=0.8159 gnorm=5.608
+[train-gpt2] step 11864 loss 0.8159
+  [train-gpt2] loss=0.7689 gnorm=4.762
+[train-gpt2] step 11865 loss 0.7689
+  [train-gpt2] loss=0.8765 gnorm=4.692
+[train-gpt2] step 11866 loss 0.8765
+  [train-gpt2] loss=0.8973 gnorm=4.919
+[train-gpt2] step 11867 loss 0.8973
+  [train-gpt2] loss=0.9226 gnorm=5.440
+[train-gpt2] step 11868 loss 0.9226
+  [train-gpt2] loss=0.7589 gnorm=4.178
+[train-gpt2] step 11869 loss 0.7589
+  [train-gpt2] loss=0.9005 gnorm=4.927
+[train-gpt2] step 11870 loss 0.9005
+  [train-gpt2] loss=0.8390 gnorm=4.064
+[train-gpt2] step 11871 loss 0.8390
+  [train-gpt2] loss=0.8425 gnorm=4.971
+[train-gpt2] step 11872 loss 0.8425
+  [train-gpt2] loss=0.8614 gnorm=7.114
+[train-gpt2] step 11873 loss 0.8614
+  [train-gpt2] loss=0.8892 gnorm=4.814
+[train-gpt2] step 11874 loss 0.8892
+  [train-gpt2] loss=0.8794 gnorm=4.790
+[train-gpt2] step 11875 loss 0.8794
+  [train-gpt2] loss=0.8309 gnorm=4.296
+[train-gpt2] step 11876 loss 0.8309
+  [train-gpt2] loss=0.8317 gnorm=5.132
+[train-gpt2] step 11877 loss 0.8317
+  [train-gpt2] loss=0.9360 gnorm=5.052
+[train-gpt2] step 11878 loss 0.9360
+  [train-gpt2] loss=0.8628 gnorm=5.180
+[train-gpt2] step 11879 loss 0.8628
+  [train-gpt2] loss=0.9922 gnorm=4.707
+[train-gpt2] step 11880 loss 0.9922
+  [train-gpt2] loss=0.8364 gnorm=4.380
+[train-gpt2] step 11881 loss 0.8364
+  [train-gpt2] loss=0.8789 gnorm=5.028
+[train-gpt2] step 11882 loss 0.8789
+  [train-gpt2] loss=0.8080 gnorm=4.427
+[train-gpt2] step 11883 loss 0.8080
+  [train-gpt2] loss=0.8440 gnorm=5.396
+[train-gpt2] step 11884 loss 0.8440
+  [train-gpt2] loss=0.8554 gnorm=5.517
+[train-gpt2] step 11885 loss 0.8554
+  [train-gpt2] loss=0.8285 gnorm=4.750
+[train-gpt2] step 11886 loss 0.8285
+  [train-gpt2] loss=0.7900 gnorm=5.038
+[train-gpt2] step 11887 loss 0.7900
+  [train-gpt2] loss=0.8814 gnorm=5.737
+[train-gpt2] step 11888 loss 0.8814
+  [train-gpt2] loss=0.8390 gnorm=4.640
+[train-gpt2] step 11889 loss 0.8390
+  [train-gpt2] loss=0.8801 gnorm=4.376
+[train-gpt2] step 11890 loss 0.8801
+  [train-gpt2] loss=0.8440 gnorm=5.396
+[train-gpt2] step 11891 loss 0.8440
+  [train-gpt2] loss=0.8519 gnorm=5.237
+[train-gpt2] step 11892 loss 0.8519
+  [train-gpt2] loss=0.8710 gnorm=4.736
+[train-gpt2] step 11893 loss 0.8710
+  [train-gpt2] loss=0.8620 gnorm=5.800
+[train-gpt2] step 11894 loss 0.8620
+  [train-gpt2] loss=0.8197 gnorm=5.085
+[train-gpt2] step 11895 loss 0.8197
+  [train-gpt2] loss=0.8190 gnorm=5.505
+[train-gpt2] step 11896 loss 0.8190
+  [train-gpt2] loss=0.8995 gnorm=4.205
+[train-gpt2] step 11897 loss 0.8995
+  [train-gpt2] loss=0.9983 gnorm=4.861
+[train-gpt2] step 11898 loss 0.9983
+  [train-gpt2] loss=0.9005 gnorm=5.162
+[train-gpt2] step 11899 loss 0.9005
+  [train-gpt2] loss=0.8161 gnorm=5.954
+[train-gpt2] step 11900 loss 0.8161
+  [train-gpt2] loss=0.8192 gnorm=4.368
+[train-gpt2] step 11901 loss 0.8192
+  [train-gpt2] loss=0.8598 gnorm=5.210
+[train-gpt2] step 11902 loss 0.8598
+  [train-gpt2] loss=0.9007 gnorm=5.168
+[train-gpt2] step 11903 loss 0.9007
+  [train-gpt2] loss=0.9229 gnorm=5.448
+[train-gpt2] step 11904 loss 0.9229
+  [train-gpt2] loss=0.7527 gnorm=4.059
+[train-gpt2] step 11905 loss 0.7527
+  [train-gpt2] loss=0.8775 gnorm=4.897
+[train-gpt2] step 11906 loss 0.8775
+  [train-gpt2] loss=0.8842 gnorm=4.509
+[train-gpt2] step 11907 loss 0.8842
+  [train-gpt2] loss=0.7656 gnorm=5.561
+[train-gpt2] step 11908 loss 0.7656
+  [train-gpt2] loss=0.8677 gnorm=5.164
+[train-gpt2] step 11909 loss 0.8677
+  [train-gpt2] loss=0.7713 gnorm=4.256
+[train-gpt2] step 11910 loss 0.7713
+  [train-gpt2] loss=0.7294 gnorm=5.182
+[train-gpt2] step 11911 loss 0.7294
+  [train-gpt2] loss=0.8580 gnorm=5.604
+[train-gpt2] step 11912 loss 0.8580
+  [train-gpt2] loss=0.8140 gnorm=4.381
+[train-gpt2] step 11913 loss 0.8140
+  [train-gpt2] loss=0.8727 gnorm=4.667
+[train-gpt2] step 11914 loss 0.8727
+  [train-gpt2] loss=0.8130 gnorm=4.971
+[train-gpt2] step 11915 loss 0.8130
+  [train-gpt2] loss=0.8426 gnorm=5.681
+[train-gpt2] step 11916 loss 0.8426
+  [train-gpt2] loss=0.8666 gnorm=4.177
+[train-gpt2] step 11917 loss 0.8666
+  [train-gpt2] loss=0.9718 gnorm=5.954
+[train-gpt2] step 11918 loss 0.9718
+  [train-gpt2] loss=0.8480 gnorm=4.301
+[train-gpt2] step 11919 loss 0.8480
+  [train-gpt2] loss=0.8009 gnorm=4.674
+[train-gpt2] step 11920 loss 0.8009
+  [train-gpt2] loss=0.8649 gnorm=5.070
+[train-gpt2] step 11921 loss 0.8649
+  [train-gpt2] loss=0.7550 gnorm=4.944
+[train-gpt2] step 11922 loss 0.7550
+  [train-gpt2] loss=0.8478 gnorm=4.914
+[train-gpt2] step 11923 loss 0.8478
+  [train-gpt2] loss=0.7234 gnorm=5.586
+[train-gpt2] step 11924 loss 0.7234
+  [train-gpt2] loss=0.8939 gnorm=6.366
+[train-gpt2] step 11925 loss 0.8939
+  [train-gpt2] loss=0.8232 gnorm=4.289
+[train-gpt2] step 11926 loss 0.8232
+  [train-gpt2] loss=0.9956 gnorm=6.321
+[train-gpt2] step 11927 loss 0.9956
+  [train-gpt2] loss=0.8935 gnorm=3.827
+[train-gpt2] step 11928 loss 0.8935
+  [train-gpt2] loss=0.8867 gnorm=5.225
+[train-gpt2] step 11929 loss 0.8867
+  [train-gpt2] loss=0.8432 gnorm=4.132
+[train-gpt2] step 11930 loss 0.8432
+  [train-gpt2] loss=0.9253 gnorm=5.491
+[train-gpt2] step 11931 loss 0.9253
+  [train-gpt2] loss=0.8763 gnorm=5.825
+[train-gpt2] step 11932 loss 0.8763
+  [train-gpt2] loss=0.9138 gnorm=7.679
+[train-gpt2] step 11933 loss 0.9138
+  [train-gpt2] loss=0.9305 gnorm=5.653
+[train-gpt2] step 11934 loss 0.9305
+  [train-gpt2] loss=0.8886 gnorm=4.499
+[train-gpt2] step 11935 loss 0.8886
+  [train-gpt2] loss=0.8492 gnorm=5.002
+[train-gpt2] step 11936 loss 0.8492
+  [train-gpt2] loss=0.8536 gnorm=4.566
+[train-gpt2] step 11937 loss 0.8536
+  [train-gpt2] loss=0.8101 gnorm=4.821
+[train-gpt2] step 11938 loss 0.8101
+  [train-gpt2] loss=0.9175 gnorm=4.726
+[train-gpt2] step 11939 loss 0.9175
+  [train-gpt2] loss=0.9429 gnorm=5.963
+[train-gpt2] step 11940 loss 0.9429
+  [train-gpt2] loss=0.9573 gnorm=5.540
+[train-gpt2] step 11941 loss 0.9573
+  [train-gpt2] loss=0.8274 gnorm=5.365
+[train-gpt2] step 11942 loss 0.8274
+  [train-gpt2] loss=0.7916 gnorm=5.778
+[train-gpt2] step 11943 loss 0.7916
+  [train-gpt2] loss=0.8917 gnorm=5.361
+[train-gpt2] step 11944 loss 0.8917
+  [train-gpt2] loss=0.9383 gnorm=4.009
+[train-gpt2] step 11945 loss 0.9383
+  [train-gpt2] loss=0.8418 gnorm=4.213
+[train-gpt2] step 11946 loss 0.8418
+  [train-gpt2] loss=0.8391 gnorm=4.801
+[train-gpt2] step 11947 loss 0.8391
+  [train-gpt2] loss=0.8235 gnorm=5.210
+[train-gpt2] step 11948 loss 0.8235
+  [train-gpt2] loss=0.9199 gnorm=6.211
+[train-gpt2] step 11949 loss 0.9199
+  [train-gpt2] loss=0.8812 gnorm=4.990
+[train-gpt2] step 11950 loss 0.8812
+  [train-gpt2] loss=0.8503 gnorm=4.413
+[train-gpt2] step 11951 loss 0.8503
+  [train-gpt2] loss=0.8432 gnorm=4.918
+[train-gpt2] step 11952 loss 0.8432
+  [train-gpt2] loss=0.8047 gnorm=5.067
+[train-gpt2] step 11953 loss 0.8047
+  [train-gpt2] loss=0.8168 gnorm=4.160
+[train-gpt2] step 11954 loss 0.8168
+  [train-gpt2] loss=0.8271 gnorm=5.158
+[train-gpt2] step 11955 loss 0.8271
+  [train-gpt2] loss=0.8959 gnorm=4.868
+[train-gpt2] step 11956 loss 0.8959
+  [train-gpt2] loss=0.7690 gnorm=4.922
+[train-gpt2] step 11957 loss 0.7690
+  [train-gpt2] loss=0.8908 gnorm=5.827
+[train-gpt2] step 11958 loss 0.8908
+  [train-gpt2] loss=0.9450 gnorm=4.852
+[train-gpt2] step 11959 loss 0.9450
+  [train-gpt2] loss=0.9051 gnorm=5.333
+[train-gpt2] step 11960 loss 0.9051
+  [train-gpt2] loss=0.9076 gnorm=5.701
+[train-gpt2] step 11961 loss 0.9076
+  [train-gpt2] loss=0.9229 gnorm=5.448
+[train-gpt2] step 11962 loss 0.9229
+  [train-gpt2] loss=0.8711 gnorm=4.904
+[train-gpt2] step 11963 loss 0.8711
+  [train-gpt2] loss=0.8043 gnorm=4.623
+[train-gpt2] step 11964 loss 0.8043
+  [train-gpt2] loss=0.8823 gnorm=5.088
+[train-gpt2] step 11965 loss 0.8823
+  [train-gpt2] loss=0.7734 gnorm=4.891
+[train-gpt2] step 11966 loss 0.7734
+  [train-gpt2] loss=0.8932 gnorm=7.860
+[train-gpt2] step 11967 loss 0.8932
+  [train-gpt2] loss=0.9074 gnorm=4.598
+[train-gpt2] step 11968 loss 0.9074
+  [train-gpt2] loss=0.8572 gnorm=5.562
+[train-gpt2] step 11969 loss 0.8572
+  [train-gpt2] loss=0.9109 gnorm=5.203
+[train-gpt2] step 11970 loss 0.9109
+  [train-gpt2] loss=0.8181 gnorm=5.189
+[train-gpt2] step 11971 loss 0.8181
+  [train-gpt2] loss=0.8478 gnorm=4.839
+[train-gpt2] step 11972 loss 0.8478
+  [train-gpt2] loss=0.8924 gnorm=4.292
+[train-gpt2] step 11973 loss 0.8924
+  [train-gpt2] loss=0.8943 gnorm=4.871
+[train-gpt2] step 11974 loss 0.8943
+  [train-gpt2] loss=0.8554 gnorm=5.517
+[train-gpt2] step 11975 loss 0.8554
+  [train-gpt2] loss=0.9106 gnorm=6.022
+[train-gpt2] step 11976 loss 0.9106
+  [train-gpt2] loss=0.9305 gnorm=5.653
+[train-gpt2] step 11977 loss 0.9305
+  [train-gpt2] loss=0.7831 gnorm=4.900
+[train-gpt2] step 11978 loss 0.7831
+  [train-gpt2] loss=0.7300 gnorm=5.594
+[train-gpt2] step 11979 loss 0.7300
+  [train-gpt2] loss=0.7978 gnorm=5.961
+[train-gpt2] step 11980 loss 0.7978
+  [train-gpt2] loss=0.9708 gnorm=4.650
+[train-gpt2] step 11981 loss 0.9708
+  [train-gpt2] loss=0.9412 gnorm=4.603
+[train-gpt2] step 11982 loss 0.9412
+  [train-gpt2] loss=0.8859 gnorm=4.954
+[train-gpt2] step 11983 loss 0.8859
+  [train-gpt2] loss=0.7690 gnorm=6.077
+[train-gpt2] step 11984 loss 0.7690
+  [train-gpt2] loss=0.8642 gnorm=6.574
+[train-gpt2] step 11985 loss 0.8642
+  [train-gpt2] loss=0.8044 gnorm=5.009
+[train-gpt2] step 11986 loss 0.8044
+  [train-gpt2] loss=0.9234 gnorm=4.233
+[train-gpt2] step 11987 loss 0.9234
+  [train-gpt2] loss=0.8563 gnorm=6.414
+[train-gpt2] step 11988 loss 0.8563
+  [train-gpt2] loss=0.9362 gnorm=5.754
+[train-gpt2] step 11989 loss 0.9362
+  [train-gpt2] loss=0.8488 gnorm=4.127
+[train-gpt2] step 11990 loss 0.8488
+  [train-gpt2] loss=0.9226 gnorm=5.470
+[train-gpt2] step 11991 loss 0.9226
+  [train-gpt2] loss=0.8867 gnorm=5.225
+[train-gpt2] step 11992 loss 0.8867
+  [train-gpt2] loss=0.7991 gnorm=5.416
+[train-gpt2] step 11993 loss 0.7991
+  [train-gpt2] loss=0.7601 gnorm=4.677
+[train-gpt2] step 11994 loss 0.7601
+  [train-gpt2] loss=0.8650 gnorm=3.948
+[train-gpt2] step 11995 loss 0.8650
+  [train-gpt2] loss=0.8711 gnorm=4.388
+[train-gpt2] step 11996 loss 0.8711
+  [train-gpt2] loss=0.8004 gnorm=4.218
+[train-gpt2] step 11997 loss 0.8004
+  [train-gpt2] loss=0.9068 gnorm=4.986
+[train-gpt2] step 11998 loss 0.9068
+  [train-gpt2] loss=0.8915 gnorm=5.882
+[train-gpt2] checkpoint saved in 3.87s
+[train-gpt2] step 11999 loss 0.8915 (saved ckpt-gpt2-final.nckpt)
+run_capped: exit=0
