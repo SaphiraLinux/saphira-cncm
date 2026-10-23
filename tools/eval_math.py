@@ -99,8 +99,13 @@ def main():
              "--n", str(args.new_tokens), "--temp", "0.0", "--seed", "1"],
             capture_output=True, text=True, timeout=300)
         text = (r.stdout or "") + (r.stderr or "")
-        sm = STEP_RE.search(text)
-        am = ANS_RE.search(text)
+        # drop the "ids: ..." diagnostics line (gen prints ids + text)
+        genlines = [l for l in text.split("\n") if not l.startswith("ids:")]
+        # gpt2-gen prints only the continuation, not the prompt; match on
+        # prompt + generation so the trailing "Step:" anchors the step.
+        full = p + " " + "\n".join(genlines)
+        sm = STEP_RE.search(full)
+        am = ANS_RE.search(full)
         asked = p.split("Solve:")[1].split("=")[0].strip() if "Solve:" in p else ""
         row = by_op.setdefault(op, {"n": 0, "solved": 0})
         row["n"] += 1

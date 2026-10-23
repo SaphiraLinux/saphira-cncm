@@ -55,7 +55,10 @@ def main():
              "--n", str(args.new_tokens), "--temp", "0.0", "--seed", "1"],
             capture_output=True, text=True, timeout=300)
         text = (r.stdout or "") + (r.stderr or "")
-        tail = text.split("Solution:")[-1]
+        # drop the "ids: ..." diagnostics line: its digits would pollute
+        # the cell parser below.
+        genlines = [l for l in text.split("\n") if not l.startswith("ids:")]
+        tail = "\n".join(genlines).split("Solution:")[-1]
         cells = CELL_RE.findall(tail)[:81]
         stat["n"] += 1
         if len(cells) < 81 or "." in cells:

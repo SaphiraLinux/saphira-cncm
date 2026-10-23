@@ -125,8 +125,10 @@ def main():
     ta = os.path.join(args.out, "test_answers.txt")
     with open(tp, "w") as f, open(ta, "w") as g:
         for d, op, a, b, ans in splits["test"]:
-            prob = d.split(" / ")[0]  # "Solve: <expr> = ?"
-            f.write(prob + " / Step:" + "\n")
+            # rebuild from the expression, not by splitting the doc:
+            # docs contain " / " separators AND "/" division signs.
+            expr = d.split("Solve: ")[1].split(" = ?")[0]
+            f.write("Solve: %s = ? / Step:\n" % expr)
             g.write(str(ans) + "\n")
     manifest["files"]["test_prompts"] = tp
     manifest["files"]["test_answers"] = ta
